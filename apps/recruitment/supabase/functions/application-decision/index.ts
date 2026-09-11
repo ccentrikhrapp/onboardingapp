@@ -11,7 +11,7 @@ import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 
-type Action = "start_review" | "advance" | "close" | "request_update";
+type Action = "start_review" | "advance" | "close" | "request_update" | "request_documents";
 
 // Allowed source statuses for each action, and the status it moves to.
 const TRANSITIONS: Record<Action, { from: string[]; to: string }> = {
@@ -19,6 +19,9 @@ const TRANSITIONS: Record<Action, { from: string[]; to: string }> = {
   advance: { from: ["SUBMITTED", "TA_REVIEW"], to: "INTERVIEW_PLANNING" },
   close: { from: ["SUBMITTED", "TA_REVIEW", "RETURNED"], to: "REJECTED" },
   request_update: { from: ["SUBMITTED", "TA_REVIEW"], to: "RETURNED" },
+  // All required interview rounds cleared -> unlock the pre-offer document
+  // checklist (docs/requirements/03-*.md §11 step 3).
+  request_documents: { from: ["INTERVIEW_PASSED"], to: "DOC_VERIFICATION" },
 };
 
 Deno.serve(async (req) => {
@@ -104,7 +107,51 @@ Deno.serve(async (req) => {
   const jobTitle = (app.jobs as any)?.title ?? "the role";
   const appLink = siteUrl("/candidate/application");
 
-  const META: Record<Exclude<Action, "start_review">, {
+  // Unlocking pre-offer documents needs its own side effects (create the
+  // requirement rows), so it's handled separately from the generic table below.
+  if (action === "request_documents") {
+    const { data: requirements } = await svc
+      .from("document_requirements")
+      .select("id")
+      .eq("stage", "pre_offer")
+      .eq("active", true);
+    for (const r of requirements ?? []) {
+      await svc.from("application_documents").insert({
+        application_id: app.id,
+        requirement_id: r.id,
+        status: "requested",
+      });
+    }
+
+    await addEvent(svc, {
+      application_id: app.id, type: "documents", title: "Pre-Offer Documents Requested",
+      description: "All required interview rounds cleared — pre-offer document checklist unlocked.",
+      actor_profile_id: profile.id, actor_label: profile.full_name ?? "Talent Acquisition",
+    });
+    await audit(svc, {
+      actor_profile_id: profile.id, action: "application.request_documents",
+      entity_type: "application", entity_id: app.id,
+      previous_state: { status: app.status }, new_state: { status: rule.to },
+    });
+    await notify(svc, {
+      recipient_profile_id: candidate?.profile_id ?? null,
+      title: "Documents requested", message: `Please submit your pre-offer documents for ${jobTitle}.`,
+      type: "documents_requested", entity_type: "application", entity_id: app.id,
+    });
+    if (candidate?.email) {
+      const mail = render("documents_requested", {
+        candidate_name: candidateName, job_title: jobTitle,
+        document_link: siteUrl("/candidate/application"),
+      });
+      await queueEmail(svc, {
+        recipient: candidate.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
+        template: "documents_requested", entity_type: "application", entity_id: app.id,
+      });
+    }
+    return ok({ status: rule.to });
+  }
+
+  const META: Record<Exclude<Action, "start_review" | "request_documents">, {
     eventTitle: string;
     eventDesc: string;
     notifyTitle: string;
@@ -133,7 +180,7 @@ Deno.serve(async (req) => {
       template: "application_update_required",
     },
   };
-  const m = META[action as Exclude<Action, "start_review">];
+  const m = META[action as Exclude<Action, "start_review" | "request_documents">];
 
   await addEvent(svc, {
     application_id: app.id,

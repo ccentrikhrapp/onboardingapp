@@ -7,7 +7,10 @@ import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
 import ReasonModal from '../../components/workflow/ReasonModal.jsx';
+import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewModal.jsx';
+import InterviewFeedbackModal from '../../components/workflow/InterviewFeedbackModal.jsx';
 import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi } from '../../api/applications.js';
+import { listInterviewRounds, scheduleInterview, recordInterviewFeedback } from '../../api/interviews.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import {
@@ -17,6 +20,13 @@ import {
   stageBadgeForStatus,
 } from '../../constants/statuses.js';
 import { formatDate, formatCurrencyINR } from '../../utils/format.js';
+
+const IN_INTERVIEW = [
+  APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS,
+  APP_STATUS.INTERVIEW_PASSED, APP_STATUS.INTERVIEW_FAILED,
+];
+const ROUND_DECISION_LABEL = { advance: 'Advance', further_review: 'Further Review', not_progressing: 'Not Moving Forward' };
+const ROUND_DECISION_TONE = { advance: 'green', further_review: 'amber', not_progressing: 'red' };
 
 function Info({ label, value }) {
   return (
@@ -71,9 +81,17 @@ export default function TACandidateDetailPage() {
   }, [candidateId]);
 
   const app = remote.app;
-  const [modal, setModal] = useState(null); // 'return' | 'reject'
+  const [modal, setModal] = useState(null); // 'return' | 'reject' | 'schedule'
   const [showAllAct, setShowAllAct] = useState(false);
   const [tab, setTab] = useState('overview'); // overview | contact | experience | skills
+  const [rounds, setRounds] = useState([]);
+  const [feedbackFor, setFeedbackFor] = useState(null); // round being scored
+  const [busy, setBusy] = useState(false);
+
+  const reloadRounds = () => {
+    if (candidateId) listInterviewRounds(candidateId).then(setRounds).catch(() => setRounds([]));
+  };
+  useEffect(reloadRounds, [candidateId]);
 
   // Keep the Activity card no taller than the workflow column beside it.
   const leftColRef = useRef(null);
@@ -123,6 +141,36 @@ export default function TACandidateDetailPage() {
       toast.success(msg);
     } catch (e) {
       toast.error(e.message || 'Could not complete that action.');
+    }
+  };
+
+  const doSchedule = async (payload) => {
+    setBusy(true);
+    try {
+      await scheduleInterview({ applicationId: app.id, ...payload });
+      setModal(null);
+      toast.success('Interview scheduled.');
+      reloadRounds();
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not schedule the interview.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doFeedback = async (payload) => {
+    setBusy(true);
+    try {
+      await recordInterviewFeedback({ roundId: feedbackFor.id, ...payload });
+      setFeedbackFor(null);
+      toast.success('Feedback saved.');
+      reloadRounds();
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not save the feedback.');
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -251,9 +299,67 @@ export default function TACandidateDetailPage() {
             ) : rejected ? (
               <p className="ta-cell-sub">Application was not taken forward{app.rejectReason ? `: ${app.rejectReason}` : '.'}</p>
             ) : (
-              <p className="ta-cell-sub">Advanced — interview scheduling, document verification and offers are not available in this build yet.</p>
+              <p className="ta-cell-sub">Approved — the candidate has moved forward to interviews.</p>
             )}
           </Card>
+
+          {(IN_INTERVIEW.includes(app.status) || app.status === APP_STATUS.DOC_VERIFICATION) && (
+            <Card
+              title="Interview process"
+              action={
+                [APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS, APP_STATUS.INTERVIEW_PASSED].includes(app.status) && (
+                  <Button variant="ghost" icon="CalendarPlus" onClick={() => setModal('schedule')}>Schedule round</Button>
+                )
+              }
+            >
+              {rounds.length === 0 ? (
+                <p className="ta-cell-sub">No round scheduled yet — use <b>Schedule round</b> to set up the first interview.</p>
+              ) : (
+                <div className="ta-stack">
+                  {rounds.map((r) => {
+                    const feedback = r.interview_feedback?.[0];
+                    const panel = (r.interview_assignments || []).map((a) => a.interview_panelists?.name).filter(Boolean);
+                    return (
+                      <div className="ta-round" key={r.id}>
+                        <div className="ta-round__head">
+                          <span className="ta-cell-strong">Round {r.round_number} · {r.name}</span>
+                          {feedback ? (
+                            <Tag tone={ROUND_DECISION_TONE[feedback.decision]}>{ROUND_DECISION_LABEL[feedback.decision]}</Tag>
+                          ) : (
+                            <Tag tone="blue">Scheduled</Tag>
+                          )}
+                        </div>
+                        <div className="ta-cell-sub">
+                          {formatDate(r.scheduled_at)} {new Date(r.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                          {panel.length > 0 ? ` · Panel: ${panel.join(', ')}` : ''}
+                        </div>
+                        {feedback && (
+                          <div className="ta-cell-sub" style={{ marginTop: 4 }}>Remarks: {feedback.remarks}</div>
+                        )}
+                        {!feedback && r.status === 'scheduled' && (
+                          <div style={{ marginTop: 8 }}>
+                            <Button variant="ghost" icon="ClipboardCheck" onClick={() => setFeedbackFor(r)}>Record feedback</Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {app.status === APP_STATUS.INTERVIEW_PASSED && (
+                    <div style={{ marginTop: 4 }}>
+                      <Button icon="ArrowRight" onClick={() => decide('request_documents', null, 'Pre-offer document checklist unlocked for the candidate.')}>
+                        Proceed to document verification
+                      </Button>
+                    </div>
+                  )}
+                  {app.status === APP_STATUS.DOC_VERIFICATION && (
+                    <p className="ta-cell-sub" style={{ marginTop: 4 }}>
+                      Pre-offer documents requested — the candidate is uploading, and HR verifies each one. You'll be notified once verification is complete.
+                    </p>
+                  )}
+                </div>
+              )}
+            </Card>
+          )}
         </div>
 
         <div
@@ -302,6 +408,14 @@ export default function TACandidateDetailPage() {
         open={modal === 'reject'} onClose={() => setModal(null)}
         title="Close application" label="Reason (internal)" confirmLabel="Close application" tone="danger"
         onSubmit={(reason) => { setModal(null); decide('close', reason, 'Application closed.'); }}
+      />
+      <ScheduleInterviewModal
+        open={modal === 'schedule'} onClose={() => setModal(null)}
+        roundNumber={rounds.length + 1} busy={busy} onSchedule={doSchedule}
+      />
+      <InterviewFeedbackModal
+        open={!!feedbackFor} onClose={() => setFeedbackFor(null)}
+        round={feedbackFor} busy={busy} onSubmit={doFeedback}
       />
     </>
   );

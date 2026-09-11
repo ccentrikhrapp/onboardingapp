@@ -108,6 +108,82 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     ),
     text: `Hi ${v.candidate_name},\n\nAll required documents for ${v.job_title} have been verified.\n\n— Ccentrik`,
   }),
+
+  interview_scheduled: (v) => ({
+    subject: `Interview scheduled — ${v.job_title}`,
+    html: shell(
+      "Your interview is scheduled",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>Your <strong>${v.round_name}</strong> for <strong>${v.job_title}</strong> is scheduled.</p>
+       <div style="background:#f4f6ff;border:1px solid #dbe3ff;border-radius:8px;padding:12px 14px;font-size:14px">
+         <div><strong>Round:</strong> ${v.round_name}</div>
+         <div><strong>When:</strong> ${v.when}</div>
+         ${v.meeting_info ? `<div><strong>Where:</strong> ${v.meeting_info}</div>` : ""}
+       </div>
+       ${v.instructions ? `<p style="font-size:13px;color:#6b7280">${v.instructions}</p>` : ""}
+       ${button("View your application", v.application_link)}`,
+    ),
+    text: `Hi ${v.candidate_name},\n\n${v.round_name} for ${v.job_title} is scheduled: ${v.when}${v.meeting_info ? ` (${v.meeting_info})` : ""}.\n\n— Ccentrik`,
+  }),
+
+  interview_scheduled_panelist: (v) => ({
+    subject: `Interview panel — ${v.candidate_name} for ${v.job_title}`,
+    html: shell(
+      "You've been added to an interview panel",
+      `<p>Hi ${v.panelist_name},</p>
+       <p>You've been added to the panel for <strong>${v.round_name}</strong> — ${v.candidate_name} for <strong>${v.job_title}</strong>.</p>
+       <div style="background:#f4f6ff;border:1px solid #dbe3ff;border-radius:8px;padding:12px 14px;font-size:14px">
+         <div><strong>When:</strong> ${v.when}</div>
+         ${v.meeting_info ? `<div><strong>Where:</strong> ${v.meeting_info}</div>` : ""}
+       </div>`,
+    ),
+    text: `Hi ${v.panelist_name},\n\nYou're on the panel for ${v.round_name} — ${v.candidate_name} (${v.job_title}) at ${v.when}.\n\n— Ccentrik`,
+  }),
+
+  interview_advance: (v) => ({
+    subject: `Interview update — ${v.job_title}`,
+    html: shell(
+      "You've moved forward",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>Good news — you've cleared <strong>${v.round_name}</strong> for <strong>${v.job_title}</strong>. We'll follow up with next steps.</p>`,
+    ),
+    text: `Hi ${v.candidate_name},\n\nYou've cleared ${v.round_name} for ${v.job_title}.\n\n— Ccentrik`,
+  }),
+
+  interview_not_progressing: (v) => ({
+    subject: `Interview update — ${v.job_title}`,
+    html: shell(
+      "Interview update",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>Thank you for the time you invested in the interview process for <strong>${v.job_title}</strong>. We won't be moving forward on this occasion.</p>
+       <p>We'd be glad to consider you for future roles that match your experience.</p>`,
+    ),
+    text: `Hi ${v.candidate_name},\n\nWe won't be moving forward with your application for ${v.job_title}.\n\n— Ccentrik`,
+  }),
+
+  offer_sent: (v) => ({
+    subject: `Your offer — ${v.job_title}`,
+    html: shell(
+      "We're pleased to offer you this role",
+      `<p>Dear ${v.candidate_name},</p>
+       <p>We are pleased to share your offer for the position of <strong>${v.job_title}</strong>.</p>
+       ${v.note ? `<p style="white-space:pre-wrap">${v.note}</p>` : ""}
+       <p>Please review the attached offer letter and use the link below to review and respond.</p>
+       ${button("Review your offer", v.offer_link)}
+       <p>Regards,<br/>C-Centrik Talent Acquisition Team</p>`,
+    ),
+    text: `Dear ${v.candidate_name},\n\nYour offer for ${v.job_title} is ready: ${v.offer_link}\n\n— C-Centrik Talent Acquisition Team`,
+  }),
+
+  offer_accepted_ack: (v) => ({
+    subject: `Offer accepted — ${v.job_title}`,
+    html: shell(
+      "Your acceptance is confirmed",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>Thanks for accepting the offer for <strong>${v.job_title}</strong>. Our HR team will be in touch shortly to begin onboarding.</p>`,
+    ),
+    text: `Hi ${v.candidate_name},\n\nYour acceptance for ${v.job_title} is confirmed. HR will be in touch to begin onboarding.\n\n— Ccentrik`,
+  }),
 };
 
 export function render(template: string, vars: Vars) {
