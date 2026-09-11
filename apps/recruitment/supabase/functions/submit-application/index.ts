@@ -6,7 +6,9 @@
 // Body: {
 //   jobId?, linkToken?, source?,
 //   personal, professional, education, additional, autofilled,
-//   resumePath, resumeMeta
+//   resumePath, resumeMeta,
+//   documents?: [{ requirementId, requirementKey, path, fileName, mimeType,
+//                   sizeBytes, cannotProvide, reason }]
 // }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
@@ -119,6 +121,41 @@ Deno.serve(async (req) => {
     }
   }
 
+  // --- application-stage document requirements ---------------------------
+  const { data: requirements } = await svc
+    .from("document_requirements")
+    .select("*")
+    .eq("stage", "application")
+    .eq("active", true);
+
+  const submittedDocs: Record<string, any> = {};
+  for (const d of body.documents ?? []) {
+    if (d.requirementId) submittedDocs[d.requirementId] = d;
+  }
+
+  const docFields: Record<string, string> = {};
+  for (const r of requirements ?? []) {
+    if (r.requirement_class === "conditional") continue; // opt-in only
+    const entry = submittedDocs[r.id];
+    const key = `doc_${r.key}`;
+    if (!entry) {
+      docFields[key] = `${r.name} is required.`;
+      continue;
+    }
+    if (entry.cannotProvide) {
+      if (!r.can_mark_cannot_provide) {
+        docFields[key] = `${r.name} cannot be skipped — please upload it.`;
+      } else if (r.reason_required && !String(entry.reason ?? "").trim()) {
+        docFields[key] = `Please explain why you can't provide ${r.name}.`;
+      }
+    } else if (!entry.path) {
+      docFields[key] = `${r.name} is required.`;
+    }
+  }
+  if (Object.keys(docFields).length) {
+    return fail("VALIDATION_ERROR", "Please complete the required documents.", 422, docFields);
+  }
+
   // --- create the application -----------------------------------------
   const payload = {
     personal,
@@ -154,6 +191,45 @@ Deno.serve(async (req) => {
     version: 1,
     payload,
   });
+
+  // --- adopt uploaded/waived documents into the real application ---------
+  for (const r of requirements ?? []) {
+    const entry = submittedDocs[r.id];
+    if (!entry) continue;
+
+    if (entry.cannotProvide) {
+      await svc.from("application_documents").insert({
+        application_id: application.id,
+        requirement_id: r.id,
+        status: "cannot_provide",
+        cannot_provide_reason: entry.reason ?? null,
+      });
+      continue;
+    }
+
+    if (!entry.path) continue;
+    const oldObjectPath = String(entry.path).replace(/^documents\//, "");
+    const newObjectPath = `${application.id}/${r.key}/${entry.fileName}`;
+    const { error: moveErr } = await svc.storage.from("documents").move(oldObjectPath, newObjectPath);
+
+    const { data: appDoc } = await svc
+      .from("application_documents")
+      .insert({ application_id: application.id, requirement_id: r.id, status: "uploaded" })
+      .select("id")
+      .single();
+    if (appDoc) {
+      await svc.from("document_files").insert({
+        application_document_id: appDoc.id,
+        storage_path: `documents/${moveErr ? oldObjectPath : newObjectPath}`,
+        file_name: entry.fileName,
+        mime_type: entry.mimeType ?? null,
+        size_bytes: entry.sizeBytes ?? null,
+        version: 1,
+        is_current: true,
+        uploaded_by: profile.id,
+      });
+    }
+  }
 
   // --- side effects (best effort) ------------------------------------
   const jobTitle = jobId

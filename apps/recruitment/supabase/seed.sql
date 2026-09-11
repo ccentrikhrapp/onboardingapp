@@ -147,3 +147,26 @@ values
    false, false, 0, false, 0, false, false, false,
    null, '{pdf,jpg,jpeg,png}', 10, 16)
 on conflict (stage, key) do nothing;
+
+-- ---------------------------------------------------------------------------
+-- Application-stage documents — collected as part of the application itself
+-- (docs/requirements — Phase 1 candidate/TA spec, 2026-09-11, §22-26). A
+-- minimal starter set; add/remove rows here as the real requirement list is
+-- finalized — nothing about this is hardcoded into the app.
+-- ---------------------------------------------------------------------------
+insert into document_requirements
+  (stage, key, name, requirement_class, condition_type, quantity_required,
+   requires_front_back, requires_employer, employer_count, requires_period, period_count,
+   multiple_files, structured_data, can_mark_cannot_provide, warning_message,
+   allowed_file_types, max_file_size_mb, display_order)
+values
+  ('application', 'identity_proof', 'Identity Proof', 'required', null, 1,
+   false, false, 0, false, 0, false, false, true,
+   'You have indicated that you cannot provide a required document. Please note that failure to submit this document may affect your application and may result in rejection.',
+   '{pdf,jpg,jpeg,png}', 10, 1),
+
+  ('application', 'education_certificate', 'Education Certificate', 'required', null, 1,
+   false, false, 0, false, 0, false, false, true,
+   'You have indicated that you cannot provide a required document. Please note that failure to submit this document may affect your application and may result in rejection.',
+   '{pdf,jpg,jpeg,png}', 10, 2)
+on conflict (stage, key) do nothing;

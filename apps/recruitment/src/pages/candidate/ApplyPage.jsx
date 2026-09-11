@@ -11,6 +11,7 @@ import { loadJSON, saveJSON } from '../../hooks/useLocalStorage.js';
 import { uid } from '../../utils/ids.js';
 import { resolveLink } from '../../api/applicationLinks.js';
 import { uploadResume, parseResume } from '../../api/resumes.js';
+import { listRequirements, uploadPendingDocument } from '../../api/documents.js';
 import { submitApplication as submitApplicationApi } from '../../api/applications.js';
 import { ApiError } from '../../api/client.js';
 import { jobFromDb } from '../../api/mappers.js';
@@ -98,6 +99,13 @@ export default function ApplyPage() {
   const fileRef = useRef(null);
   const timers = useRef([]);
 
+  // Required documents — data-driven (document_requirements, stage='application').
+  const [requirements, setRequirements] = useState([]);
+  const [docState, setDocState] = useState({}); // requirementId -> { uploading, path, fileName, sizeBytes, mimeType, cannotProvide, reason, reasonDraft }
+  useEffect(() => {
+    listRequirements('application').then(setRequirements).catch(() => setRequirements([]));
+  }, []);
+
   const parsing = analyzeIdx > -1 && analyzeIdx < ANALYZE_STEPS.length;
   const parsed = form.autofilled.length > 0;
 
@@ -125,6 +133,16 @@ export default function ApplyPage() {
     if (form.email && !emailRe.test(form.email)) e.email = 'Please enter a valid email address.';
     if (form.phone && !phoneRe.test(form.phone)) e.phone = 'Please enter a valid phone number.';
     if (!form.resume) e.resume = 'Please upload your resume (PDF, DOC or DOCX under 5 MB).';
+    requirements
+      .filter((r) => r.requirement_class !== 'conditional')
+      .forEach((r) => {
+        const d = docState[r.id];
+        if (!d || (!d.path && !(d.cannotProvide && d.reason))) {
+          e[`doc_${r.key}`] = d?.cannotProvide
+            ? `Please explain why you can't provide the ${r.name.toLowerCase()}.`
+            : `${r.name} is required.`;
+        }
+      });
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -185,6 +203,40 @@ export default function ApplyPage() {
     set({ resume: null, resumePath: null, autofilled: [] });
   };
 
+  const setDoc = (reqId, patch) => setDocState((s) => ({ ...s, [reqId]: { ...s[reqId], ...patch } }));
+
+  const uploadDoc = async (req, fileList) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    setDoc(req.id, { uploading: true });
+    try {
+      const uploaded = await uploadPendingDocument(file, req);
+      setDoc(req.id, {
+        uploading: false, path: uploaded.path, fileName: uploaded.fileName,
+        mimeType: uploaded.mimeType, sizeBytes: uploaded.sizeBytes,
+        cannotProvide: false, reason: '',
+      });
+      setErrors((e) => ({ ...e, [`doc_${req.key}`]: undefined }));
+    } catch (err) {
+      setDoc(req.id, { uploading: false });
+      setErrors((e) => ({ ...e, [`doc_${req.key}`]: err.message || 'Upload failed.' }));
+    }
+  };
+
+  const removeDoc = (req) => setDoc(req.id, { path: null, fileName: null, cannotProvide: false });
+
+  const toggleCannotProvide = (req) => {
+    const cur = docState[req.id] || {};
+    setDoc(req.id, { cannotProvide: !cur.cannotProvide, path: null, fileName: null, reasonDraft: cur.reason || '' });
+  };
+
+  const confirmCannotProvide = (req) => {
+    const reason = (docState[req.id]?.reasonDraft || '').trim();
+    if (!reason) return;
+    setDoc(req.id, { reason });
+    setErrors((e) => ({ ...e, [`doc_${req.key}`]: undefined }));
+  };
+
   const saveDraft = () => {
     saveJSON(DRAFT_KEY, form);
     toast.success('Draft saved on this device.');
@@ -213,6 +265,13 @@ export default function ApplyPage() {
     additional: { coverNote: form.coverNote, referral: '', portfolio: form.portfolio, howHeard: form.source },
     resumePath: form.resumePath,
     resumeMeta: form.resume,
+    documents: requirements.map((r) => {
+      const d = docState[r.id];
+      if (!d) return null;
+      if (d.cannotProvide) return { requirementId: r.id, requirementKey: r.key, cannotProvide: true, reason: d.reason };
+      if (!d.path) return null;
+      return { requirementId: r.id, requirementKey: r.key, path: d.path, fileName: d.fileName, mimeType: d.mimeType, sizeBytes: d.sizeBytes };
+    }).filter(Boolean),
   });
 
   const submit = async () => {
@@ -250,11 +309,16 @@ export default function ApplyPage() {
     }
   };
 
+  const requiredDocs = requirements.filter((r) => r.requirement_class !== 'conditional');
+  const filledDocs = requiredDocs.filter((r) => {
+    const d = docState[r.id];
+    return d && (d.path || (d.cannotProvide && d.reason));
+  }).length;
   const filledRequired = useMemo(
-    () => REQUIRED.filter((k) => String(form[k]).trim()).length + (form.resume ? 1 : 0),
-    [form]
+    () => REQUIRED.filter((k) => String(form[k]).trim()).length + (form.resume ? 1 : 0) + filledDocs,
+    [form, filledDocs]
   );
-  const totalRequired = REQUIRED.length + 1;
+  const totalRequired = REQUIRED.length + 1 + requiredDocs.length;
   const pct = Math.round((filledRequired / totalRequired) * 100);
 
   const completion = (
@@ -453,6 +517,94 @@ export default function ApplyPage() {
               </FieldGrid>
             </Card>
           </div>
+
+          {requirements.length > 0 && (
+            <div className="cx-section">
+              <div className="cx-section__head">
+                <span className="cx-section__num">4</span>
+                <h3 className="cx-section__title">Required documents</h3>
+              </div>
+              <Card>
+                <div className="ta-stack">
+                  {requirements.map((r) => {
+                    const d = docState[r.id] || {};
+                    const err = errors[`doc_${r.key}`];
+                    return (
+                      <div key={r.id} className="cx-upload" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span className="cx-upload__icon"><Icon name="FileText" size={17} /></span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="cx-upload__title">
+                              {r.name}{r.requirement_class !== 'conditional' && <span className="cx-req" title="Required"> *</span>}
+                            </div>
+                            {d.fileName && !d.cannotProvide && (
+                              <div className="cx-upload__sub" style={{ color: 'var(--tag-green-fg)', fontWeight: 600 }}>
+                                <Icon name="CheckCircle2" size={11} /> {d.fileName}
+                              </div>
+                            )}
+                            {d.cannotProvide && d.reason && (
+                              <div className="cx-upload__sub" style={{ color: 'var(--tag-amber-fg)' }}>Reason recorded</div>
+                            )}
+                            {!d.fileName && !d.cannotProvide && r.description && (
+                              <div className="cx-upload__sub">{r.description}</div>
+                            )}
+                          </div>
+                          {d.uploading ? (
+                            <span className="ta-spinner" />
+                          ) : d.fileName && !d.cannotProvide ? (
+                            <>
+                              <Button variant="ghost" onClick={() => document.getElementById(`doc-input-${r.id}`)?.click()}>Replace</Button>
+                              <button className="ta-iconbtn" onClick={() => removeDoc(r)} aria-label={`Remove ${r.name}`}><Icon name="X" size={15} /></button>
+                            </>
+                          ) : !d.cannotProvide ? (
+                            <Button variant="ghost" icon="Upload" onClick={() => document.getElementById(`doc-input-${r.id}`)?.click()}>Upload</Button>
+                          ) : null}
+                          {r.can_mark_cannot_provide && !d.fileName && (
+                            <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => toggleCannotProvide(r)}>
+                              {d.cannotProvide ? 'Cancel' : "Can't provide"}
+                            </button>
+                          )}
+                          <input
+                            id={`doc-input-${r.id}`}
+                            type="file"
+                            accept={(r.allowed_file_types || []).map((t) => `.${t}`).join(',')}
+                            hidden
+                            onChange={(e) => uploadDoc(r, e.target.files)}
+                          />
+                        </div>
+
+                        {d.cannotProvide && !d.reason && (
+                          <div className="cx-docreason">
+                            <textarea
+                              className="cx-docreason__input"
+                              rows={2}
+                              placeholder={`Why can't you provide the ${r.name.toLowerCase()}?`}
+                              value={d.reasonDraft || ''}
+                              onChange={(e) => setDoc(r.id, { reasonDraft: e.target.value })}
+                            />
+                            <div className="cx-docreason__btns">
+                              <button className="ta-btn ta-btn--sm" onClick={() => confirmCannotProvide(r)} disabled={!(d.reasonDraft || '').trim()}>
+                                Save reason
+                              </button>
+                            </div>
+                            {r.warning_message && (
+                              <div className="ta-note ta-note--warn" style={{ marginTop: 8 }}>
+                                <Icon name="AlertTriangle" size={14} /> <span>{r.warning_message}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {err && (
+                          <div className="ta-field__error"><Icon name="AlertCircle" size={12} /> {err}</div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </Card>
+            </div>
+          )}
 
           <div className="cx-formbar">
             <span className="cx-formbar__note">By submitting, you confirm that the information provided is accurate.</span>
