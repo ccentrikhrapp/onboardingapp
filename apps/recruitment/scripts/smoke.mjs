@@ -53,7 +53,7 @@ console.error = (...a) => {
 };
 
 const routes = [
-  '/login', '/candidate', '/candidate/jobs', '/candidate/jobs/JOB-1024',
+  '/login', '/ta/login', '/candidate', '/candidate/jobs', '/candidate/jobs/JOB-1024',
   '/candidate/apply', '/candidate/apply/JOB-1024', '/candidate/application', '/candidate/profile',
   '/ta', '/ta/candidates', '/ta/candidates/CAN-2026-000120',
   '/ta/jobs', '/ta/jobs/JOB-1024', '/ta/settings', '/ta/profile',

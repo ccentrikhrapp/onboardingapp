@@ -10,6 +10,7 @@ import TALayout from '../layouts/TALayout.jsx';
 import RoleRoute from '../components/routing/RoleRoute.jsx';
 
 import LoginPage from '../pages/LoginPage.jsx';
+import TALoginPage from '../pages/TALoginPage.jsx';
 
 import LandingPage from '../pages/candidate/LandingPage.jsx';
 import JobsPage from '../pages/candidate/JobsPage.jsx';
@@ -33,6 +34,7 @@ export default function AppRoutes() {
     <Routes>
       <Route path="/" element={<LoginPage />} />
       <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/ta/login" element={<TALoginPage />} />
 
       {/* Candidate / public */}
       <Route element={<CandidateLayout />}>

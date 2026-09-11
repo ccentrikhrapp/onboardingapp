@@ -27,13 +27,15 @@ additional_redirect_urls = ["http://localhost:5173"]
 jwt_expiry = 3600
 enable_signup = true
 
-# Candidate + staff sign-in is Google OAuth only.
+# Candidates always use Google. Talent Acquisition can use Google or a
+# password (their account is provisioned by an admin via the dashboard —
+# Authentication -> Users -> Add user -> set a password; self-service sign-up
+# stays off so a random email/password can't create an account).
 [auth.external.google]
 enabled = true
 client_id = "env(GOOGLE_OAUTH_CLIENT_ID)"
 secret = "env(GOOGLE_OAUTH_SECRET)"
 
-# Email/password sign-in is disabled — we only use Google.
 [auth.email]
 enable_signup = false
 enable_confirmations = false

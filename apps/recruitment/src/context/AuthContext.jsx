@@ -63,6 +63,10 @@ export function AuthProvider({ children }) {
       loading,
       signInWithGoogle: (redirectTo = `${SITE_URL}/`) =>
         supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } }),
+      // Email/password — for staff (Talent Acquisition) accounts an admin has
+      // provisioned; candidates only ever use Google.
+      signInWithPassword: (email, password) =>
+        supabase.auth.signInWithPassword({ email, password }),
       signOut: () => supabase.auth.signOut(),
     }),
     [session, profile, loading]

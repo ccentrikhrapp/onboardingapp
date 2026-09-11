@@ -347,6 +347,28 @@
 
 .wsauth__foot { margin: 18px 0 0; text-align: center; font-size: 12.5px; color: var(--ws-sub); }
 .wsauth__foot b { color: var(--ws-accent); font-weight: 600; }
+.wsauth__foot a { color: var(--ws-accent); font-weight: 600; text-decoration: none; }
+.wsauth__foot a:hover { text-decoration: underline; }
+.wsauth__panel > .wsauth__foot + .wsauth__foot { margin-top: 8px; }
+
+/* ---- TA theme — same shell, a distinct indigo/violet "workspace" mood so it
+   never feels like the same screen as the candidate page. ---- */
+.wsauth--ta {
+  --ws-accent: #4f46e5;
+  --ws-accent-hover: #4338ca;
+}
+.wsauth--ta .wsauth__aside {
+  background: linear-gradient(150deg, #312e81 0%, #4c1d95 46%, #4338ca 76%, #4f46e5 100%);
+  background-size: 220% 220%;
+}
+.wsauth--ta .wsauth__blob--1 { background: radial-gradient(circle, rgba(129, 140, 248, 0.55), transparent 66%); }
+.wsauth--ta .wsauth__blob--2 { background: radial-gradient(circle, rgba(167, 139, 250, 0.5), transparent 64%); }
+.wsauth--ta .wsauth__blob--3 { background: radial-gradient(circle, rgba(56, 189, 248, 0.28), transparent 68%); }
+.wsauth--ta .wsauth__pitch h1 span {
+  background: linear-gradient(92deg, #c7d2fe, #ddd6fe);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.wsauth--ta .wsauth__tick { background: linear-gradient(90deg, #818cf8, #a78bfa); box-shadow: 0 0 16px rgba(129, 140, 248, 0.65); }
 
 /* ---- compact / responsive ---- */
 @media (max-height: 840px) {
