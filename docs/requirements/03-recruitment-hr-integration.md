@@ -153,7 +153,18 @@ documents are approved.
     (API down, duplicate events, invalid ids, rejected/withdrawn offers,
     joining cancellation, missing documents, partial data, unauthorized calls).
 
-This session builds step 4 (HR app scaffold + its own backend) and the
-integration receivers/senders for steps 5 and 8 ahead of steps 2–3, so the
-pipe is ready the moment recruitment produces real pre-offer documents and
-accepted offers. Steps 2, 3, 6, 7, 9, 10 remain open work, tracked in memory.
+**Status (2026-09-11):** steps 1, 4, 5, 8 done from earlier work. Steps 2
+(interviews), 3 (pre-offer document request + candidate upload, wired to
+integration point 1), 6 (offer eligibility enforcement) and 7 (offer
+send/accept, wired to integration point 2) are now done too — see recruitment
+commits `c2e77de` and `c4ecc2d`. Both integration points are exercised
+end-to-end in code (untested against live Supabase projects — none exist
+yet). Remaining: step 9 (HR's own full onboarding module beyond the
+OnboardingCasesPage scaffold already in apps/hr), step 10 (joining + employee
+creation — createEmployee already exists in apps/hr/api/onboarding.js, no
+dedicated joining-date/formalities UI yet), step 11 (reverse status sync:
+HR's onboarding/joining status back to recruitment — the outbound HR->
+recruitment integration functions for this don't exist yet, only the
+document-verification and offer-accepted directions do), and step 12
+(cross-app end-to-end testing, which needs real Supabase projects for both
+apps).
