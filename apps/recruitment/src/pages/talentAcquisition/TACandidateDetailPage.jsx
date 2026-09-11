@@ -9,8 +9,10 @@ import EmptyState from '../../components/ta/EmptyState.jsx';
 import ReasonModal from '../../components/workflow/ReasonModal.jsx';
 import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewModal.jsx';
 import InterviewFeedbackModal from '../../components/workflow/InterviewFeedbackModal.jsx';
+import OfferComposerModal from '../../components/workflow/OfferComposerModal.jsx';
 import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi } from '../../api/applications.js';
 import { listInterviewRounds, scheduleInterview, recordInterviewFeedback } from '../../api/interviews.js';
+import { getOfferStatus, getOffer, sendOffer } from '../../api/offers.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import {
@@ -25,6 +27,10 @@ const IN_INTERVIEW = [
   APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS,
   APP_STATUS.INTERVIEW_PASSED, APP_STATUS.INTERVIEW_FAILED,
 ];
+const CAN_OFFER_STAGE = [APP_STATUS.DOC_VERIFICATION, APP_STATUS.DOCS_VERIFIED];
+const OFFER_SENT_STAGE = [APP_STATUS.OFFER_ISSUED, APP_STATUS.OFFER_ACCEPTED, APP_STATUS.OFFER_DECLINED];
+const OFFER_STATUS_LABEL = { draft: 'Draft', sent: 'Sent', viewed: 'Viewed', accepted: 'Accepted', declined: 'Declined', expired: 'Expired' };
+const OFFER_STATUS_TONE = { draft: 'grey', sent: 'blue', viewed: 'blue', accepted: 'green', declined: 'red', expired: 'grey' };
 const ROUND_DECISION_LABEL = { advance: 'Advance', further_review: 'Further Review', not_progressing: 'Not Moving Forward' };
 const ROUND_DECISION_TONE = { advance: 'green', further_review: 'amber', not_progressing: 'red' };
 
@@ -87,11 +93,20 @@ export default function TACandidateDetailPage() {
   const [rounds, setRounds] = useState([]);
   const [feedbackFor, setFeedbackFor] = useState(null); // round being scored
   const [busy, setBusy] = useState(false);
+  const [offerStatus, setOfferStatus] = useState(null);
+  const [offer, setOffer] = useState(null);
 
   const reloadRounds = () => {
     if (candidateId) listInterviewRounds(candidateId).then(setRounds).catch(() => setRounds([]));
   };
   useEffect(reloadRounds, [candidateId]);
+
+  const reloadOffer = () => {
+    if (!candidateId) return;
+    getOfferStatus(candidateId).then(setOfferStatus).catch(() => setOfferStatus(null));
+    getOffer(candidateId).then(setOffer).catch(() => setOffer(null));
+  };
+  useEffect(reloadOffer, [candidateId]);
 
   // Keep the Activity card no taller than the workflow column beside it.
   const leftColRef = useRef(null);
@@ -154,6 +169,21 @@ export default function TACandidateDetailPage() {
       reloadRemote();
     } catch (e) {
       toast.error(e.message || 'Could not schedule the interview.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const doSendOffer = async (payload) => {
+    setBusy(true);
+    try {
+      await sendOffer({ applicationId: app.id, ...payload });
+      setModal(null);
+      toast.success('Offer sent to the candidate.');
+      reloadOffer();
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not send the offer.');
     } finally {
       setBusy(false);
     }
@@ -360,6 +390,50 @@ export default function TACandidateDetailPage() {
               )}
             </Card>
           )}
+
+          {(CAN_OFFER_STAGE.includes(app.status) || OFFER_SENT_STAGE.includes(app.status)) && (
+            <Card title="Offer">
+              {OFFER_SENT_STAGE.includes(app.status) && offer ? (
+                <>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                    <Tag tone={OFFER_STATUS_TONE[offer.status]}>{OFFER_STATUS_LABEL[offer.status]}</Tag>
+                    {offer.sent_at && <span className="ta-cell-sub">Sent {formatDate(offer.sent_at)}</span>}
+                  </div>
+                  <div className="ta-info">
+                    <Info label="Designation" value={offer.designation} />
+                    <Info label="Department" value={offer.department} />
+                    <Info label="Location" value={offer.location} />
+                    <Info label="Joining date" value={formatDate(offer.joining_date)} />
+                  </div>
+                  {offer.status === 'accepted' && (
+                    <div className="ta-note ta-note--ok" style={{ marginTop: 12 }}>
+                      <Icon name="CheckCircle2" size={15} /> Candidate accepted the offer.
+                    </div>
+                  )}
+                </>
+              ) : offerStatus?.offerReady ? (
+                <>
+                  <div className="ta-note ta-note--ok" style={{ marginBottom: 12 }}>
+                    <Icon name="CheckCircle2" size={15} /> All required pre-offer documents have been verified by HR. You can now prepare and send the offer letter.
+                  </div>
+                  <Button icon="FileCheck" onClick={() => setModal('offer')}>Prepare offer</Button>
+                </>
+              ) : (
+                <>
+                  <div className="ta-note ta-note--warn" style={{ marginBottom: 10, flexDirection: 'column', alignItems: 'flex-start', gap: 6 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <Icon name="Lock" size={15} /> <strong>Offer locked</strong> — complete document verification first.
+                    </div>
+                  </div>
+                  {offerStatus?.blockingReasons?.length > 0 && (
+                    <ul className="ta-bullets">
+                      {offerStatus.blockingReasons.map((r) => <li key={r}>{r}</li>)}
+                    </ul>
+                  )}
+                </>
+              )}
+            </Card>
+          )}
         </div>
 
         <div
@@ -416,6 +490,11 @@ export default function TACandidateDetailPage() {
       <InterviewFeedbackModal
         open={!!feedbackFor} onClose={() => setFeedbackFor(null)}
         round={feedbackFor} busy={busy} onSubmit={doFeedback}
+      />
+      <OfferComposerModal
+        open={modal === 'offer'} onClose={() => setModal(null)}
+        applicationId={app.id} candidateName={name} jobTitle={app.jobTitle}
+        busy={busy} onSend={doSendOffer}
       />
     </>
   );

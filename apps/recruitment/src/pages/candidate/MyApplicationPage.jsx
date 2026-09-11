@@ -10,6 +10,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { listMyApplications, getApplicationEvents, resubmitApplication } from '../../api/applications.js';
 import { listInterviewRounds } from '../../api/interviews.js';
 import { listApplicationDocuments, uploadDocumentFile, submitDocument } from '../../api/documents.js';
+import { getOffer, acceptOffer } from '../../api/offers.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { initialsOf, formatDate } from '../../utils/format.js';
 import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
@@ -19,6 +20,7 @@ import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../cons
 const CANDIDATE_STEPS = ['Applied', 'In review', 'Interview', 'Offer'];
 const PIPELINE_TO_CANDIDATE = [1, 1, 2, 3, 3, 3, 3];
 const DOC_STAGES = [APP_STATUS.DOC_VERIFICATION, APP_STATUS.DOCS_VERIFIED];
+const OFFER_STAGES = [APP_STATUS.OFFER_ISSUED, APP_STATUS.OFFER_ACCEPTED, APP_STATUS.OFFER_DECLINED];
 /* application_documents.status (real DB enum) -> label/tone. */
 const DOC_STATUS_META = {
   requested: { label: 'Pending upload', tone: 'grey' },
@@ -51,6 +53,10 @@ function nextStep(status) {
       return { icon: 'Upload', text: 'Please upload your required documents below.' };
     case APP_STATUS.DOCS_VERIFIED:
       return { icon: 'FileCheck', text: 'All documents verified. Your offer is being prepared.' };
+    case APP_STATUS.OFFER_ISSUED:
+      return { icon: 'FileCheck', text: 'You have an offer! Review and respond below.' };
+    case APP_STATUS.OFFER_ACCEPTED:
+      return { icon: 'CheckCircle2', text: 'Offer accepted — our HR team will be in touch to begin onboarding.' };
     default:
       return null;
   }
@@ -83,6 +89,9 @@ export default function MyApplicationPage() {
   const [docBusy, setDocBusy] = useState({}); // application_document id -> true while acting
   const [reasonFor, setReasonFor] = useState(null);
   const [reasonText, setReasonText] = useState('');
+  const [offer, setOffer] = useState(null);
+  const [ack, setAck] = useState(false);
+  const [accepting, setAccepting] = useState(false);
 
   const load = () => {
     listMyApplications()
@@ -95,6 +104,9 @@ export default function MyApplicationPage() {
         }
         if (latest && DOC_STAGES.includes(latest.status)) {
           listApplicationDocuments(latest.id).then(setDocs).catch(() => setDocs([]));
+        }
+        if (latest && OFFER_STAGES.includes(latest.status)) {
+          getOffer(latest.id).then(setOffer).catch(() => setOffer(null));
         }
       })
       .catch(() => setRemote({ loading: false, app: null, events: [] }));
@@ -179,6 +191,20 @@ export default function MyApplicationPage() {
       toast.error(e.message || 'Could not submit the reason.');
     } finally {
       setBusy(reasonFor.id, false);
+    }
+  };
+
+  const doAccept = async () => {
+    if (!offer || !ack) return;
+    setAccepting(true);
+    try {
+      await acceptOffer(offer.id);
+      toast.success('Offer accepted!');
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Could not accept the offer.');
+    } finally {
+      setAccepting(false);
     }
   };
 
@@ -368,6 +394,33 @@ export default function MyApplicationPage() {
                 );
               })}
             </div>
+          </Card>
+        )}
+
+        {offer && (
+          <Card title="Your offer">
+            <p className="ta-cell-mute" style={{ lineHeight: 1.7, marginBottom: 14 }}>
+              We are pleased to offer you the position of <strong>{offer.designation || app.jobTitle}</strong>
+              {offer.department ? ` in the ${offer.department} team` : ''} at Ccentrik.
+              {offer.offer_letter_path ? ' The full offer letter is attached to the email you received.' : ' The details are in the email you received.'}
+            </p>
+            <div className="ta-info" style={{ marginBottom: 14 }}>
+              {offer.joining_date && <div className="ta-info__item"><span className="ta-info__label">Expected joining date</span><span className="ta-info__value">{formatDate(offer.joining_date)}</span></div>}
+              {offer.location && <div className="ta-info__item"><span className="ta-info__label">Location</span><span className="ta-info__value">{offer.location}</span></div>}
+            </div>
+            {offer.status === 'sent' || offer.status === 'viewed' ? (
+              <>
+                <label className="ta-check" style={{ marginBottom: 12 }}>
+                  <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+                  <span>I have reviewed the offer and agree to the terms stated in the offer letter.</span>
+                </label>
+                <Button icon="CheckCircle2" onClick={doAccept} disabled={!ack || accepting}>
+                  {accepting ? 'Accepting…' : 'Accept offer'}
+                </Button>
+              </>
+            ) : offer.status === 'accepted' ? (
+              <div className="ta-note ta-note--ok"><Icon name="CheckCircle2" size={15} /> Your acceptance is confirmed. HR will reach out with next steps.</div>
+            ) : null}
           </Card>
         )}
       </div>
