@@ -4,10 +4,6 @@ dist-ssr
 *.local
 .DS_Store
 
-# apps/hr is its own git repository (github.com/ccentrikhrapp/onboardingapp),
-# not part of this monorepo — kept on disk here only for local dev convenience.
-apps/hr/
-
 # Secrets / local env — never commit real keys
 .env
 .env.*

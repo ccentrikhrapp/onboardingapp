@@ -1,0 +1,40 @@
+# Supabase CLI project config for the HR application. A separate project from
+# the recruitment app's — separate database, auth and storage.
+project_id = "ccentrik-hr"
+
+[api]
+enabled = true
+port = 55321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 55322
+major_version = 15
+
+[studio]
+enabled = true
+port = 55323
+
+[storage]
+enabled = true
+file_size_limit = "10MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:5174"
+additional_redirect_urls = ["http://localhost:5174"]
+jwt_expiry = 3600
+enable_signup = true
+
+# HR staff sign in with Google, same as the recruitment app — but this is a
+# different OAuth client / different Supabase project.
+[auth.external.google]
+enabled = true
+client_id = "env(GOOGLE_OAUTH_CLIENT_ID)"
+secret = "env(GOOGLE_OAUTH_SECRET)"
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false

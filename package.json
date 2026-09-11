@@ -3,9 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "workspaces": [
-    "apps/recruitment"
+    "apps/recruitment",
+    "apps/hr"
   ],
   "scripts": {
-    "recruitment": "npm run dev -w apps/recruitment"
+    "recruitment": "npm run dev -w apps/recruitment",
+    "hr": "npm run dev -w apps/hr"
   }
 }
