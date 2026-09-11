@@ -6,7 +6,7 @@ import DataGrid from '../../components/ta/DataGrid.jsx';
 import Toolbar from '../../components/ta/Toolbar.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
-import { listApplications } from '../../api/applications.js';
+import { listApplications, subscribeApplications } from '../../api/applications.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { APP_STATUS, stageBadgeForStatus } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
@@ -58,28 +58,33 @@ export default function TACandidatesPage() {
   const [remoteRows, setRemoteRows] = useState(null);
   useEffect(() => {
     let cancelled = false;
-    listApplications()
-      .then((list) => {
-        if (cancelled) return;
-        setRemoteRows(
-          (list || []).map(applicationFromDb).map((a) => ({
-            id: a.id,
-            candidateId: a.id, // navigate by application id in production
-            name: a.candidateName || `${a.personal.firstName || ''} ${a.personal.lastName || ''}`.trim(),
-            email: a.candidateEmail,
-            job: a.jobTitle,
-            department: a.professional?.preferredJobLocation || 'General',
-            experience: Number(a.professional?.totalExperience) || 0,
-            source: a.source === 'ta_link' ? 'Referral' : 'Direct',
-            noticePeriod: a.professional?.noticePeriod || 'Not specified',
-            submittedAt: a.submittedAt,
-            status: a.status,
-            docs: { tone: 'grey', text: '—' },
-          }))
-        );
-      })
-      .catch(() => !cancelled && setRemoteRows([]));
-    return () => { cancelled = true; };
+    const load = () =>
+      listApplications()
+        .then((list) => {
+          if (cancelled) return;
+          setRemoteRows(
+            (list || []).map(applicationFromDb).map((a) => ({
+              id: a.id,
+              candidateId: a.id, // navigate by application id in production
+              name: a.candidateName || `${a.personal.firstName || ''} ${a.personal.lastName || ''}`.trim(),
+              email: a.candidateEmail,
+              job: a.jobTitle,
+              department: a.professional?.preferredJobLocation || 'General',
+              experience: Number(a.professional?.totalExperience) || 0,
+              source: a.source === 'ta_link' ? 'Referral' : 'Direct',
+              noticePeriod: a.professional?.noticePeriod || 'Not specified',
+              submittedAt: a.submittedAt,
+              status: a.status,
+              docs: { tone: 'grey', text: '—' },
+            }))
+          );
+        })
+        .catch(() => !cancelled && setRemoteRows([]));
+    load();
+    // Live refresh — a new application, or a status change, updates the table
+    // without a manual reload (Phase 1 spec §49).
+    const unsub = subscribeApplications(load);
+    return () => { cancelled = true; unsub(); };
   }, []);
 
   const rows = remoteRows || [];

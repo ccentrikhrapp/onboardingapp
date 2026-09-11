@@ -7,7 +7,7 @@ import KpiCard from '../../components/ta/KpiCard.jsx';
 import DonutChart from '../../components/ta/DonutChart.jsx';
 import FunnelChart from '../../components/ta/FunnelChart.jsx';
 import { useApp } from '../../context/AppContext.jsx';
-import { listApplications, listRecentEvents } from '../../api/applications.js';
+import { listApplications, listRecentEvents, subscribeApplications } from '../../api/applications.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import {
   APP_STATUS,
@@ -78,21 +78,28 @@ export default function TADashboard() {
   const [remote, setRemote] = useState({ apps: null, events: [] });
 
   useEffect(() => {
-    Promise.all([listApplications(), listRecentEvents()])
-      .then(([list, events]) => {
-        const apps = (list || []).map(applicationFromDb).map((a) => ({
-          id: a.id,
-          candidateId: a.id,
-          status: a.status,
-          submittedAt: a.submittedAt || a.createdAt,
-          source: a.source === 'ta_link' ? 'Referral' : 'Direct',
-          jobId: a.jobId,
-          personal: a.personal || {},
-          professional: a.professional || {},
-        }));
-        setRemote({ apps, events: events || [] });
-      })
-      .catch(() => setRemote({ apps: [], events: [] }));
+    let cancelled = false;
+    const load = () =>
+      Promise.all([listApplications(), listRecentEvents()])
+        .then(([list, events]) => {
+          if (cancelled) return;
+          const apps = (list || []).map(applicationFromDb).map((a) => ({
+            id: a.id,
+            candidateId: a.id,
+            status: a.status,
+            submittedAt: a.submittedAt || a.createdAt,
+            source: a.source === 'ta_link' ? 'Referral' : 'Direct',
+            jobId: a.jobId,
+            personal: a.personal || {},
+            professional: a.professional || {},
+          }));
+          setRemote({ apps, events: events || [] });
+        })
+        .catch(() => !cancelled && setRemote({ apps: [], events: [] }));
+    load();
+    // Live refresh so a new application shows up without reloading (§49).
+    const unsub = subscribeApplications(load);
+    return () => { cancelled = true; unsub(); };
   }, []);
 
   // ----- DATA -----

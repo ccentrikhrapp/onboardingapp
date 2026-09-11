@@ -73,3 +73,13 @@ export function startReview(applicationId) {
 export function resubmitApplication(applicationId, patch = {}) {
   return callFn('resubmit-application', { body: { applicationId, ...patch } });
 }
+
+/** Live updates for the TA dashboard/table — refetch on any change RLS lets
+    the caller see (new application, a decision, etc). Returns an unsubscribe fn. */
+export function subscribeApplications(onChange) {
+  const channel = supabase
+    .channel('applications-live')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'applications' }, onChange)
+    .subscribe();
+  return () => supabase.removeChannel(channel);
+}
