@@ -9,7 +9,8 @@ import EmptyState from '../../components/ta/EmptyState.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { createLink, setLinkActive } from '../../api/applicationLinks.js';
+import { createLink, setLinkActive, createConfidentialInvite, listConfidentialInvites } from '../../api/applicationLinks.js';
+import { Field, Input } from '../../components/ta/Field.jsx';
 import { listApplications } from '../../api/applications.js';
 import { APP_STATUS, stageIndexForStatus } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
@@ -58,6 +59,75 @@ function ApplicationLinkCard({ jobId }) {
         <Tag tone={link.active ? 'green' : 'grey'}>{link.active ? 'Active' : 'Disabled'}</Tag>
         <button className="ta-link" onClick={toggle}>{link.active ? 'Disable link' : 'Re-enable link'}</button>
       </div>
+    </Card>
+  );
+}
+
+/* One-off, discreet invitations for a specific candidate the TA wants to
+   approach directly — the candidate-facing page never names the TA. A TA can
+   generate as many of these as they like for the same role. */
+function ConfidentialInviteCard({ jobId }) {
+  const toast = useToast();
+  const [invites, setInvites] = useState([]);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [creating, setCreating] = useState(false);
+
+  const reload = () => listConfidentialInvites(jobId).then(setInvites).catch(() => {});
+  useEffect(() => { reload(); }, [jobId]);
+
+  const generate = async () => {
+    setCreating(true);
+    try {
+      await createConfidentialInvite(jobId, { invitedName: name.trim(), invitedEmail: email.trim() });
+      setName('');
+      setEmail('');
+      toast.success('Invitation link generated.');
+      reload();
+    } catch (e) {
+      toast.error(e.message || 'Could not generate the invitation.');
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  return (
+    <Card title="Confidential invitations">
+      <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
+        For a candidate you'd like to approach directly. Their page never mentions you or the
+        recruitment pipeline — just the opportunity.
+      </p>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        <Field label="Candidate name" hint="Optional">
+          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional" />
+        </Field>
+        <Field label="Candidate email" hint="Optional">
+          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Optional" />
+        </Field>
+      </div>
+      <Button variant="ghost" icon="UserPlus" onClick={generate} disabled={creating}>
+        {creating ? 'Generating…' : 'Generate invitation link'}
+      </Button>
+
+      {invites.length > 0 && (
+        <div className="ta-stack" style={{ marginTop: 14 }}>
+          {invites.map((inv) => {
+            const url = `${window.location.origin}/candidate/apply?ref=${inv.token}`;
+            return (
+              <div key={inv.id} className="ta-copyrow">
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="ta-cell-strong">{inv.invited_name || 'Unnamed invitation'}</div>
+                  <div className="ta-cell-sub" style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</div>
+                </div>
+                <Tag tone={inv.active ? 'green' : 'grey'}>{inv.active ? 'Active' : 'Disabled'}</Tag>
+                <Button variant="ghost" icon="Copy" onClick={() => { navigator.clipboard?.writeText(url); toast.success('Link copied.'); }}>
+                  Copy
+                </Button>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </Card>
   );
 }
@@ -144,6 +214,7 @@ export default function TAJobDetailPage() {
 
         <div className="ta-stack">
         {configured && <ApplicationLinkCard jobId={job.id} />}
+        {configured && <ConfidentialInviteCard jobId={job.id} />}
         <Card title="Applicant pipeline">
           {applicants.length === 0 ? (
             <p className="ta-cell-mute">No applicants yet for this role.</p>

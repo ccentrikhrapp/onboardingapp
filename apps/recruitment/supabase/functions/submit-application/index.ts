@@ -250,8 +250,12 @@ Deno.serve(async (req) => {
 
   await notify(svc, {
     recipient_profile_id: assignedTaId,
-    recipient_role: assignedTaId ? null : "ta",
-    title: "New application received",
+    // Unassigned (direct Careers) applications go to Super TA (admin), not a
+    // blind broadcast to every TA — regular TAs can't read an application
+    // that isn't assigned to them anyway (RLS), so a role-wide "ta" notify
+    // would be a dead link for them. See master prompt §33.
+    recipient_role: assignedTaId ? null : "admin",
+    title: assignedTaId ? "New application received" : "New unassigned application",
     message: `${candidateName} applied for ${jobTitle}.`,
     type: "application_submitted",
     entity_type: "application",

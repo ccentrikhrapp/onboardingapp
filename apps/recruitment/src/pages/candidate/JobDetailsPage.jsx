@@ -49,7 +49,7 @@ export default function JobDetailsPage() {
 
       <div className="cx-jobhead">
         <div className="cx-jobhead__main">
-          <span className="ta-cell-sub">{job.department} · {job.id}</span>
+          <span className="ta-cell-sub">{job.department} · {job.code}</span>
           <h1 className="cx-page__title" style={{ marginTop: 2 }}>{job.title}</h1>
           <p className="cx-page__sub" style={{ marginTop: 4 }}>{job.location} · {job.employmentType} · {job.workMode}</p>
         </div>

@@ -339,13 +339,19 @@ export default function ApplyPage() {
     );
   }
 
+  const confidential = link?.inviteType === 'confidential';
+
   if (needsSignIn) {
     return (
       <div className="cx-page cx-page--form">
         <div className="cx-page__head">
-          <h1 className="cx-page__title">{job ? `Apply — ${job.title}` : 'Start your application'}</h1>
+          <h1 className="cx-page__title">
+            {confidential ? "You've been invited to explore an opportunity" : job ? `Apply — ${job.title}` : 'Start your application'}
+          </h1>
           <p className="cx-page__sub">
-            {link?.recruiterName
+            {confidential
+              ? 'Sign in with your Google account to view the details and continue.'
+              : link?.recruiterName
               ? `You're applying through ${link.recruiterName}. Sign in to continue.`
               : 'Sign in with your Google account to start and track your application.'}
           </p>
@@ -371,9 +377,11 @@ export default function ApplyPage() {
       </button>
 
       <div className="cx-page__head">
-        <h1 className="cx-page__title">{job ? 'Apply for this opportunity' : 'Submit your application'}</h1>
+        <h1 className="cx-page__title">{confidential ? 'Your professional profile' : job ? 'Apply for this opportunity' : 'Submit your application'}</h1>
         <p className="cx-page__sub">
-          {link?.recruiterName
+          {confidential
+            ? "We'd like to invite you to explore an opportunity that may align with your experience. Please review the role and share your professional background below. Fields marked * are required."
+            : link?.recruiterName
             ? `Applying through ${link.recruiterName}. Fields marked * are required.`
             : job
             ? 'Complete the details below. Fields marked * are required.'

@@ -5,8 +5,12 @@ import TAHeader from '../../components/ta/TAHeader.jsx';
 import DataGrid from '../../components/ta/DataGrid.jsx';
 import Toolbar from '../../components/ta/Toolbar.jsx';
 import Tag from '../../components/ta/Tag.jsx';
+import Button from '../../components/ta/Button.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
-import { listApplications, subscribeApplications } from '../../api/applications.js';
+import { useApp } from '../../context/AppContext.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
+import { listApplications, subscribeApplications, assignApplications } from '../../api/applications.js';
+import { listTAs } from '../../api/staff.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { APP_STATUS, stageBadgeForStatus } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
@@ -54,6 +58,9 @@ const COLUMNS = [
 export default function TACandidatesPage() {
   const navigate = useNavigate();
   const [sp] = useSearchParams();
+  const { role } = useApp();
+  const toast = useToast();
+  const isSuperTa = role === 'admin'; // Super TA — master prompt §33-35, §74
 
   const [remoteRows, setRemoteRows] = useState(null);
   useEffect(() => {
@@ -75,6 +82,7 @@ export default function TACandidatesPage() {
               noticePeriod: a.professional?.noticePeriod || 'Not specified',
               submittedAt: a.submittedAt,
               status: a.status,
+              assignedTo: a.assignedTo,
               docs: { tone: 'grey', text: '—' },
             }))
           );
@@ -95,6 +103,37 @@ export default function TACandidatesPage() {
   const sourceParam = SOURCES.includes(sp.get('source')) ? sp.get('source') : null; // dashboard source donut
   const [stage, setStageKey] = useState(stageParam);
   const [experience, setExpKey] = useState('all');
+  const [assignment, setAssignmentKey] = useState('all');
+
+  // --- Super TA: unassigned queue + multi-assign (careers applications with
+  // no job-owning TA land here until HR/admin routes them — §33-35). ---
+  const [tas, setTas] = useState([]);
+  const [selected, setSelected] = useState(() => new Set());
+  const [assignTo, setAssignTo] = useState('');
+  const [assigning, setAssigning] = useState(false);
+  useEffect(() => {
+    if (isSuperTa) listTAs().then(setTas).catch(() => setTas([]));
+  }, [isSuperTa]);
+  const toggleSelected = (id) =>
+    setSelected((s) => {
+      const next = new Set(s);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  const doAssign = async () => {
+    if (!assignTo || selected.size === 0) return;
+    setAssigning(true);
+    try {
+      const result = await assignApplications([...selected], assignTo);
+      toast.success(`Assigned ${result.assigned} candidate${result.assigned === 1 ? '' : 's'}.`);
+      setSelected(new Set());
+      setAssignTo('');
+    } catch (e) {
+      toast.error(e.message || 'Could not assign the selected candidates.');
+    } finally {
+      setAssigning(false);
+    }
+  };
 
   const initialFilters = {};
   if (stageParam !== 'all') initialFilters.status = (r) => STAGE_GROUPS[stageParam].match(r.status);
@@ -126,16 +165,21 @@ export default function TACandidatesPage() {
     setExpKey(key);
     view.setFilter('experience', key === 'all' ? 'all' : (r) => EXPERIENCE[key].match(r.experience));
   };
+  const setAssignment = (key) => {
+    setAssignmentKey(key);
+    view.setFilter('assignment', key === 'all' ? 'all' : (r) => !r.assignedTo);
+  };
 
   // The dropdowns / search box already show what's active — no chip row,
   // just a "Clear filters" affordance.
   const hasFilters = stage !== 'all' || experience !== 'all' || activeJob !== 'all'
-    || activeSource !== 'all' || activeNotice !== 'all' || !!view.query;
+    || activeSource !== 'all' || activeNotice !== 'all' || assignment !== 'all' || !!view.query;
 
   const clearAll = () => {
     view.setQuery('');
     setStage('all');
     setExperience('all');
+    setAssignment('all');
     view.setFilter('job', 'all');
     view.setFilter('source', 'all');
     view.setFilter('noticePeriod', 'all');
@@ -165,13 +209,27 @@ export default function TACandidatesPage() {
           { label: 'Experience', value: experience, onChange: setExperience, options: Object.entries(EXPERIENCE).map(([value, g]) => ({ value, label: g.label })) },
           { label: 'Source', value: activeSource, onChange: (v) => view.setFilter('source', v), options: SOURCES.map((s) => ({ value: s, label: s })) },
           { label: 'Notice Period', value: activeNotice, onChange: (v) => view.setFilter('noticePeriod', v), options: NOTICE_PERIODS.map((n) => ({ value: n, label: n })) },
+          ...(isSuperTa ? [{ label: 'Assignment', value: assignment, onChange: setAssignment, options: [{ value: 'unassigned', label: 'Unassigned' }] }] : []),
         ]}
         onClearAll={hasFilters ? clearAll : undefined}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
+      {isSuperTa && selected.size > 0 && (
+        <div className="ta-note ta-note--info" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
+          <span>{selected.size} candidate{selected.size === 1 ? '' : 's'} selected</span>
+          <span style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <select className="ta-select" value={assignTo} onChange={(e) => setAssignTo(e.target.value)}>
+              <option value="">Assign to…</option>
+              {tas.map((t) => <option key={t.id} value={t.id}>{t.full_name || t.email}</option>)}
+            </select>
+            <Button onClick={doAssign} disabled={!assignTo || assigning}>{assigning ? 'Assigning…' : 'Assign'}</Button>
+          </span>
+        </div>
+      )}
+
       <DataGrid
-        columns={COLUMNS}
+        columns={isSuperTa ? [{ key: 'select', label: '' }, ...COLUMNS] : COLUMNS}
         rows={view.rows}
         sort={view.sort}
         onSort={view.onSort}
@@ -181,6 +239,11 @@ export default function TACandidatesPage() {
           const badge = stageBadgeForStatus(r.status);
           return (
             <tr key={r.id} onClick={() => navigate(`/ta/candidates/${r.candidateId}`)} style={{ cursor: 'pointer' }}>
+              {isSuperTa && (
+                <td onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" checked={selected.has(r.id)} onChange={() => toggleSelected(r.id)} aria-label={`Select ${r.name}`} />
+                </td>
+              )}
               <td>
                 <span className="ta-cell-cand__name">{r.name}</span><br />
                 <span className="ta-cell-cand__sub">{r.email}</span>

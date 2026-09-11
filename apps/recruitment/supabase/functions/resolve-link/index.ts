@@ -17,7 +17,7 @@ Deno.serve(async (req) => {
 
   const { data: link } = await svc
     .from("application_links")
-    .select("id, active, expires_at, job_id, ta_id")
+    .select("id, active, expires_at, job_id, ta_id, invite_type, invited_name")
     .eq("token", token)
     .maybeSingle();
 
@@ -44,10 +44,15 @@ Deno.serve(async (req) => {
     .eq("id", link.ta_id)
     .maybeSingle();
 
+  const confidential = link.invite_type === "confidential";
   return ok({
     linkId: link.id,
     job,
-    recruiterName: ta?.full_name ?? null,
+    // A confidential invitation never names the referring TA — see
+    // docs/requirements master prompt §24.
+    recruiterName: confidential ? null : ta?.full_name ?? null,
+    inviteType: link.invite_type,
+    invitedName: link.invited_name ?? null,
     source: "ta_link",
   });
 });

@@ -74,6 +74,11 @@ export function resubmitApplication(applicationId, patch = {}) {
   return callFn('resubmit-application', { body: { applicationId, ...patch } });
 }
 
+/** Super TA (HR/admin): assign unassigned/careers applications to a recruiter. */
+export function assignApplications(applicationIds, taId) {
+  return callFn('assign-applications', { body: { applicationIds, taId } });
+}
+
 /** Live updates for the TA dashboard/table — refetch on any change RLS lets
     the caller see (new application, a decision, etc). Returns an unsubscribe fn. */
 export function subscribeApplications(onChange) {
