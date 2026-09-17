@@ -5,15 +5,112 @@ import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
+import { Field, FieldGrid, Input, Select } from '../../components/ta/Field.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listMyApplications, getApplicationEvents, resubmitApplication } from '../../api/applications.js';
+import { listMyApplications, getApplicationEvents, resubmitApplication, verifyTaCandidate } from '../../api/applications.js';
 import { listInterviewRounds } from '../../api/interviews.js';
 import { listApplicationDocuments, uploadDocumentFile, submitDocument } from '../../api/documents.js';
-import { getOffer, acceptOffer } from '../../api/offers.js';
+import { listOnboardingDocuments, uploadOnboardingDocument, submitOnboardingForm } from '../../api/onboarding.js';
+import OnboardingFormFields, { validateOnboardingForm } from '../../components/candidate/OnboardingFormFields.jsx';
+import { getOffer } from '../../api/offers.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { initialsOf, formatDate } from '../../utils/format.js';
 import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
+import { nameError, emailError, phoneError, locationError, urlError } from '../../utils/validation.js';
+
+const NOT_APPLICABLE_REASON = 'Not applicable to your candidate type.';
+const REASON_CATEGORIES = [
+  'Not Applicable', 'Fresher / No Previous Employment', 'Document Not Issued', 'Document Not Available',
+  'Employer Did Not Provide', 'Lost / Unavailable', 'Currently Employed', 'Confidential / Restricted', 'Other',
+];
+
+// The backend logs one application_events row per internal action (per TA
+// click, per document review, per reassignment) — useful for TA/HR's own
+// audit trail, but the candidate only needs the handful of moments that
+// actually mean something to them. This is an allowlist, not a blacklist:
+// an unrecognized future event type defaults to hidden rather than risking
+// a new internal-only event leaking into the candidate's view.
+const MILESTONE_TITLES = new Set([
+  'Application Submitted', 'Application Advanced', 'Application Closed',
+  'Pre-Offer Documents Requested', 'All Required Rounds Cleared',
+  'Offer Sent', 'Offer Accepted', 'Onboarding Documents Requested', 'Employee ID Created',
+]);
+// Interview round events are dynamically named ("Technical round Scheduled",
+// "Technical round — Advance") so they're matched by shape, not exact text.
+const MILESTONE_PATTERNS = [/Scheduled$/, / — /];
+// The candidate needs to act on these — never collapse or hide them, even
+// though they're per-document like the uploads below.
+const ACTIONABLE_PATTERNS = [/Correction Requested/, /Document Rejected/, /Correction Required/];
+// The candidate's own upload actions — real, but one per file is noise once
+// there are 16 of them; collapse to a single "submitted" milestone per
+// batch (pre-offer vs onboarding), keeping the most recent upload's time.
+const UPLOAD_TITLES = new Set(['Document Uploaded', 'Document Not Provided', 'Onboarding Document Uploaded']);
+
+/** Turns the full internal event log into the short, candidate-facing list:
+    real milestones and actionable items shown in full, repetitive per-document
+    upload events collapsed to one entry each, everything else (TA-internal
+    actions, ATS screening, per-document TA/HR pass-through approvals that
+    aren't news the candidate needs pinged about) dropped. Newest first. */
+function candidateMilestones(events, candidateName) {
+  const isMilestone = (t) => MILESTONE_TITLES.has(t) || MILESTONE_PATTERNS.some((p) => p.test(t));
+  const isActionable = (t) => ACTIONABLE_PATTERNS.some((p) => p.test(t));
+  const isUpload = (t) => UPLOAD_TITLES.has(t);
+
+  const seenUploadBatch = new Set();
+  const out = [];
+  for (const e of [...events].reverse()) {
+    // ATS matching is an internal TA screening tool, never surfaced to the
+    // candidate — checked first since its "Auto-Rejected — Below ATS
+    // Threshold" title would otherwise also match the interview-round-result
+    // pattern below (both use the same " — " separator).
+    if (/ATS/i.test(e.title)) continue;
+    if (isMilestone(e.title) || isActionable(e.title)) {
+      out.push({ id: e.id, title: e.title, description: e.description, at: e.created_at, actor: e.actor_label || 'System' });
+    } else if (isUpload(e.title)) {
+      const batch = e.title.startsWith('Onboarding') ? 'onboarding' : 'pre-offer';
+      if (!seenUploadBatch.has(batch)) {
+        seenUploadBatch.add(batch);
+        out.push({
+          id: e.id,
+          title: batch === 'onboarding' ? 'Onboarding documents submitted' : 'Pre-offer documents submitted',
+          description: 'Documents received and sent for verification.',
+          at: e.created_at,
+          // Always the candidate's own action, by definition of UPLOAD_TITLES
+          // — use the application's real name directly rather than whatever
+          // this specific event happened to have stored as actor_label
+          // (older rows, from before actor names were fixed at the source,
+          // still say the bare role "Candidate" rather than a real name).
+          actor: candidateName || 'Candidate',
+        });
+      }
+    }
+  }
+  return out;
+}
+
+const EXP_OPTIONS = ['Fresher', '0–2 years', '2–5 years', '5–8 years', '8+ years'];
+// Same bucket <-> stored-number mapping ApplyPage uses, so a resubmitted edit
+// stores totalExperience in the same shape the rest of the app expects.
+function expToNumber(bucket) {
+  return { Fresher: '0', '0–2 years': '1', '2–5 years': '3', '5–8 years': '6', '8+ years': '9' }[bucket] || '';
+}
+
+/* Shared by the RETURNED-resubmit edit form and the TA-created-candidate
+   verification form — both are "review/correct these fields" screens over
+   the same application shape. */
+function formFromApp(app) {
+  return {
+    firstName: app.personal.firstName || '', lastName: app.personal.lastName || '',
+    email: app.personal.email || '', phone: app.personal.mobile || '',
+    currentLocation: app.personal.currentLocation || '',
+    experience: app.professional.totalExperience
+      ? (EXP_OPTIONS.find((o) => expToNumber(o) === String(app.professional.totalExperience)) || '')
+      : '',
+    currentCompany: app.professional.currentCompany || '', currentJobTitle: app.professional.currentJobTitle || '',
+    portfolio: app.additional.portfolio || '',
+  };
+}
 
 /* The candidate's own journey — used to size the progress donut. This app's
    pipeline stops at the offer; onboarding onward lives in the HR application. */
@@ -46,15 +143,15 @@ function nextStep(status) {
     case APP_STATUS.INTERVIEW_PLANNING:
       return { icon: 'CalendarDays', text: "You've been advanced — we'll be in touch with interview details." };
     case APP_STATUS.INTERVIEW_IN_PROGRESS:
-      return { icon: 'CalendarClock', text: 'You have interview rounds scheduled — see below.' };
+      return { icon: 'CalendarClock', text: 'You have interview rounds scheduled — see the Interviews tab.' };
     case APP_STATUS.INTERVIEW_PASSED:
       return { icon: 'CheckCircle2', text: "You've cleared the interviews. Document verification is next." };
     case APP_STATUS.DOC_VERIFICATION:
-      return { icon: 'Upload', text: 'Please upload your required documents below.' };
+      return { icon: 'Upload', text: 'Please upload your required documents — see the Documents tab.' };
     case APP_STATUS.DOCS_VERIFIED:
       return { icon: 'FileCheck', text: 'All documents verified. Your offer is being prepared.' };
     case APP_STATUS.OFFER_ISSUED:
-      return { icon: 'FileCheck', text: 'You have an offer! Review and respond below.' };
+      return { icon: 'FileCheck', text: 'You have an offer! Review and respond on the Offer tab.' };
     case APP_STATUS.OFFER_ACCEPTED:
       return { icon: 'CheckCircle2', text: 'Offer accepted — our HR team will be in touch to begin onboarding.' };
     default:
@@ -68,6 +165,7 @@ function adaptRemote(a) {
   return {
     id: a.id,
     code: a.code,
+    candidateCode: a.candidateCode,
     jobTitle: a.jobTitle,
     submittedAt: a.submittedAt,
     assignedTo: 'Talent Acquisition',
@@ -75,6 +173,9 @@ function adaptRemote(a) {
     returnReason: a.returnReason,
     rejectReason: a.rejectReason,
     personal: a.personal || {},
+    professional: a.professional || {},
+    education: a.education || [],
+    additional: a.additional || {},
   };
 }
 
@@ -84,14 +185,21 @@ export default function MyApplicationPage() {
   const { configured } = useAuth();
   const [remote, setRemote] = useState({ loading: true, app: null, events: [] });
   const [resubmitting, setResubmitting] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [form, setForm] = useState(null); // populated from app when Edit is opened
+  const [formErrors, setFormErrors] = useState({});
   const [rounds, setRounds] = useState([]);
   const [docs, setDocs] = useState([]);
   const [docBusy, setDocBusy] = useState({}); // application_document id -> true while acting
   const [reasonFor, setReasonFor] = useState(null);
+  const [reasonCategory, setReasonCategory] = useState('');
   const [reasonText, setReasonText] = useState('');
   const [offer, setOffer] = useState(null);
-  const [ack, setAck] = useState(false);
-  const [accepting, setAccepting] = useState(false);
+  const [onboardingDocs, setOnboardingDocs] = useState([]);
+  const [onboardingBusy, setOnboardingBusy] = useState({}); // onboarding_document id -> true while uploading
+  const [onboardingFormValues, setOnboardingFormValues] = useState({}); // onboarding_document id -> { fieldKey: value }
+  const [onboardingFormErrors, setOnboardingFormErrors] = useState({}); // onboarding_document id -> { fieldKey: message }
+  const [activeTab, setActiveTab] = useState('progress'); // progress | interviews | documents | onboarding | offer
 
   const load = () => {
     listMyApplications()
@@ -99,6 +207,10 @@ export default function MyApplicationPage() {
         const latest = apps?.[0] ? applicationFromDb(apps[0]) : null;
         const events = latest ? await getApplicationEvents(latest.id) : [];
         setRemote({ loading: false, app: latest, events });
+        // A TA-created candidate lands straight on the verification form —
+        // no "click Edit" step first, since the whole point is reviewing
+        // what's already there.
+        if (latest?.status === 'DRAFT') setForm(formFromApp(adaptRemote(latest)));
         if (latest && INTERVIEW_STAGES.includes(latest.status)) {
           listInterviewRounds(latest.id).then(setRounds).catch(() => setRounds([]));
         }
@@ -107,6 +219,11 @@ export default function MyApplicationPage() {
         }
         if (latest && OFFER_STAGES.includes(latest.status)) {
           getOffer(latest.id).then(setOffer).catch(() => setOffer(null));
+        }
+        // Onboarding documents only exist once HR has requested them (after
+        // offer acceptance) — an empty list here just means none yet.
+        if (latest) {
+          listOnboardingDocuments(latest.id).then(setOnboardingDocs).catch(() => setOnboardingDocs([]));
         }
       })
       .catch(() => setRemote({ loading: false, app: null, events: [] }));
@@ -146,10 +263,9 @@ export default function MyApplicationPage() {
     );
   }
 
-  const activities = remote.events.map((e) => ({
-    id: e.id, title: e.title, description: e.description, at: e.created_at, actor: e.actor_label || 'System',
-  }));
-  const name = `${app.personal.firstName || ''} ${app.personal.lastName || ''}`.trim() || 'there';
+  const fullName = `${app.personal.firstName || ''} ${app.personal.lastName || ''}`.trim();
+  const activities = candidateMilestones(remote.events, fullName);
+  const name = fullName || 'there';
 
   const status = app.status;
   const badge = stageBadgeForStatus(status);
@@ -178,13 +294,54 @@ export default function MyApplicationPage() {
     }
   };
 
+  const uploadOnboardingDoc = async (doc, fileList) => {
+    const file = fileList?.[0];
+    if (!file) return;
+    setOnboardingBusy((s) => ({ ...s, [doc.id]: true }));
+    try {
+      await uploadOnboardingDocument(app.id, doc, file);
+      toast.success(`${doc.requirement_name} uploaded — now under review.`);
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Upload failed.');
+    } finally {
+      setOnboardingBusy((s) => ({ ...s, [doc.id]: false }));
+    }
+  };
+
+  const onboardingFormValuesFor = (doc) => onboardingFormValues[doc.id] ?? doc.form_data ?? {};
+
+  const setOnboardingFormValue = (doc, key, value) => {
+    setOnboardingFormValues((s) => ({ ...s, [doc.id]: { ...onboardingFormValuesFor(doc), [key]: value } }));
+  };
+
+  const submitOnboardingFormFor = async (doc) => {
+    const values = onboardingFormValuesFor(doc);
+    const errors = validateOnboardingForm(doc.field_schema || [], values);
+    setOnboardingFormErrors((s) => ({ ...s, [doc.id]: errors }));
+    if (Object.keys(errors).length) return;
+
+    setOnboardingBusy((s) => ({ ...s, [doc.id]: true }));
+    try {
+      await submitOnboardingForm(app.id, doc, name, values);
+      toast.success(`${doc.requirement_name} submitted — now under review.`);
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Could not submit this form.');
+    } finally {
+      setOnboardingBusy((s) => ({ ...s, [doc.id]: false }));
+    }
+  };
+
   const confirmCannotProvide = async () => {
-    if (!reasonText.trim()) return;
+    if (!reasonCategory) return;
     setBusy(reasonFor.id, true);
     try {
-      await submitDocument({ applicationDocumentId: reasonFor.id, cannotProvide: true, reason: reasonText.trim() });
+      const reason = reasonText.trim() ? `${reasonCategory}: ${reasonText.trim()}` : reasonCategory;
+      await submitDocument({ applicationDocumentId: reasonFor.id, cannotProvide: true, reason });
       toast.success('Reason submitted — our team will review it.');
       setReasonFor(null);
+      setReasonCategory('');
       setReasonText('');
       load();
     } catch (e) {
@@ -194,32 +351,130 @@ export default function MyApplicationPage() {
     }
   };
 
-  const doAccept = async () => {
-    if (!offer || !ack) return;
-    setAccepting(true);
-    try {
-      await acceptOffer(offer.id);
-      toast.success('Offer accepted!');
-      load();
-    } catch (e) {
-      toast.error(e.message || 'Could not accept the offer.');
-    } finally {
-      setAccepting(false);
-    }
+  // "Resubmit" used to just re-send the exact same data — nothing to fix
+  // what the TA actually flagged. Now it opens an editable form pre-filled
+  // from the current application, and only the changed sections are sent as
+  // a patch (see api/applications.js#resubmitApplication).
+  const startEdit = () => {
+    setForm(formFromApp(app));
+    setFormErrors({});
+    setEditing(true);
   };
 
-  const doResubmit = async () => {
+  const validateForm = (f) => {
+    const e = {};
+    const n1 = nameError(f.firstName, { required: true, label: 'first name' }); if (n1) e.firstName = n1;
+    const n2 = nameError(f.lastName, { required: true, label: 'last name' }); if (n2) e.lastName = n2;
+    const em = emailError(f.email, { required: true }); if (em) e.email = em;
+    const ph = phoneError(f.phone, { required: true }); if (ph) e.phone = ph;
+    const loc = locationError(f.currentLocation, { required: true, label: 'current location' }); if (loc) e.currentLocation = loc;
+    if (!f.experience) e.experience = 'Total experience is required.';
+    const url = urlError(f.portfolio, { required: false, label: 'portfolio/LinkedIn URL' }); if (url) e.portfolio = url;
+    return e;
+  };
+
+  const saveEdit = async () => {
+    const e = validateForm(form);
+    setFormErrors(e);
+    if (Object.keys(e).length) {
+      toast.error('Please fix the highlighted fields.');
+      return;
+    }
     setResubmitting(true);
     try {
-      await resubmitApplication(app.id);
-      toast.success('Application resubmitted for review.');
+      await resubmitApplication(app.id, {
+        personal: { ...app.personal, firstName: form.firstName, lastName: form.lastName, email: form.email, mobile: form.phone, currentLocation: form.currentLocation },
+        professional: { ...app.professional, totalExperience: expToNumber(form.experience), currentCompany: form.currentCompany, currentJobTitle: form.currentJobTitle },
+        additional: { ...app.additional, portfolio: form.portfolio },
+      });
+      toast.success('Application updated and resubmitted for review.');
+      setEditing(false);
       load();
-    } catch (e) {
-      toast.error(e.message || 'Could not resubmit your application.');
+    } catch (e2) {
+      toast.error(e2.message || 'Could not resubmit your application.');
     } finally {
       setResubmitting(false);
     }
   };
+
+  const saveVerify = async () => {
+    const e = validateForm(form);
+    setFormErrors(e);
+    if (Object.keys(e).length) {
+      toast.error('Please fix the highlighted fields.');
+      return;
+    }
+    setResubmitting(true);
+    try {
+      await verifyTaCandidate(app.id, {
+        personal: { ...app.personal, firstName: form.firstName, lastName: form.lastName, email: form.email, mobile: form.phone, currentLocation: form.currentLocation },
+        professional: { ...app.professional, totalExperience: expToNumber(form.experience), currentCompany: form.currentCompany, currentJobTitle: form.currentJobTitle },
+        additional: { ...app.additional, portfolio: form.portfolio },
+      });
+      toast.success('Application verified and submitted!');
+      load();
+    } catch (e2) {
+      toast.error(e2.message || 'Could not submit your application.');
+    } finally {
+      setResubmitting(false);
+    }
+  };
+
+  // A TA created this application from a resume — the candidate reviews/
+  // corrects it here before it enters the normal pipeline. Nothing about the
+  // rest of this page (progress donut, pipeline stages, documents) applies
+  // yet, so this renders as its own screen rather than folding into the
+  // dashboard below.
+  if (status === 'DRAFT' && form) {
+    return (
+      <div className="cx-page cx-page--form">
+        <div className="cx-page__head">
+          <h1 className="cx-page__title">Please verify your application</h1>
+          <p className="cx-page__sub">
+            Our Talent Acquisition team prepared this application from your resume{app.jobTitle && app.jobTitle !== 'General Application' ? ` for ${app.jobTitle}` : ''}.
+            Review the details below, correct anything that's wrong, and submit — you don't need to start from scratch.
+          </p>
+        </div>
+        <Card>
+          <FieldGrid>
+            <Field label="First name" required error={formErrors.firstName}>
+              <Input value={form.firstName} error={formErrors.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} />
+            </Field>
+            <Field label="Last name" required error={formErrors.lastName}>
+              <Input value={form.lastName} error={formErrors.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} />
+            </Field>
+            <Field label="Email" required error={formErrors.email}>
+              <Input type="email" value={form.email} error={formErrors.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </Field>
+            <Field label="Phone number" required error={formErrors.phone}>
+              <Input value={form.phone} error={formErrors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            </Field>
+            <Field label="Current location" required error={formErrors.currentLocation}>
+              <Input value={form.currentLocation} error={formErrors.currentLocation} onChange={(e) => setForm((f) => ({ ...f, currentLocation: e.target.value }))} />
+            </Field>
+            <Field label="Total experience" required error={formErrors.experience}>
+              <Select value={form.experience} error={formErrors.experience} placeholder="Select" options={EXP_OPTIONS} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} />
+            </Field>
+            <Field label="Current company">
+              <Input value={form.currentCompany} onChange={(e) => setForm((f) => ({ ...f, currentCompany: e.target.value }))} />
+            </Field>
+            <Field label="Current job title">
+              <Input value={form.currentJobTitle} onChange={(e) => setForm((f) => ({ ...f, currentJobTitle: e.target.value }))} />
+            </Field>
+            <Field label="Portfolio / LinkedIn URL" hint="Optional" error={formErrors.portfolio} full>
+              <Input value={form.portfolio} error={formErrors.portfolio} placeholder="https://" onChange={(e) => setForm((f) => ({ ...f, portfolio: e.target.value }))} />
+            </Field>
+          </FieldGrid>
+        </Card>
+        <div className="cx-formbar">
+          <span className="cx-formbar__note">By submitting, you confirm that the information above is accurate.</span>
+          <Button iconRight="ArrowRight" onClick={saveVerify} disabled={resubmitting}>
+            {resubmitting ? 'Submitting…' : 'Verify & Submit Application'}
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="cx-page">
@@ -232,6 +487,7 @@ export default function MyApplicationPage() {
           </div>
         </div>
         <dl className="cx-idcard__facts">
+          <div><dt>Candidate ID</dt><dd>{app.candidateCode}</dd></div>
           <div><dt>Application reference</dt><dd>{app.code}</dd></div>
           <div><dt>Submitted</dt><dd>{formatDate(app.submittedAt)}</dd></div>
           <div><dt>Assigned to</dt><dd>{app.assignedTo}</dd></div>
@@ -258,13 +514,76 @@ export default function MyApplicationPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon name="RotateCcw" size={15} /> <strong>Action needed:</strong> {app.returnReason}
           </div>
-          <Button icon="RotateCcw" onClick={doResubmit} disabled={resubmitting}>
-            {resubmitting ? 'Resubmitting…' : 'Resubmit application'}
-          </Button>
+          {!editing && (
+            <Button icon="Pencil" onClick={startEdit}>Edit &amp; resubmit application</Button>
+          )}
         </div>
       )}
 
+      {editing && (
+        <Card title="Update your application">
+          <FieldGrid>
+            <Field label="First name" required error={formErrors.firstName}>
+              <Input value={form.firstName} error={formErrors.firstName} onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))} />
+            </Field>
+            <Field label="Last name" required error={formErrors.lastName}>
+              <Input value={form.lastName} error={formErrors.lastName} onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))} />
+            </Field>
+            <Field label="Email" required error={formErrors.email}>
+              <Input type="email" value={form.email} error={formErrors.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
+            </Field>
+            <Field label="Phone number" required error={formErrors.phone}>
+              <Input value={form.phone} error={formErrors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            </Field>
+            <Field label="Current location" required error={formErrors.currentLocation}>
+              <Input value={form.currentLocation} error={formErrors.currentLocation} onChange={(e) => setForm((f) => ({ ...f, currentLocation: e.target.value }))} />
+            </Field>
+            <Field label="Total experience" required error={formErrors.experience}>
+              <Select value={form.experience} error={formErrors.experience} placeholder="Select" options={EXP_OPTIONS} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} />
+            </Field>
+            <Field label="Current company">
+              <Input value={form.currentCompany} onChange={(e) => setForm((f) => ({ ...f, currentCompany: e.target.value }))} />
+            </Field>
+            <Field label="Current job title">
+              <Input value={form.currentJobTitle} onChange={(e) => setForm((f) => ({ ...f, currentJobTitle: e.target.value }))} />
+            </Field>
+            <Field label="Portfolio / LinkedIn URL" hint="Optional" error={formErrors.portfolio} full>
+              <Input value={form.portfolio} error={formErrors.portfolio} placeholder="https://" onChange={(e) => setForm((f) => ({ ...f, portfolio: e.target.value }))} />
+            </Field>
+          </FieldGrid>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <Button onClick={saveEdit} disabled={resubmitting}>{resubmitting ? 'Saving…' : 'Save & resubmit'}</Button>
+            <Button variant="ghost" onClick={() => setEditing(false)} disabled={resubmitting}>Cancel</Button>
+          </div>
+        </Card>
+      )}
+
+      {(() => {
+        const tabs = [
+          { key: 'progress', label: 'Progress', icon: 'Activity' },
+          rounds.length > 0 && { key: 'interviews', label: 'Interviews', icon: 'CalendarClock' },
+          docs.length > 0 && { key: 'documents', label: 'Documents', icon: 'FileText' },
+          offer && { key: 'offer', label: 'Offer', icon: 'FileCheck' },
+          onboardingDocs.length > 0 && { key: 'onboarding', label: 'Onboarding', icon: 'ClipboardCheck' },
+        ].filter(Boolean);
+        return tabs.length > 1 ? (
+          <div className="ta-btnrow" style={{ marginBottom: 4 }}>
+            {tabs.map((t) => (
+              <button
+                key={t.key}
+                type="button"
+                className={`ta-btn ta-btn--sm${activeTab === t.key ? '' : ' ta-btn--ghost'}`}
+                onClick={() => setActiveTab(t.key)}
+              >
+                <Icon name={t.icon} size={14} /> {t.label}
+              </button>
+            ))}
+          </div>
+        ) : null;
+      })()}
+
       <div className="ta-stack">
+        {activeTab === 'progress' && (
         <Card title="Recruitment progress">
           {rejected ? (
             <div className="cx-nextline cx-nextline--stop">
@@ -299,8 +618,9 @@ export default function MyApplicationPage() {
             </ol>
           )}
         </Card>
+        )}
 
-        {rounds.length > 0 && (
+        {activeTab === 'interviews' && rounds.length > 0 && (
           <Card title="Interviews">
             <div className="ta-stack">
               {rounds.map((r) => {
@@ -327,17 +647,35 @@ export default function MyApplicationPage() {
           </Card>
         )}
 
-        {docs.length > 0 && (
+        {activeTab === 'documents' && docs.length > 0 && (
           <Card
             title="Required documents"
             action={<Tag tone={docs.every((d) => ['verified', 'cannot_provide'].includes(d.status)) ? 'green' : 'amber'}>
               {docs.filter((d) => ['verified', 'cannot_provide'].includes(d.status)).length} of {docs.length} done
             </Tag>}
           >
-            <p className="ta-cell-sub" style={{ marginBottom: 14 }}>
+            <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
               Upload each document below — HR verifies them manually. Where you genuinely can't provide one, mark it
               and give a reason.
             </p>
+            {app.additional.candidateType ? (
+              // Read-only: candidateType is set automatically from the
+              // experience the candidate already gave at application time
+              // (application-decision's request_documents action) — this
+              // page only ever displays it, never lets it be changed, so
+              // there's exactly one source of truth for which checklist
+              // applies, not a second one a candidate could drift out of
+              // sync with TA/HR's expectations.
+              <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
+                <span>
+                  Candidate type: <strong>{app.additional.candidateType === 'fresher' ? 'Fresher' : 'Experienced Professional'}</strong> — your checklist below reflects your application.
+                </span>
+              </div>
+            ) : (
+              <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
+                <span>Candidate type is being verified. Your document checklist will be available once your application details are confirmed.</span>
+              </div>
+            )}
             <div className="ta-stack" style={{ gap: 8 }}>
               {docs.map((d) => {
                 const req = d.document_requirements;
@@ -353,18 +691,26 @@ export default function MyApplicationPage() {
                         <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
                       )}
                       {d.status === 'cannot_provide' && d.cannot_provide_reason && (
-                        <div className="ta-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Reason: {d.cannot_provide_reason}</div>
+                        d.cannot_provide_reason === NOT_APPLICABLE_REASON ? (
+                          <div className="ta-cell-sub">Not applicable to your candidate type.</div>
+                        ) : (
+                          <div className="ta-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Reason: {d.cannot_provide_reason}</div>
+                        )
                       )}
                       {reasonFor?.id === d.id && (
                         <div className="cx-docreason">
+                          <Select
+                            value={reasonCategory} placeholder="Select a reason" options={REASON_CATEGORIES}
+                            onChange={(e) => setReasonCategory(e.target.value)}
+                          />
                           <textarea
-                            className="cx-docreason__input" rows={2}
-                            placeholder={`Why can't you provide the ${req.name.toLowerCase()}?`}
+                            className="cx-docreason__input" rows={2} style={{ marginTop: 8 }}
+                            placeholder="Additional explanation (optional)"
                             value={reasonText} onChange={(e) => setReasonText(e.target.value)}
                           />
                           <div className="cx-docreason__btns">
-                            <button className="ta-btn ta-btn--sm" onClick={confirmCannotProvide} disabled={!reasonText.trim() || busy}>Submit reason</button>
-                            <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setReasonFor(null); setReasonText(''); }}>Cancel</button>
+                            <button className="ta-btn ta-btn--sm" onClick={confirmCannotProvide} disabled={!reasonCategory || busy}>Submit reason</button>
+                            <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setReasonFor(null); setReasonCategory(''); setReasonText(''); }}>Cancel</button>
                           </div>
                           {req.warning_message && (
                             <div className="ta-note ta-note--warn" style={{ marginTop: 8 }}>
@@ -384,7 +730,18 @@ export default function MyApplicationPage() {
                               <input type="file" hidden accept={(req.allowed_file_types || []).map((t) => `.${t}`).join(',')} onChange={(e) => uploadDoc(d, e.target.files)} />
                             </label>
                             {req.can_mark_cannot_provide && (
-                              <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setReasonFor(d); setReasonText(''); }}>Can't provide</button>
+                              <button
+                                className="ta-btn ta-btn--ghost ta-btn--sm"
+                                onClick={() => {
+                                  setReasonFor(d);
+                                  setReasonText('');
+                                  // Fresher + an employment-specific doc -> the reason is almost
+                                  // always this; still editable, just a head start.
+                                  setReasonCategory(app.additional.candidateType === 'fresher' ? 'Fresher / No Previous Employment' : '');
+                                }}
+                              >
+                                Can't provide
+                              </button>
                             )}
                           </>
                         )}
@@ -397,7 +754,7 @@ export default function MyApplicationPage() {
           </Card>
         )}
 
-        {offer && (
+        {activeTab === 'offer' && offer && (
           <Card title="Your offer">
             <p className="ta-cell-mute" style={{ lineHeight: 1.7, marginBottom: 14 }}>
               We are pleased to offer you the position of <strong>{offer.designation || app.jobTitle}</strong>
@@ -409,18 +766,91 @@ export default function MyApplicationPage() {
               {offer.location && <div className="ta-info__item"><span className="ta-info__label">Location</span><span className="ta-info__value">{offer.location}</span></div>}
             </div>
             {offer.status === 'sent' || offer.status === 'viewed' ? (
-              <>
-                <label className="ta-check" style={{ marginBottom: 12 }}>
-                  <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
-                  <span>I have reviewed the offer and agree to the terms stated in the offer letter.</span>
-                </label>
-                <Button icon="CheckCircle2" onClick={doAccept} disabled={!ack || accepting}>
-                  {accepting ? 'Accepting…' : 'Accept offer'}
-                </Button>
-              </>
+              <div className="ta-note ta-note--info">
+                <Icon name="Mail" size={15} /> Please reply to the offer email to accept — your Talent Acquisition
+                contact will confirm it here once they receive your reply.
+              </div>
             ) : offer.status === 'accepted' ? (
               <div className="ta-note ta-note--ok"><Icon name="CheckCircle2" size={15} /> Your acceptance is confirmed. HR will reach out with next steps.</div>
             ) : null}
+          </Card>
+        )}
+
+        {activeTab === 'onboarding' && onboardingDocs.length > 0 && (
+          <Card
+            title="Onboarding documents"
+            action={<Tag tone={onboardingDocs.every((d) => d.status === 'verified') ? 'green' : 'amber'}>
+              {onboardingDocs.filter((d) => d.status === 'verified').length} of {onboardingDocs.length} done
+            </Tag>}
+          >
+            <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
+              A few items to complete your onboarding — fill in each form or upload each document below.
+            </p>
+            <div className="ta-stack" style={{ gap: 8 }}>
+              {onboardingDocs.map((d) => {
+                const meta = DOC_STATUS_META[d.status] || { label: d.status, tone: 'grey' };
+                const canAct = ['requested', 'revision_required'].includes(d.status);
+                const busy = !!onboardingBusy[d.id];
+                const isForm = Array.isArray(d.field_schema) && d.field_schema.length > 0;
+
+                if (isForm) {
+                  return (
+                    <div className="ta-docrow ta-docrow--form" key={d.id} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
+                        <div className="grow" style={{ minWidth: 0 }}>
+                          <div className="ta-cell-strong">{d.requirement_name}{d.required && <span className="cx-req" title="Required"> *</span>}</div>
+                        </div>
+                        <Tag tone={meta.tone}>{meta.label}</Tag>
+                      </div>
+                      {d.status === 'revision_required' && d.hr_remarks && (
+                        <div className="ta-note ta-note--warn">Correction needed: {d.hr_remarks}</div>
+                      )}
+                      {canAct ? (
+                        <>
+                          <OnboardingFormFields
+                            schema={d.field_schema}
+                            values={onboardingFormValuesFor(d)}
+                            errors={onboardingFormErrors[d.id]}
+                            onChange={(key, value) => setOnboardingFormValue(d, key, value)}
+                          />
+                          <div>
+                            <Button icon="Send" onClick={() => submitOnboardingFormFor(d)} disabled={busy}>
+                              {busy ? 'Submitting…' : d.status === 'revision_required' ? 'Resubmit' : 'Submit'}
+                            </Button>
+                          </div>
+                        </>
+                      ) : (
+                        <p className="ta-cell-sub">Submitted — HR will review this shortly.</p>
+                      )}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div className="ta-docrow" key={d.id}>
+                    <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
+                    <div className="grow" style={{ minWidth: 0 }}>
+                      <div className="ta-cell-strong">{d.requirement_name}{d.required && <span className="cx-req" title="Required"> *</span>}</div>
+                      {d.status === 'revision_required' && d.hr_remarks && (
+                        <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
+                      )}
+                    </div>
+                    <Tag tone={meta.tone}>{meta.label}</Tag>
+                    {canAct && (
+                      <span className="cx-docacts">
+                        {busy ? <span className="ta-spinner" /> : (
+                          <label className="ta-btn ta-btn--ghost" style={{ cursor: 'pointer' }}>
+                            <Icon name="Upload" size={14} /> Upload
+                            <input type="file" hidden accept=".pdf,.jpg,.jpeg,.png" onChange={(e) => uploadOnboardingDoc(d, e.target.files)} />
+                          </label>
+                        )}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </Card>
         )}
       </div>

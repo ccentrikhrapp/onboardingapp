@@ -35,7 +35,7 @@ export default function ProfileMenu({ links = [] }) {
         <span className="hr-avatar-sq">{initials}</span>
         <span className="hr-profilemenu__who">
           <span className="hr-profilemenu__name">{name}</span>
-          <span className="hr-profilemenu__role">HR</span>
+          <span className="hr-profilemenu__role">{profile?.role === 'admin' ? 'Admin' : 'HR'}</span>
         </span>
         <Icon name="ChevronDown" size={14} />
       </button>

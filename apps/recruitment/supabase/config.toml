@@ -39,3 +39,9 @@ secret = "env(GOOGLE_OAUTH_SECRET)"
 [auth.email]
 enable_signup = false
 enable_confirmations = false
+
+# Opened directly from a link inside the interview-invitation email (a plain
+# hyperlink click can't carry an Authorization header) — the unguessable
+# per-round response_token is what authorizes it instead, not a JWT.
+[functions.interview-response]
+verify_jwt = false

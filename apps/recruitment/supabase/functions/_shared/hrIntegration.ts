@@ -35,10 +35,23 @@ export async function callHr(
     return { ok: false, error: "HR integration not configured" };
   }
 
+  // Supabase's own API gateway requires a valid Supabase-issued JWT on every
+  // edge function call (independent of and in front of our own X-Integration-
+  // Secret check below) unless the function is deployed with JWT verification
+  // disabled. Rather than disable that platform-level check, the target
+  // project's own anon key satisfies it — the anon key is meant to be public/
+  // embeddable, so this adds no real access (X-Integration-Secret remains the
+  // actual authorization), it just gets the request past the gateway.
+  const anonKey = Deno.env.get("HR_ANON_KEY");
+
   try {
     const res = await fetch(`${baseUrl.replace(/\/$/, "")}/${fn}`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Integration-Secret": secret },
+      headers: {
+        "Content-Type": "application/json",
+        "X-Integration-Secret": secret,
+        ...(anonKey ? { Authorization: `Bearer ${anonKey}`, apikey: anonKey } : {}),
+      },
       body: JSON.stringify({ eventId, ...payload }),
     });
     if (!res.ok) {

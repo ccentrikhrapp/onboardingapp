@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useToast } from '../../context/ToastContext.jsx';
 
 const NEXT_STEPS = [
   'Application received',
@@ -15,8 +18,33 @@ const NEXT_STEPS = [
 export default function ApplicationSuccessPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
+  const { user, linkGoogle } = useAuth();
+  const toast = useToast();
+  const [linking, setLinking] = useState(false);
 
   if (!state?.candidateId && !state?.applicationId) return <Navigate to="/candidate" replace />;
+
+  // The application was already created (anonymously, if the candidate chose
+  // not to sign in) — this is a pure convenience offer, never a gate. Only
+  // shown while the current session is still anonymous; skipped entirely for
+  // a candidate who was already signed in with a real account.
+  const offerAccount = user?.is_anonymous === true;
+  const linkAccount = async () => {
+    setLinking(true);
+    try {
+      // Not window.location.href: this page's confirmation only exists via
+      // React Router navigation state, which a real OAuth round-trip (full
+      // page reload) always wipes — landing back here would just bounce to
+      // /candidate via the empty-state redirect above. My Application loads
+      // fresh from the API by the now-authenticated session instead, so it
+      // survives the reload correctly.
+      const { error } = await linkGoogle(`${window.location.origin}/candidate/application`);
+      if (error) throw error;
+    } catch (err) {
+      setLinking(false);
+      toast.error(err.message || 'Could not start Google sign-in. You can try again anytime from My Application.');
+    }
+  };
 
   return (
     <div className="cx-page cx-page--narrow">
@@ -41,6 +69,23 @@ export default function ApplicationSuccessPage() {
       </Card>
 
       <div style={{ height: 16 }} />
+
+      {offerAccount && (
+        <>
+          <Card title="Want easier access to your application?">
+            <p className="ta-cell-sub" style={{ marginBottom: 14 }}>
+              Sign in with Google to check your status anytime without saving a link — completely optional, your application is already submitted either way.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <Button icon="CircleUserRound" onClick={linkAccount} disabled={linking}>
+                {linking ? 'Opening Google…' : 'Sign in with Google'}
+              </Button>
+              <Button variant="ghost" onClick={() => navigate('/candidate/application')}>Continue without account</Button>
+            </div>
+          </Card>
+          <div style={{ height: 16 }} />
+        </>
+      )}
 
       <Card title="What happens next">
         <ol className="ta-timeline">

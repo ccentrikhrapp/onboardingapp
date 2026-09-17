@@ -5,8 +5,9 @@ import Card from '../../components/kit/Card.jsx';
 import Tag from '../../components/kit/Tag.jsx';
 import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
+import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listVerificationsForApplication } from '../../api/verification.js';
+import { listVerificationsForApplication, getVerificationDocumentUrl } from '../../api/verification.js';
 import { verifyDocument } from '../../api/verify.js';
 
 const STATUS_META = {
@@ -44,6 +45,7 @@ export default function VerificationWorkspacePage() {
   const [error, setError] = useState('');
   const [reasonFor, setReasonFor] = useState(null); // { docId, action }
   const [busy, setBusy] = useState(null);
+  const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
 
   const load = () => {
     listVerificationsForApplication(applicationId)
@@ -68,6 +70,17 @@ export default function VerificationWorkspacePage() {
     }
   };
 
+  const viewDoc = async (doc) => {
+    setPreview({ url: null, fileName: null, title: doc.requirement_name });
+    try {
+      const { url, fileName } = await getVerificationDocumentUrl(doc.source_document_id);
+      setPreview({ url, fileName, title: doc.requirement_name });
+    } catch (e) {
+      setPreview(null);
+      toast.error(e.message || 'Could not open this document.');
+    }
+  };
+
   const first = docs?.[0];
   const approved = (docs || []).filter((d) => d.status === 'approved').length;
   const total = (docs || []).length;
@@ -77,7 +90,7 @@ export default function VerificationWorkspacePage() {
       <HRHeader
         title={first?.candidate_name || 'Candidate verification'}
         subtitle={first ? `${first.job_title} · ${first.application_code}` : ''}
-        backTo="/hr"
+        backTo="/hr/verification"
         backLabel="Verification queue"
       />
 
@@ -111,15 +124,20 @@ export default function VerificationWorkspacePage() {
                     )}
                   </div>
                   <Tag tone={meta.tone}>{meta.label}</Tag>
-                  {canAct && reasonFor?.docId !== doc.id && (
+                  {reasonFor?.docId !== doc.id && (
                     <span className="hr-rowactions" style={{ opacity: 1 }}>
-                      <Button variant="ghost" icon="Check" disabled={busy === doc.id} onClick={() => act(doc, 'approve')}>Approve</Button>
-                      <Button variant="ghost" icon="RotateCcw" disabled={busy === doc.id} onClick={() => setReasonFor({ docId: doc.id, action: 'reupload_required' })}>
-                        Request correction
-                      </Button>
-                      <Button variant="danger" icon="X" disabled={busy === doc.id} onClick={() => setReasonFor({ docId: doc.id, action: 'reject' })}>
-                        Reject
-                      </Button>
+                      <Button variant="ghost" icon="Eye" onClick={() => viewDoc(doc)}>View</Button>
+                      {canAct && (
+                        <>
+                          <Button variant="ghost" icon="Check" disabled={busy === doc.id} onClick={() => act(doc, 'approve')}>Approve</Button>
+                          <Button variant="ghost" icon="RotateCcw" disabled={busy === doc.id} onClick={() => setReasonFor({ docId: doc.id, action: 'reupload_required' })}>
+                            Request correction
+                          </Button>
+                          <Button variant="danger" icon="X" disabled={busy === doc.id} onClick={() => setReasonFor({ docId: doc.id, action: 'reject' })}>
+                            Reject
+                          </Button>
+                        </>
+                      )}
                     </span>
                   )}
                 </div>
@@ -128,6 +146,10 @@ export default function VerificationWorkspacePage() {
           </div>
         </Card>
       )}
+      <DocumentPreviewModal
+        open={!!preview} onClose={() => setPreview(null)}
+        url={preview?.url} fileName={preview?.fileName} title={preview?.title}
+      />
     </>
   );
 }

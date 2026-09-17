@@ -4,6 +4,8 @@ import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
 import { useApp } from '../../context/AppContext.jsx';
+import { useAuth } from '../../context/AuthContext.jsx';
+import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn.js';
 import { formatDate } from '../../utils/format.js';
 
 function List({ title, items }) {
@@ -20,6 +22,8 @@ export default function JobDetailsPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const { getJob, jobsLoading } = useApp();
+  const { user } = useAuth();
+  const { signing, trigger } = useGoogleSignIn();
   const job = getJob(jobId);
 
   if (jobsLoading) {
@@ -91,6 +95,19 @@ export default function JobDetailsPage() {
           <Button iconRight="ArrowRight" onClick={() => navigate(`/candidate/apply/${job.id}`)} style={{ width: '100%' }}>
             Apply now
           </Button>
+          {user ? (
+            <button type="button" className="ta-link" style={{ marginTop: 14, width: '100%', justifyContent: 'center' }} onClick={() => navigate('/candidate/application')}>
+              View my application status
+            </button>
+          ) : (
+            <button
+              type="button" className="ta-link" disabled={signing}
+              style={{ marginTop: 14, width: '100%', justifyContent: 'center' }}
+              onClick={() => trigger()}
+            >
+              Already applied? {signing ? 'Signing in…' : 'Sign in with Google'}
+            </button>
+          )}
         </Card>
       </div>
     </div>

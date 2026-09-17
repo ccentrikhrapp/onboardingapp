@@ -54,15 +54,18 @@ The `20260910094000_storage.sql` migration creates four private buckets
 (`resumes`, `documents`, `offer-letters`, `email-attachments`) with RLS. Nothing
 to click.
 
-## 6. Edge function secrets (SMTP + links + HR integration)
+## 6. Edge function secrets (mail + links + HR integration)
+
+Outbound email is delegated to a Firebase Cloud Function over HTTPS (not
+SMTP directly) — deploy a Cloud Function that accepts
+`{ to, from, subject, html, text }`, checks the `X-Mail-Secret` header
+against `FIREBASE_MAIL_SHARED_SECRET`, and sends the mail.
 
 ```bash
 supabase secrets set \
-  SMTP_HOST=smtp.yourprovider.com \
-  SMTP_PORT=587 \
-  SMTP_USER=postmaster@ccentrik.com \
-  SMTP_PASSWORD=... \
-  SMTP_FROM="Ccentrik Talent Acquisition <no-reply@ccentrik.com>" \
+  MAIL_FROM="Ccentrik Talent Acquisition <no-reply@ccentrik.com>" \
+  FIREBASE_MAIL_FUNCTION_URL=https://YOUR-REGION-YOUR-PROJECT.cloudfunctions.net/sendMail \
+  FIREBASE_MAIL_SHARED_SECRET=<a long random value, matching what the Firebase function checks> \
   PUBLIC_SITE_URL=http://localhost:5173 \
   INTEGRATION_SHARED_SECRET=<the SAME long random value set in the HR app> \
   HR_FUNCTIONS_URL=https://YOUR_HR_PROJECT_REF.supabase.co/functions/v1

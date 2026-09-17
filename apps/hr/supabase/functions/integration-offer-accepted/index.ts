@@ -92,8 +92,9 @@ Deno.serve(async (req) => {
 
       await svc.from("notifications").insert({
         recipient_role: "hr",
-        title: "New onboarding",
-        message: `${body.candidate?.name ?? "A candidate"} accepted their offer for ${body.position?.job_title ?? "a role"}.`,
+        title: "New onboarding required",
+        message: `${body.candidate?.name ?? "A candidate"} accepted their offer` +
+          (body.position?.designation ? ` — assigned role: ${body.position.designation}.` : "."),
         type: "onboarding_created",
         entity_type: "onboarding_case",
         entity_id: caseId,

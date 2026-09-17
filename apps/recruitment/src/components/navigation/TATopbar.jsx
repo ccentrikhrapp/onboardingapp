@@ -1,7 +1,6 @@
 import Icon from '../common/Icon.jsx';
 import NotificationBell from './NotificationBell.jsx';
 import ProfileMenu from './ProfileMenu.jsx';
-import { ROLES } from '../../constants/roles.js';
 
 /* Single header band: page title (from <TAHeader>) on the left, tools on the right. */
 export default function TATopbar({ head, onMenu }) {
@@ -21,8 +20,8 @@ export default function TATopbar({ head, onMenu }) {
         {head?.subtitle && <p className="ta-topbar__sub">{head.subtitle}</p>}
       </div>
 
-      <NotificationBell role={ROLES.TA} variant="ta" />
-      <ProfileMenu role={ROLES.TA} links={[{ label: 'Profile & settings', icon: 'Settings', to: '/ta/settings' }]} />
+      <NotificationBell variant="ta" />
+      <ProfileMenu links={[{ label: 'Profile & settings', icon: 'Settings', to: '/ta/settings' }]} />
     </header>
   );
 }

@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Navigate, Link } from 'react-router-dom';
+import { Navigate } from 'react-router-dom';
 import Icon from '../components/common/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import { ROLES, ROLE_META } from '../constants/roles.js';
+import { ROLE_META } from '../constants/roles.js';
 import AuthHeroLayout from '../components/auth/AuthHeroLayout.jsx';
 import { useGoogleSignIn } from '../components/auth/useGoogleSignIn.js';
+import { emailError } from '../utils/validation.js';
 
 function homeForRole(role) {
   return ROLE_META[role]?.home || '/candidate';
@@ -23,7 +24,7 @@ const JOURNEY = [
    (route, copy, colour). Recruiters get a password form too (for accounts an
    admin has provisioned), on top of Google — candidates only ever use Google. */
 export default function TALoginPage() {
-  const { configured, role, loading: authLoading, signOut, signInWithPassword } = useAuth();
+  const { configured, role, loading: authLoading, signInWithPassword } = useAuth();
   const { error: googleError, signing, trigger } = useGoogleSignIn();
 
   const [email, setEmail] = useState('');
@@ -32,17 +33,11 @@ export default function TALoginPage() {
   const [formError, setFormError] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  // Already signed in — send them straight to their own portal instead of
+  // trapping them on a dead-end "wrong account type" screen (see the
+  // matching fix in LoginPage.jsx — same bug, same reason: a stray link can
+  // land any already-authenticated role on this staff-only page).
   if (configured && !authLoading && role) {
-    if (role !== ROLES.TA) {
-      return (
-        <div className="wsauth wsauth--ta" style={{ placeItems: 'center', textAlign: 'center', padding: 24 }}>
-          <div>
-            <p>This account doesn't have Talent Acquisition access. Please use the candidate sign-in instead.</p>
-            <button type="button" className="wsauth__forgot" onClick={() => signOut()}>Sign out</button>
-          </div>
-        </div>
-      );
-    }
     return <Navigate to={homeForRole(role)} replace />;
   }
 
@@ -50,12 +45,18 @@ export default function TALoginPage() {
     e.preventDefault();
     if (submitting || !configured) return;
     setFormError('');
-    if (!email.trim() || !password) {
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail || !password) {
       setFormError('Enter your email and password.');
       return;
     }
+    const emailMsg = emailError(trimmedEmail, { required: true });
+    if (emailMsg) {
+      setFormError(emailMsg);
+      return;
+    }
     setSubmitting(true);
-    const { error } = await signInWithPassword(email.trim(), password);
+    const { error } = await signInWithPassword(trimmedEmail, password);
     if (error) {
       setFormError(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
       setSubmitting(false);
@@ -80,7 +81,6 @@ export default function TALoginPage() {
       authLoading={authLoading}
       onGoogleClick={trigger}
       footer="For internal use by the Ccentrik Talent Acquisition team."
-      crossLink={<p className="wsauth__foot"><Link to="/">Looking to apply for a role? Go to Careers →</Link></p>}
     >
       <form onSubmit={submitPassword} noValidate>
         {formError && (

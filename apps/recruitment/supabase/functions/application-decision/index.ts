@@ -30,7 +30,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
   const profile = await currentProfile(req);
-  if (!profile || !["ta", "hr", "admin"].includes(profile.role)) {
+  if (!profile || !["ta", "hr", "admin", "admin_ta"].includes(profile.role)) {
     return fail("FORBIDDEN", "Only Talent Acquisition can do this.", 403);
   }
 
@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
   const { data: app } = await svc
     .from("applications")
     .select(
-      "id, application_code, status, assigned_ta_id, current_version, personal, job_id, " +
+      "id, application_code, status, assigned_ta_id, current_version, personal, professional, additional, job_id, " +
         "candidates(profile_id, email, first_name, last_name), jobs(title)",
     )
     .eq("id", applicationId)
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
 
   // The assigned TA (or any admin) may act. An unassigned application can be
   // claimed by the first TA who reviews it.
-  if (profile.role !== "admin" && app.assigned_ta_id && app.assigned_ta_id !== profile.id) {
+  if (!["admin", "admin_ta"].includes(profile.role) && app.assigned_ta_id && app.assigned_ta_id !== profile.id) {
     return fail("FORBIDDEN", "This application is assigned to another recruiter.", 403);
   }
   if (!rule.from.includes(app.status)) {
@@ -110,18 +110,31 @@ Deno.serve(async (req) => {
   // Unlocking pre-offer documents needs its own side effects (create the
   // requirement rows), so it's handled separately from the generic table below.
   if (action === "request_documents") {
+    // Candidate type (fresher vs experienced) — inferred from what they
+    // already told us on the application (Fresher bucket / 0 years), stored
+    // so the candidate's own "Candidate Type" toggle later has something to
+    // start from, and so TA/HR can see what determined the checklist they
+    // got. The candidate can still correct it (see set-candidate-type).
+    const totalExp = Number(app.professional?.totalExperience ?? 0);
+    const candidateType: "fresher" | "experienced" = totalExp > 0 ? "experienced" : "fresher";
+
     const { data: requirements } = await svc
       .from("document_requirements")
-      .select("id")
+      .select("id, applicable_for")
       .eq("stage", "pre_offer")
       .eq("active", true);
-    for (const r of requirements ?? []) {
+    // Employment-specific documents a fresher can't reasonably provide are
+    // never instantiated for them at all — not shown as "N/A", just absent
+    // (master prompt Part 2: "prefer hiding" over a placeholder row).
+    const applicable = (requirements ?? []).filter((r) => (r.applicable_for ?? ["fresher", "experienced"]).includes(candidateType));
+    for (const r of applicable) {
       await svc.from("application_documents").insert({
         application_id: app.id,
         requirement_id: r.id,
         status: "requested",
       });
     }
+    await svc.from("applications").update({ additional: { ...(app.additional ?? {}), candidateType } }).eq("id", app.id);
 
     await addEvent(svc, {
       application_id: app.id, type: "documents", title: "Pre-Offer Documents Requested",
@@ -146,6 +159,7 @@ Deno.serve(async (req) => {
       await queueEmail(svc, {
         recipient: candidate.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
         template: "documents_requested", entity_type: "application", entity_id: app.id,
+        sender_email: profile.email ?? null,
       });
     }
     return ok({ status: rule.to });
@@ -228,6 +242,7 @@ Deno.serve(async (req) => {
       template: m.template,
       entity_type: "application",
       entity_id: app.id,
+      sender_email: profile.email ?? null,
     });
   }
 

@@ -18,7 +18,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
   const profile = await currentProfile(req);
-  if (!profile || !["ta", "admin"].includes(profile.role)) {
+  if (!profile || !["ta", "admin", "admin_ta"].includes(profile.role)) {
     return fail("FORBIDDEN", "Only Talent Acquisition can record interview feedback.", 403);
   }
 
@@ -46,7 +46,7 @@ Deno.serve(async (req) => {
     .maybeSingle();
   if (!round) return fail("NOT_FOUND", "Interview round not found.", 404);
   const app = round.applications as any;
-  if (profile.role !== "admin" && app.assigned_ta_id !== profile.id) {
+  if (!["admin", "admin_ta"].includes(profile.role) && app.assigned_ta_id !== profile.id) {
     return fail("FORBIDDEN", "This application is assigned to another recruiter.", 403);
   }
   if (round.status !== "scheduled") {
@@ -125,6 +125,7 @@ Deno.serve(async (req) => {
       await queueEmail(svc, {
         recipient: app.personal.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
         template: `interview_${decision === "advance" ? "advance" : "not_progressing"}`, entity_type: "application", entity_id: app.id,
+        sender_email: profile.email ?? null,
       });
     }
   }

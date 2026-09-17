@@ -1,24 +1,34 @@
 import { supabase } from '../lib/supabase.js';
 import { ApiError, callFn, signedUrl } from './client.js';
+import { fileUploadError } from '../utils/validation.js';
 
 const MAX_MB = 5;
 const ALLOWED = ['pdf', 'doc', 'docx'];
 
-/** Upload the resume to the caller's private folder. Returns { path, meta }. */
-export async function uploadResume(file) {
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (!ALLOWED.includes(ext)) {
-    throw new ApiError('Please upload a PDF, DOC or DOCX file.', 'BAD_FILE_TYPE');
-  }
-  if (file.size > MAX_MB * 1024 * 1024) {
-    throw new ApiError(`File must be under ${MAX_MB} MB.`, 'FILE_TOO_LARGE');
-  }
+/**
+ * Upload the resume. If the candidate is already signed in it goes straight
+ * to their own folder; otherwise (picking a resume is allowed before any
+ * sign-in) it goes to an anonymous "pending-anon/{draftId}" folder that only
+ * this browser's draft knows about — submit-application later moves it into
+ * the real candidate folder once they've actually signed in. `draftId` is
+ * required in the not-signed-in case (the caller generates/persists it
+ * alongside the rest of the application draft).
+ */
+export async function uploadResume(file, draftId) {
+  const fileErr = fileUploadError(file, { allowedExt: ALLOWED, maxMB: MAX_MB });
+  if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
   const { data: me } = await supabase.auth.getUser();
-  if (!me.user) throw new ApiError('Please sign in first.', 'UNAUTHENTICATED');
 
-  const path = `${me.user.id}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
+  const folder = me.user ? me.user.id : `pending-anon/${draftId}`;
+  if (!me.user && !draftId) throw new ApiError('Missing draft id.', 'BAD_REQUEST');
+
+  const path = `${folder}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
   const { error } = await supabase.storage.from('resumes').upload(path, file, {
-    upsert: true,
+    // Upsert needs both INSERT and UPDATE policies to satisfy RLS (Postgres checks
+    // the ON CONFLICT DO UPDATE path even when nothing actually conflicts). The
+    // anonymous pending-anon folder only has an INSERT policy, and the timestamped
+    // filename is already unique per attempt, so only upsert for signed-in users.
+    upsert: Boolean(me.user),
     contentType: file.type || undefined,
   });
   if (error) throw new ApiError(error.message, 'UPLOAD_FAILED');

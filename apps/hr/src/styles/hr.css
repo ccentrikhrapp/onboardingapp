@@ -40,12 +40,20 @@
 .hr-surface-page { background: var(--hr-bg); color: var(--hr-text); font-size: 13px; }
 .hr-surface-page h1, .hr-surface-page h2, .hr-surface-page h3 { letter-spacing: -0.02em; }
 
+/* Grid, not flex-plus-fixed-plus-margin: the sidebar column's width is a
+   real, explicit track that .hr-main can never overlap or overflow past,
+   by construction — not by two separate rules (a fixed width and a matching
+   margin) happening to agree. See git history for why the old flex/fixed/
+   margin combo could silently drift out of sync (position:fixed removes an
+   element from flex layout entirely, so .hr-main's flex:1 was computing
+   against the full shell width, not "shell width minus sidebar" — only a
+   margin was compensating for *position*, never for *width*). */
 .hr-shell {
-  display: flex;
-  min-height: calc(100vh / var(--app-zoom, 1));
+  display: grid;
+  grid-template-columns: var(--hr-sidebar-w) minmax(0, 1fr);
+  min-height: 100vh;
   width: 100%;
-  max-width: calc(100vw / var(--app-zoom, 1));
-  overflow-x: hidden;
+  transition: grid-template-columns 0.2s ease;
   background: var(--hr-bg);
   color: var(--hr-text);
   font-size: 13px;
@@ -53,18 +61,29 @@
 .hr-shell h1, .hr-shell h2, .hr-shell h3 { letter-spacing: -0.02em; }
 
 /* ---------- Sidebar ---------- */
+/* overflow-y:auto here would force overflow-x to compute as `auto` too (per
+   the CSS Overflow spec, one axis can't scroll while the other stays
+   `visible`) — which would clip the collapse button below, since it's
+   deliberately positioned half outside the sidebar's own box (right:-12px)
+   to sit docked on the boundary. The nav list is short enough in practice
+   that the sidebar never needs to scroll, so overflow stays at its default
+   (visible) rather than trading a real bug for a hypothetical one. */
 .hr-sidebar {
-  width: var(--hr-sidebar-w);
-  flex-shrink: 0;
+  grid-column: 1;
+  min-width: 0;
   background: var(--hr-surface);
   border-right: 1px solid var(--hr-line);
   display: flex; flex-direction: column;
-  padding: 14px 12px;
-  position: fixed; inset: 0 auto 0 0; z-index: 40;
-  transition: width 0.2s ease;
+  padding: 16px 14px;
+  position: sticky; top: 0; height: 100vh; z-index: 40;
 }
+/* No global anchor reset exists in this app, so a NavLink's <a> falls back to
+   the browser's default blue/underlined link style wherever a scoped rule
+   doesn't explicitly win — scope the reset to the sidebar rather than adding
+   a site-wide `a` rule that could affect unrelated pages. */
+.hr-sidebar a { text-decoration: none; color: inherit; }
 
-.hr-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 16px; }
+.hr-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--hr-line-soft); }
 .hr-brand__mark {
   width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
   background: linear-gradient(150deg, #4b7bf7, #2a53c8);
@@ -93,18 +112,32 @@
 }
 .hr-collapse-btn:hover { color: var(--hr-blue); border-color: var(--hr-blue-wash); }
 
-.hr-nav { display: flex; flex-direction: column; gap: 2px; }
+.hr-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 .hr-nav__link {
-  display: flex; align-items: center; gap: 11px;
-  padding: 8px 10px; border-radius: 9px;
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
   color: var(--hr-text-soft); font-size: 13px; font-weight: 500;
   white-space: nowrap; overflow: hidden;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.hr-nav__link svg { flex-shrink: 0; }
-.hr-nav__link:hover { background: var(--hr-bg); color: var(--hr-text); }
+/* left accent bar for the active item — grows in from nothing rather than
+   just appearing, so switching pages reads as a small, deliberate motion. */
+.hr-nav__link::before {
+  content: ''; position: absolute; left: -14px; top: 50%; translate: 0 -50%;
+  width: 3px; height: 0; border-radius: 0 3px 3px 0; background: var(--hr-blue);
+  transition: height 0.15s ease;
+}
+.hr-nav__link.active::before { height: 18px; }
+.hr-nav__link svg {
+  flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 9px;
+  box-sizing: border-box; background: transparent; color: var(--hr-text-mute);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.hr-nav__link:hover { color: var(--hr-text); }
+.hr-nav__link:hover svg { background: var(--hr-bg); color: var(--hr-text-soft); }
 .hr-nav__link.active { background: var(--hr-blue-wash); color: var(--hr-blue-ink); font-weight: 600; }
-.hr-nav__link.active svg { color: var(--hr-blue); }
+.hr-nav__link.active svg { background: var(--hr-blue); color: #fff; box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--hr-blue) 55%, transparent); }
 .hr-nav__count {
   flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
   background: var(--tag-amber-bg); color: var(--tag-amber-fg);
@@ -138,6 +171,32 @@
 .hr-usercard__name { font-size: 12px; font-weight: 600; white-space: nowrap; }
 .hr-usercard__role { font-size: 11px; color: var(--hr-text-mute); white-space: nowrap; }
 .hr-usercard svg { flex-shrink: 0; color: var(--hr-text-mute); }
+
+/* ---------- Modal ---------- */
+.hr-overlay {
+  position: fixed; inset: 0; z-index: 80;
+  background: rgba(20, 24, 36, 0.45);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+  animation: fade 0.14s ease;
+}
+.hr-modal {
+  background: var(--hr-surface); border-radius: var(--hr-radius);
+  width: 100%; max-width: 560px; max-height: 90vh;
+  display: flex; flex-direction: column;
+  box-shadow: var(--hr-shadow-hover); animation: pop 0.16s ease;
+}
+.hr-modal--xl { max-width: 960px; }
+.hr-modal__header {
+  padding: 14px 18px; border-bottom: 1px solid var(--hr-line);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.hr-modal__title { font-size: 15px; font-weight: 700; }
+.hr-modal__close {
+  background: transparent; border: 0; cursor: pointer; color: var(--hr-text-mute);
+  display: flex; align-items: center; justify-content: center; padding: 4px; border-radius: 8px;
+}
+.hr-modal__close:hover { background: var(--hr-bg); color: var(--hr-text); }
+.hr-modal__body { padding: 18px; overflow-y: auto; }
 
 .hr-menu {
   position: absolute; bottom: 64px; left: 12px; right: 12px;
@@ -173,11 +232,10 @@
 
 /* ---------- Main column ---------- */
 .hr-main {
-  flex: 1; min-width: 0;
-  margin-left: var(--hr-sidebar-w);
+  grid-column: 2;
+  min-width: 0; /* lets the column actually shrink to its track instead of overflowing it */
   display: flex; flex-direction: column;
   overflow-x: hidden;
-  transition: margin-left 0.2s ease;
 }
 
 .hr-topbar {
@@ -232,7 +290,21 @@
   font-size: 12px; font-weight: 600; flex-shrink: 0;
 }
 
-.hr-page { padding: 14px 28px 80px; max-width: 1720px; width: 100%; margin: 0 auto; }
+/* min-width:0 is required here: .hr-page is a flex item inside .hr-main
+   (display:flex; flex-direction:column), and flex items default to
+   min-width:auto — meaning without this, .hr-page (and everything under it,
+   including the KPI row) refuses to shrink below its widest descendant's
+   natural content width, which is exactly what was still pushing the 4th
+   KPI card past the viewport even after the grid/auto-fit fixes upstream. */
+/* box-sizing:border-box is load-bearing here: width:100% otherwise sets only
+   the *content* box to match .hr-main, and this padding (56px total) then
+   adds on top of that instead of being carved out of it — .hr-page silently
+   renders 56px wider than .hr-main (28px of it inside .hr-main's own visible
+   area, since .hr-page starts flush with .hr-main's left edge), clipped by
+   .hr-main's overflow-x:hidden. This was the actual, sole cause of the
+   right-edge KPI-card clipping — not the row's own grid/flex sizing, which
+   was already correct; the row simply inherited an oversized parent. */
+.hr-page { padding: 14px 28px 80px; max-width: 1720px; width: 100%; min-width: 0; margin: 0 auto; box-sizing: border-box; }
 .hr-shell .page-body { padding: 0; max-width: none; margin: 0; }
 .hr-page__title { font-size: 20px; font-weight: 700; }
 .hr-page__sub { font-size: 12.5px; color: var(--hr-text-soft); margin-top: 3px; }
@@ -408,8 +480,13 @@
 .hr-ptab.is-active svg { background: var(--pt); color: #fff; }
 @media (max-width: 1180px) { .hr-ptabs { grid-template-columns: repeat(2, 1fr); } }
 
-/* activity sidebar — never taller than the workflow column; scroll inside */
-.hr-actside { overflow: hidden; }
+/* activity panel — a fixed, compact height always, not "as tall as whatever
+   sits beside it" (that used to be measured off the workflow column via
+   ResizeObserver, which meant a long workflow made this panel just as long).
+   A flat max-height keeps the panel small and predictable regardless of
+   viewport width or how many events exist, with the excess handled entirely
+   by .hr-timeline--scroll's own internal scrollbar. */
+.hr-actside { max-height: 440px; overflow: hidden; }
 .hr-actside > .hr-card { max-height: 100%; overflow: hidden; }
 .hr-actside > .hr-card > .hr-card__body { display: flex; flex-direction: column; min-height: 0; }
 .hr-timeline--scroll {
@@ -421,11 +498,6 @@
 .hr-timeline--scroll::-webkit-scrollbar-track { background: transparent; }
 .hr-timeline--scroll::-webkit-scrollbar-thumb { background: var(--hr-line); border-radius: 999px; }
 .hr-timeline--scroll:hover::-webkit-scrollbar-thumb { background: var(--hr-text-mute); }
-@media (max-width: 1160px) {
-  .hr-actside { max-height: none !important; overflow: visible; }
-  .hr-actside > .hr-card { max-height: none; }
-  .hr-timeline--scroll { overflow-y: visible; }
-}
 
 /* activity feed — show a few, expand for the rest */
 .hr-actmore {
@@ -453,10 +525,22 @@
 .hr-link:hover { color: var(--hr-blue-ink); }
 
 /* ---------- KPI row ---------- */
-.hr-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+/* auto-fit + minmax: cards claim at least 220px each and the row picks
+   however many fit the actual available width, wrapping the rest to a new
+   row — no manual breakpoint to keep in sync with card count or basis size.
+   This is safe now that .hr-page (its containing block) no longer silently
+   overflows .hr-main (see .hr-page's box-sizing comment above): the actual
+   root cause of the KPI row's right-edge clipping was there, upstream of
+   this rule, which is why no version of this row's own sizing logic — grid
+   auto-fit, flex-wrap, or fixed per-breakpoint column counts — ever fixed it
+   on its own; the row was always correctly filling an oversized parent.
+   box-sizing:border-box so a card's declared size is its real on-screen
+   footprint, padding and border included. */
+.hr-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px; }
 .hr-kpi {
   --k: var(--k-fg, var(--hr-blue));
   position: relative; overflow: hidden;
+  min-width: 0; box-sizing: border-box;
   background-color: #fff;
   background-image:
     linear-gradient(115deg, transparent 0%, color-mix(in srgb, var(--k) 16%, #fff) 30%, transparent 56%, transparent 100%),
@@ -547,7 +631,9 @@
 }
 
 /* ---------- Bento ---------- */
-.hr-bento { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; align-items: stretch; }
+.hr-bento { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; margin-bottom: 16px; align-items: stretch; }
+.hr-bento > .hr-card { min-width: 0; }
+@media (max-width: 900px) { .hr-bento { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- Pipeline ---------- */
 .hr-pipe { display: flex; flex-direction: column; gap: 4px; }
@@ -1105,11 +1191,15 @@
 .hr-round__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 3px; }
 
 .hr-docrow {
-  display: flex; align-items: center; gap: 11px;
+  display: flex; flex-direction: column; gap: 10px;
   border: 1px solid var(--hr-line); border-radius: 12px; padding: 10px 12px;
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .hr-docrow:hover { border-color: #dbe4fb; box-shadow: var(--hr-shadow); }
+.hr-docrow__head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; row-gap: 8px; }
+.hr-docrow__head > .grow { flex: 1 1 160px; }
+.hr-docrow__head > .hr-rowactions { margin-left: auto; flex: 0 0 auto; }
+.hr-docrow__body { padding-left: 45px; }
 .hr-docrow__icon {
   width: 34px; height: 34px; border-radius: 9px; flex-shrink: 0;
   background: var(--hr-blue-wash); color: var(--hr-blue);
@@ -1752,7 +1842,7 @@
 .hr-menubtn { display: none; }
 
 @media (max-width: 1160px) {
-  .hr-kpi-row { grid-template-columns: repeat(2, 1fr); }
+  /* .hr-kpi-row is flex-wrap (see base rule) and reflows on its own. */
   .hr-bento { grid-template-columns: 1fr; }
   .hr-pipe-wrap { grid-template-columns: 1fr; }
   .hr-donut-wrap { grid-template-columns: 1fr; justify-items: center; }
@@ -1771,9 +1861,15 @@
   .hr-shell--collapsed .hr-help,
   .hr-shell--collapsed .hr-usercard { justify-content: flex-start; gap: 10px; }
   .hr-collapse-btn { display: none; }
-  .hr-sidebar { transform: translateX(-100%); transition: transform 0.22s ease; box-shadow: var(--hr-shadow-hover); }
+  /* Below this width the sidebar is an off-canvas drawer, not a grid
+     column — collapse the grid to one track so .hr-main takes the full
+     width, and take the sidebar out of flow to overlay on top of it. */
+  .hr-shell { grid-template-columns: minmax(0, 1fr); }
+  .hr-sidebar {
+    position: fixed; inset: 0 auto 0 0; height: 100vh; width: var(--hr-sidebar-w);
+    transform: translateX(-100%); transition: transform 0.22s ease; box-shadow: var(--hr-shadow-hover);
+  }
   .hr-sidebar--open { transform: translateX(0); }
-  .hr-main { margin-left: 0; }
   .hr-menubtn { display: flex; }
   .hr-page { padding: 12px 14px 88px; }
   .hr-topbar { padding: 8px 14px; gap: 9px; }
@@ -1795,7 +1891,7 @@
 }
 
 @media (max-width: 540px) {
-  .hr-kpi-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .hr-kpi-row { gap: 10px; }
   .hr-kpi { padding: 12px; }
   .hr-kpi__value { font-size: 24px; }
   .hr-kpi__spark { display: none; }

@@ -1,5 +1,7 @@
 // POST /functions/v1/accept-offer
-// Auth: the candidate who owns the offer. One-time transition — rejects a
+// Auth: the assigned TA (or admin-tier) — the offer itself is sent and
+// accepted outside the app (the TA's own email), so this just records that
+// the candidate replied accepting it. One-time transition — rejects a
 // second acceptance attempt outright, no re-processing. Fires integration
 // point 2: notifies the HR app so it can create an Onboarding Case /
 // Pre-Employee (never an Employee directly) — docs/requirements/03-*.md §7,
@@ -19,7 +21,9 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
   const profile = await currentProfile(req);
-  if (!profile) return fail("UNAUTHENTICATED", "Please sign in.", 401);
+  if (!profile || !["ta", "admin", "admin_ta"].includes(profile.role)) {
+    return fail("FORBIDDEN", "Only Talent Acquisition can record offer acceptance.", 403);
+  }
 
   let body: Record<string, any>;
   try {
@@ -42,7 +46,9 @@ Deno.serve(async (req) => {
   if (!offer) return fail("NOT_FOUND", "Offer not found.", 404);
 
   const app = offer.applications as any;
-  if (app?.candidates?.profile_id !== profile.id) return fail("FORBIDDEN", "This is not your offer.", 403);
+  if (!["admin", "admin_ta"].includes(profile.role) && app.assigned_ta_id !== profile.id) {
+    return fail("FORBIDDEN", "This application is assigned to another recruiter.", 403);
+  }
   if (!["sent", "viewed"].includes(offer.status)) {
     return fail("INVALID_STATE", offer.status === "accepted" ? "This offer has already been accepted." : "This offer can no longer be accepted.", 409);
   }
@@ -51,7 +57,7 @@ Deno.serve(async (req) => {
   const { error: upErr } = await svc.from("offers").update({
     status: "accepted", accepted_at: now, accepted_by: profile.id,
   }).eq("id", offer.id);
-  if (upErr) return fail("DB_ERROR", "Could not record your acceptance. Please try again.", 500);
+  if (upErr) return fail("DB_ERROR", "Could not record the acceptance. Please try again.", 500);
 
   await svc.from("applications").update({ status: "OFFER_ACCEPTED" }).eq("id", app.id);
 
@@ -61,17 +67,12 @@ Deno.serve(async (req) => {
 
   await addEvent(svc, {
     application_id: app.id, type: "offer", title: "Offer Accepted",
-    description: "Candidate accepted the offer.", actor_profile_id: profile.id, actor_label: "Candidate",
+    description: "Candidate accepted the offer (confirmed by email).",
+    actor_profile_id: profile.id, actor_label: profile.full_name ?? "Talent Acquisition",
   });
   await audit(svc, {
     actor_profile_id: profile.id, action: "offer.accept",
     entity_type: "offer", entity_id: offer.id, new_state: { status: "accepted", accepted_at: now },
-  });
-  await notify(svc, {
-    recipient_profile_id: app.assigned_ta_id,
-    recipient_role: app.assigned_ta_id ? null : "admin",
-    title: "Offer accepted", message: `${candidateName} accepted their offer for ${jobTitle}.`,
-    type: "offer_accepted", entity_type: "application", entity_id: app.id,
   });
 
   if (candidate?.email) {
@@ -79,8 +80,15 @@ Deno.serve(async (req) => {
     await queueEmail(svc, {
       recipient: candidate.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
       template: "offer_accepted_ack", entity_type: "offer", entity_id: offer.id,
+      sender_email: profile.email ?? null,
     });
   }
+  await notify(svc, {
+    recipient_profile_id: app.assigned_ta_id,
+    recipient_role: app.assigned_ta_id ? null : "admin",
+    title: "Offer accepted", message: `${candidateName} accepted their offer for ${jobTitle}.`,
+    type: "offer_accepted", entity_type: "application", entity_id: app.id,
+  });
 
   // --- integration point 2: hand off to HR -------------------------------
   const eventId = `offer-accepted-${offer.id}`;

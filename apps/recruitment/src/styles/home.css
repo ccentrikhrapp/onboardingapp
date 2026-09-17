@@ -370,12 +370,16 @@
 }
 .wsauth--ta .wsauth__tick { background: linear-gradient(90deg, #818cf8, #a78bfa); box-shadow: 0 0 16px rgba(129, 140, 248, 0.65); }
 
-/* ---- compact / responsive ---- */
-@media (max-height: 840px) {
+/* ---- compact / responsive ----
+   Thresholds kept low on purpose: Windows display scaling (125%/150%, very
+   common on laptops) shrinks the CSS viewport height the browser reports,
+   so a bar set too high (e.g. 840px) was tripping on completely normal,
+   full-size windows. These should only fire on genuinely short viewports. */
+@media (max-height: 620px) {
   .wsfloat { display: none; }
   .wsjourney__desc { display: none; }
 }
-@media (max-height: 680px) {
+@media (max-height: 500px) {
   .wsauth__pitch p { display: none; }
   .wsauth__tick { display: none; }
   .wsauth__tags { display: none; }

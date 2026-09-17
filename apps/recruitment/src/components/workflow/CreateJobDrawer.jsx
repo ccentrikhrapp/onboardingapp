@@ -4,6 +4,7 @@ import Button from '../common/Button.jsx';
 import { Field, Input, Select, Textarea } from '../common/Field.jsx';
 import ChipsInput from '../common/ChipsInput.jsx';
 import { todayISO } from '../../utils/format.js';
+import { notPastDateError, numberError } from '../../utils/validation.js';
 
 const DEPARTMENTS = ['Sales', 'Human Resource', 'Talent Acquisition', 'SAP ABAP', 'SAP Functional'];
 const WORK_MODES = ['Hybrid', 'Remote', 'On-site'];
@@ -14,7 +15,7 @@ const lines = (s) => s.split('\n').map((x) => x.trim()).filter(Boolean);
 export default function CreateJobDrawer({ open, onClose, onCreate }) {
   const [f, setF] = useState({
     title: '', department: DEPARTMENTS[0], location: '', workMode: 'Hybrid',
-    employmentType: 'Full-time', experience: '', deadline: '',
+    employmentType: 'Full-time', experience: '', deadline: '', applicationLimit: '',
     description: '', responsibilities: '', qualifications: '',
     requiredSkills: [], preferredSkills: [], benefits: [],
   });
@@ -27,6 +28,10 @@ export default function CreateJobDrawer({ open, onClose, onCreate }) {
     if (!f.location.trim()) e.location = 'Location is required.';
     if (!f.experience.trim()) e.experience = 'Experience range is required.';
     if (f.requiredSkills.length === 0) e.requiredSkills = 'Add at least one required skill.';
+    const deadlineMsg = notPastDateError(f.deadline, { required: false, label: 'deadline' });
+    if (deadlineMsg) e.deadline = deadlineMsg;
+    const limitMsg = numberError(f.applicationLimit, { required: false, label: 'application limit', min: 1, integer: true });
+    if (limitMsg) e.applicationLimit = limitMsg;
     setErrors(e);
     if (Object.keys(e).length) return;
 
@@ -38,6 +43,7 @@ export default function CreateJobDrawer({ open, onClose, onCreate }) {
       employmentType: f.employmentType,
       experience: f.experience.trim(),
       deadline: f.deadline || todayISO(),
+      applicationLimit: f.applicationLimit ? Number(f.applicationLimit) : null,
       description: f.description.trim() || `We are hiring a ${f.title.trim()} to join the ${f.department} team.`,
       responsibilities: lines(f.responsibilities),
       qualifications: lines(f.qualifications),
@@ -79,8 +85,11 @@ export default function CreateJobDrawer({ open, onClose, onCreate }) {
         <Field label="Experience" required error={errors.experience}>
           <Input value={f.experience} onChange={(e) => set({ experience: e.target.value })} placeholder="e.g. 4–7 years" error={errors.experience} />
         </Field>
-        <Field label="Application Deadline">
-          <Input type="date" value={f.deadline} onChange={(e) => set({ deadline: e.target.value })} />
+        <Field label="Application Deadline" hint="The job auto-closes and stops accepting applications after this date." error={errors.deadline}>
+          <Input type="date" value={f.deadline} onChange={(e) => set({ deadline: e.target.value })} error={errors.deadline} />
+        </Field>
+        <Field label="Application Limit" hint="The job stops accepting applications once this many have been submitted. Leave blank for unlimited." error={errors.applicationLimit}>
+          <Input type="number" min="1" value={f.applicationLimit} onChange={(e) => set({ applicationLimit: e.target.value })} error={errors.applicationLimit} />
         </Field>
       </div>
 

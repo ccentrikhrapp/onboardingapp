@@ -9,7 +9,7 @@ import Button from '../../components/ta/Button.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listApplications, subscribeApplications, assignApplications } from '../../api/applications.js';
+import { listApplications, subscribeApplications, assignApplications, deleteApplication } from '../../api/applications.js';
 import { listTAs } from '../../api/staff.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { APP_STATUS, stageBadgeForStatus } from '../../constants/statuses.js';
@@ -49,6 +49,7 @@ const COLUMNS = [
   { key: 'job', label: 'Job Applied', sortable: true },
   { key: 'experience', label: 'Experience', sortable: true },
   { key: 'status', label: 'Current Stage', sortable: true },
+  { key: 'atsScore', label: 'ATS Score', sortable: true },
   { key: 'noticePeriod', label: 'Notice Period', sortable: true },
   { key: 'submittedAt', label: 'Applied On', sortable: true },
   { key: 'docs', label: 'Documents' },
@@ -60,7 +61,7 @@ export default function TACandidatesPage() {
   const [sp] = useSearchParams();
   const { role } = useApp();
   const toast = useToast();
-  const isSuperTa = role === 'admin'; // Super TA — master prompt §33-35, §74
+  const isSuperTa = role === 'admin' || role === 'admin_ta'; // admin-tier — master prompt §33-35, §74
 
   const [remoteRows, setRemoteRows] = useState(null);
   useEffect(() => {
@@ -82,6 +83,7 @@ export default function TACandidatesPage() {
               noticePeriod: a.professional?.noticePeriod || 'Not specified',
               submittedAt: a.submittedAt,
               status: a.status,
+              atsScore: a.atsScore?.overall ?? null,
               assignedTo: a.assignedTo,
               docs: { tone: 'grey', text: '—' },
             }))
@@ -132,6 +134,18 @@ export default function TACandidatesPage() {
       toast.error(e.message || 'Could not assign the selected candidates.');
     } finally {
       setAssigning(false);
+    }
+  };
+
+  const doDelete = async (row) => {
+    const ok = window.confirm(`Permanently delete ${row.name}'s application? This removes the application and everything attached to it — documents, interviews, offer. This can't be undone.`);
+    if (!ok) return;
+    try {
+      await deleteApplication(row.id);
+      setRemoteRows((prev) => (prev || []).filter((r) => r.id !== row.id));
+      toast.success('Application deleted.');
+    } catch (e) {
+      toast.error(e.message || 'Could not delete this application.');
     }
   };
 
@@ -212,6 +226,7 @@ export default function TACandidatesPage() {
           ...(isSuperTa ? [{ label: 'Assignment', value: assignment, onChange: setAssignment, options: [{ value: 'unassigned', label: 'Unassigned' }] }] : []),
         ]}
         onClearAll={hasFilters ? clearAll : undefined}
+        action={<Button icon="UserPlus" onClick={() => navigate('/ta/candidates/new')}>Add Candidate</Button>}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
@@ -236,7 +251,9 @@ export default function TACandidatesPage() {
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
         empty={{ icon: 'Users', title: 'No candidates match', message: 'Try changing the filters or search.' }}
         renderRow={(r) => {
-          const badge = stageBadgeForStatus(r.status);
+          const badge = r.status === 'DRAFT'
+            ? { label: 'Verification Pending', tone: 'amber' }
+            : stageBadgeForStatus(r.status);
           return (
             <tr key={r.id} onClick={() => navigate(`/ta/candidates/${r.candidateId}`)} style={{ cursor: 'pointer' }}>
               {isSuperTa && (
@@ -254,12 +271,22 @@ export default function TACandidatesPage() {
               </td>
               <td className="ta-cell-mute">{experienceLabel(r.experience)}</td>
               <td><Tag tone={badge.tone}>{badge.label}</Tag></td>
+              <td>
+                {r.atsScore == null ? (
+                  <span className="ta-cell-mute">—</span>
+                ) : (
+                  <Tag tone={r.atsScore >= 80 ? 'green' : r.atsScore >= 60 ? 'amber' : 'red'}>{r.atsScore}%</Tag>
+                )}
+              </td>
               <td className="ta-cell-mute">{r.noticePeriod}</td>
               <td className="ta-cell-mute">{formatDate(r.submittedAt)}</td>
               <td>{r.docs.text === '—' ? <span className="ta-cell-mute">—</span> : <Tag tone={r.docs.tone}>{r.docs.text}</Tag>}</td>
               <td>
                 <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
                   <a className="ta-iconbtn" href={`mailto:${r.email}`} aria-label={`Email ${r.name}`}><Icon name="Mail" size={15} /></a>
+                  {isSuperTa && (
+                    <button className="ta-iconbtn" onClick={() => doDelete(r)} aria-label={`Delete ${r.name}`}><Icon name="Trash2" size={15} /></button>
+                  )}
                   <button className="ta-iconbtn" onClick={() => navigate(`/ta/candidates/${r.candidateId}`)} aria-label="Open candidate"><Icon name="ChevronRight" size={17} /></button>
                 </span>
               </td>

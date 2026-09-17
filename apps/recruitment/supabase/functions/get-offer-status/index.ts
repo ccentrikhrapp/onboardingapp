@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
   if (pre) return pre;
 
   const profile = await currentProfile(req);
-  if (!profile || !["ta", "hr", "admin"].includes(profile.role)) {
+  if (!profile || !["ta", "hr", "admin", "admin_ta"].includes(profile.role)) {
     return fail("FORBIDDEN", "Not allowed.", 403);
   }
 

@@ -5,8 +5,12 @@
 // cleared interviews; DOC_VERIFICATION/DOCS_VERIFIED are the only valid
 // source statuses.
 //
+// The actual offer letter goes out over the TA's own email — this just
+// records the terms and flips the application to OFFER_ISSUED so the
+// pipeline reflects reality. No email is sent from here.
+//
 // Body: {
-//   applicationId, subject, body, offerLetterPath?,
+//   applicationId, offerLetterPath?,
 //   department?, designation?, employmentType?, location?, joiningDate?
 // }
 
@@ -21,7 +25,7 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
   const profile = await currentProfile(req);
-  if (!profile || !["ta", "admin"].includes(profile.role)) {
+  if (!profile || !["ta", "admin", "admin_ta"].includes(profile.role)) {
     return fail("FORBIDDEN", "Only Talent Acquisition can send an offer.", 403);
   }
 
@@ -34,9 +38,7 @@ Deno.serve(async (req) => {
 
   const fields: Record<string, string> = {};
   if (!body.applicationId) fields.applicationId = "Missing application.";
-  if (!body.subject?.trim()) fields.subject = "Subject is required.";
-  if (!body.body?.trim()) fields.body = "Message body is required.";
-  if (Object.keys(fields).length) return fail("VALIDATION_ERROR", "Please complete the offer email.", 422, fields);
+  if (Object.keys(fields).length) return fail("VALIDATION_ERROR", "Please complete the offer details.", 422, fields);
 
   const svc = serviceClient();
 
@@ -46,7 +48,7 @@ Deno.serve(async (req) => {
     .eq("id", body.applicationId)
     .maybeSingle();
   if (!app) return fail("NOT_FOUND", "Application not found.", 404);
-  if (profile.role !== "admin" && app.assigned_ta_id !== profile.id) {
+  if (!["admin", "admin_ta"].includes(profile.role) && app.assigned_ta_id !== profile.id) {
     return fail("FORBIDDEN", "This application is assigned to another recruiter.", 403);
   }
   if (!["DOC_VERIFICATION", "DOCS_VERIFIED"].includes(app.status)) {
@@ -70,8 +72,6 @@ Deno.serve(async (req) => {
       {
         application_id: app.id,
         status: "sent",
-        subject: body.subject.trim(),
-        body: body.body.trim(),
         offer_letter_path: body.offerLetterPath ?? null,
         department: body.department ?? null,
         designation: body.designation ?? null,
@@ -90,12 +90,11 @@ Deno.serve(async (req) => {
   await svc.from("applications").update({ status: "OFFER_ISSUED" }).eq("id", app.id);
 
   const candidate = app.candidates as any;
-  const candidateName = `${candidate?.first_name ?? ""} ${candidate?.last_name ?? ""}`.trim();
   const jobTitle = (app.jobs as any)?.title ?? "the role";
 
   await addEvent(svc, {
     application_id: app.id, type: "offer", title: "Offer Sent",
-    description: `Offer emailed for ${jobTitle}.`,
+    description: `Offer for ${jobTitle} sent to the candidate by email.`,
     actor_profile_id: profile.id, actor_label: profile.full_name ?? "Talent Acquisition",
   });
   await audit(svc, {
@@ -105,19 +104,24 @@ Deno.serve(async (req) => {
   });
   await notify(svc, {
     recipient_profile_id: candidate?.profile_id ?? null,
-    title: "You have an offer!", message: `Your offer for ${jobTitle} is ready to review.`,
+    title: "You have an offer!", message: `An offer for ${jobTitle} has been sent to your email.`,
     type: "offer_sent", entity_type: "offer", entity_id: offer.id,
   });
 
   if (candidate?.email) {
+    const candidateName = `${candidate.first_name ?? ""} ${candidate.last_name ?? ""}`.trim();
     const mail = render("offer_sent", {
-      candidate_name: candidateName, job_title: jobTitle, note: body.body.trim(),
+      candidate_name: candidateName,
+      job_title: jobTitle,
       offer_link: siteUrl("/candidate/application"),
     });
+    // Sent through the TA's own Gmail account when they've connected one
+    // (falls back to the shared mailbox otherwise) — feels like their own
+    // recruiter emailed them, not a no-reply address.
     await queueEmail(svc, {
-      recipient: candidate.email, subject: body.subject.trim() || mail.subject,
-      body_html: mail.html, body_text: mail.text,
+      recipient: candidate.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
       template: "offer_sent", entity_type: "offer", entity_id: offer.id,
+      sender_email: profile.email ?? null,
     });
   }
 

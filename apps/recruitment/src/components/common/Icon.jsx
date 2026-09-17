@@ -9,6 +9,7 @@ import {
   Building2, BadgeCheck, GraduationCap, Wallet, Rocket, Sparkle,
   RefreshCw, TrendingUp, Zap, Activity, CalendarClock, ListChecks, Target,
   Home, LifeBuoy, Moon, MessageSquare, Lightbulb, Play, Square, Bot,
+  ShieldCheck, Globe, UserPlus, UserCheck,
 } from 'lucide-react';
 
 const REGISTRY = {
@@ -22,6 +23,7 @@ const REGISTRY = {
   Building2, BadgeCheck, GraduationCap, Wallet, Rocket, Sparkle,
   RefreshCw, TrendingUp, Zap, Activity, CalendarClock, ListChecks, Target,
   Home, LifeBuoy, Moon, MessageSquare, Lightbulb, Play, Square, Bot,
+  ShieldCheck, Globe, UserPlus, UserCheck,
 };
 
 /**

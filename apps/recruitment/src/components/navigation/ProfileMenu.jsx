@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom';
 import Icon from '../common/Icon.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 
-const ROLE_TITLE = { candidate: 'Candidate', ta: 'Talent Acquisition' };
+const ROLE_TITLE = { candidate: 'Candidate', ta: 'Talent Acquisition', admin: 'Admin' };
 
 /* Top-right account button shared by both portals. */
-export default function ProfileMenu({ role, links = [] }) {
+export default function ProfileMenu({ links = [] }) {
   const navigate = useNavigate();
-  const { profile, signOut } = useApp();
+  const { profile, role, signOut } = useApp();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -31,8 +31,10 @@ export default function ProfileMenu({ role, links = [] }) {
   const go = (to) => { setOpen(false); navigate(to); };
   const doSignOut = async () => {
     setOpen(false);
+    // Capture before signOut() clears the profile/role from context.
+    const wasStaff = role === 'ta' || role === 'admin' || role === 'admin_ta';
     await signOut();
-    navigate('/');
+    navigate(wasStaff ? '/ta/login' : '/', { replace: true });
   };
 
   return (

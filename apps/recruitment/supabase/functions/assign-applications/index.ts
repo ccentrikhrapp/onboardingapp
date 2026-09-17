@@ -1,5 +1,5 @@
 // POST /functions/v1/assign-applications
-// Auth: hr/admin only (the "Super TA" role — master prompt §33-35, §74).
+// Auth: hr/admin/admin_ta (the "Super TA" tier — master prompt §33-35, §74).
 // Assigns one or more unassigned/careers applications to a TA. Backend-
 // enforced: the frontend role check is not trusted, RLS + this function's own
 // role check both gate it.
@@ -16,8 +16,8 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
   const profile = await currentProfile(req);
-  if (!profile || !["hr", "admin"].includes(profile.role)) {
-    return fail("FORBIDDEN", "Only HR/admin can assign applications.", 403);
+  if (!profile || !["hr", "admin", "admin_ta"].includes(profile.role)) {
+    return fail("FORBIDDEN", "Only HR/Admin TA/Super Admin can assign applications.", 403);
   }
 
   let body: Record<string, any>;

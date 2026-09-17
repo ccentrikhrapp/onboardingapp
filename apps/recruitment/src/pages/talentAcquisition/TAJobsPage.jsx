@@ -38,7 +38,10 @@ const APPLICANTS = {
 export default function TAJobsPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { jobs, createJob } = useApp();
+  const { jobs, createJob, deleteJob, role } = useApp();
+  // Job creation/deletion is admin-tier only (Part 4) — a Normal TA can still
+  // view every job and work applications, just not manage the postings.
+  const canManageJobs = role === 'admin' || role === 'admin_ta';
   const [open, setOpen] = useState(false);
   const [appsByJob, setAppsByJob] = useState({});
 
@@ -107,6 +110,17 @@ export default function TAJobsPage() {
 
   const totalApplicants = rows.reduce((sum, r) => sum + r.applicants, 0);
 
+  const removeJob = async (job) => {
+    const ok = window.confirm(`Delete "${job.title}"? This can't be undone.`);
+    if (!ok) return;
+    try {
+      await deleteJob(job.id);
+      toast.success(`${job.title} deleted.`);
+    } catch (e) {
+      toast.error(e.message || 'Could not delete the job.');
+    }
+  };
+
   return (
     <>
       <TAHeader title="Jobs" subtitle={`${jobs.length} open positions · ${totalApplicants} applicants in total`} />
@@ -122,7 +136,7 @@ export default function TAJobsPage() {
         ]}
         chips={chips}
         onClearAll={chips.length > 1 ? clearAll : undefined}
-        action={<Button icon="Plus" onClick={() => setOpen(true)}>Create Job</Button>}
+        action={canManageJobs ? <Button icon="Plus" onClick={() => setOpen(true)}>Create Job</Button> : undefined}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
@@ -147,6 +161,9 @@ export default function TAJobsPage() {
             <td className="ta-cell-mute">{formatDate(j.deadline)}</td>
             <td>
               <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
+                {canManageJobs && (
+                  <button className="ta-iconbtn" onClick={() => removeJob(j)} aria-label="Delete job"><Icon name="Trash2" size={16} /></button>
+                )}
                 <button className="ta-iconbtn" onClick={() => navigate(`/ta/jobs/${j.id}`)} aria-label="Open job"><Icon name="ChevronRight" size={17} /></button>
               </span>
             </td>

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import TAHeader from '../../components/ta/TAHeader.jsx';
@@ -6,15 +6,21 @@ import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
+import DangerButton from '../../components/common/Button.jsx';
 import ReasonModal from '../../components/workflow/ReasonModal.jsx';
 import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewModal.jsx';
 import InterviewFeedbackModal from '../../components/workflow/InterviewFeedbackModal.jsx';
-import OfferComposerModal from '../../components/workflow/OfferComposerModal.jsx';
-import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi } from '../../api/applications.js';
-import { listInterviewRounds, scheduleInterview, recordInterviewFeedback } from '../../api/interviews.js';
-import { getOfferStatus, getOffer, sendOffer } from '../../api/offers.js';
+import { Modal } from '../../components/common/Modal.jsx';
+import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
+import { Field, Input } from '../../components/ta/Field.jsx';
+import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi, resendTaCandidateVerification, assignApplications, deleteApplication } from '../../api/applications.js';
+import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation } from '../../api/interviews.js';
+import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offers.js';
+import { listApplicationDocuments, documentFileUrl, verifyApplicationDocument } from '../../api/documents.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useApp } from '../../context/AppContext.jsx';
+import { listTAs } from '../../api/staff.js';
 import {
   APP_STATUS,
   PIPELINE_STAGES,
@@ -33,6 +39,89 @@ const OFFER_STATUS_LABEL = { draft: 'Draft', sent: 'Sent', viewed: 'Viewed', acc
 const OFFER_STATUS_TONE = { draft: 'grey', sent: 'blue', viewed: 'blue', accepted: 'green', declined: 'red', expired: 'grey' };
 const ROUND_DECISION_LABEL = { advance: 'Advance', further_review: 'Further Review', not_progressing: 'Not Moving Forward' };
 const ROUND_DECISION_TONE = { advance: 'green', further_review: 'amber', not_progressing: 'red' };
+const ATS_RECOMMENDATION_TONE = { 'Strong Match': 'green', 'Good Match': 'blue', 'Partial Match': 'amber', 'Low Match': 'red' };
+const PLATFORM_LABEL = { teams: 'Microsoft Teams', google_meet: 'Google Meet' };
+/* application_documents.status -> label/tone — same mapping the candidate
+   sees on their own checklist, so a TA's read-only view here matches it. */
+const DOC_STATUS_META = {
+  requested: { label: 'Pending upload', tone: 'grey' },
+  uploaded: { label: 'Under verification', tone: 'amber' },
+  under_verification: { label: 'Under verification', tone: 'amber' },
+  verified: { label: 'Verified', tone: 'green' },
+  rejected: { label: 'Rejected', tone: 'red' },
+  revision_required: { label: 'Correction needed', tone: 'red' },
+  cannot_provide: { label: "Can't provide — reason given", tone: 'amber' },
+};
+
+/* Server-computed match between this application and its job (see
+   supabase/functions/_shared/ats.ts) — informational for TA, never gates
+   the review actions below it. */
+function AtsCard({ ats }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!ats) return null;
+  const metrics = [
+    ['Skills', ats.skillsMatch],
+    ['Experience', ats.experienceMatch],
+    ['JD Keywords', ats.jdKeywordMatch],
+    ['Education', ats.educationMatch],
+  ];
+  return (
+    <div style={{ width: 'fit-content', marginBottom: 14 }}>
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        aria-expanded={expanded}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
+          background: 'var(--ta-surface)', border: '1px solid var(--ta-line)',
+          borderRadius: expanded ? '16px 16px 0 0' : 999, boxShadow: 'var(--ta-shadow)', padding: '7px 14px',
+          font: 'inherit', width: '100%',
+        }}
+      >
+        <Icon name="Target" size={14} />
+        <span style={{ fontSize: 13, fontWeight: 600 }}>ATS match</span>
+        <span className="ta-cell-strong" style={{ fontSize: 14 }}>{ats.overall}%</span>
+        <Tag tone={ATS_RECOMMENDATION_TONE[ats.recommendation] || 'grey'}>{ats.recommendation}</Tag>
+        <Icon name={expanded ? 'ChevronUp' : 'ChevronDown'} size={14} />
+      </button>
+
+      {expanded && (
+        <div
+          style={{
+            width: 320, background: 'var(--ta-surface)', border: '1px solid var(--ta-line)',
+            borderTop: 'none', borderRadius: '0 0 var(--ta-radius) var(--ta-radius)',
+            boxShadow: 'var(--ta-shadow)', padding: 16,
+          }}
+        >
+          <div className="ta-info" style={{ marginBottom: 16 }}>
+            {metrics.map(([label, value]) => (
+              <div key={label} className="ta-info__item">
+                <span className="ta-info__label">{label} match</span>
+                <span className="ta-info__value">{value}%</span>
+              </div>
+            ))}
+          </div>
+          {ats.matchedSkills?.length > 0 && (
+            <div style={{ marginBottom: 12 }}>
+              <span className="ta-info__label">Matched skills</span>
+              <div className="ta-skills" style={{ marginTop: 6 }}>
+                {ats.matchedSkills.map((s) => <span key={s} className="ta-skill">✓ {s}</span>)}
+              </div>
+            </div>
+          )}
+          {ats.missingSkills?.length > 0 && (
+            <div>
+              <span className="ta-info__label">Missing / lower match</span>
+              <div className="ta-skills" style={{ marginTop: 6 }}>
+                {ats.missingSkills.map((s) => <span key={s} className="ta-skill">{s}</span>)}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Info({ label, value }) {
   return (
@@ -45,25 +134,44 @@ function Info({ label, value }) {
 
 const IN_REVIEW = [APP_STATUS.SUBMITTED, APP_STATUS.TA_REVIEW];
 
+/* Which numbered pipeline page a status belongs to — Application Review (1)
+   -> Interview (2) -> Documents (3) -> Offer (4). Monotonic: a candidate's
+   page only ever moves forward as their status advances, never back. */
+function pipelineStepForStatus(status) {
+  if (IN_INTERVIEW.includes(status)) return 2;
+  if (status === APP_STATUS.DOC_VERIFICATION) return 3;
+  // DOCS_VERIFIED means every pre-offer document has cleared — the Offer
+  // step needs to be reachable right away here, not just once an offer has
+  // already been sent (OFFER_SENT_STAGE), otherwise there's no way to ever
+  // click through to send the first offer.
+  if (status === APP_STATUS.DOCS_VERIFIED || OFFER_SENT_STAGE.includes(status)) return 4;
+  return 1;
+}
+
 /* Database application + timeline -> the shape this page renders. */
 function adaptRemote(a, events) {
   if (!a) return null;
   return {
     id: a.id,
-    candidateId: a.code,
+    candidateId: a.code, // misnamed historically — this is actually the Application code (APP-...); see candidateCode below for the real Candidate ID
+    candidateCode: a.candidateCode,
     status: a.status,
     jobId: a.jobId,
     jobTitle: a.jobTitle,
     isGeneral: !a.jobId,
-    source: a.source === 'ta_link' ? 'TA link' : 'Careers',
+    source: a.source === 'ta_link' ? 'TA link' : a.source === 'ta_sourced' ? 'TA Sourced' : 'Careers',
+    rawSource: a.source,
+    candidateEmail: a.candidateEmail,
     submittedAt: a.submittedAt,
-    assignedTo: 'Talent Acquisition',
+    assignedTaId: a.assignedTo,
+    assignedTo: a.assignedToName || (a.assignedTo ? 'Assigned' : null),
     returnReason: a.returnReason,
     rejectReason: a.rejectReason,
     personal: a.personal || {},
     professional: a.professional || {},
     education: a.education || [],
     additional: a.additional || {},
+    atsScore: a.atsScore || null,
     events: (events || []).map((e) => ({
       id: e.id, title: e.title, description: e.description, at: e.created_at, actor: e.actor_label || 'System',
     })),
@@ -74,6 +182,16 @@ export default function TACandidateDetailPage() {
   const { candidateId } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
+  const { role } = useApp();
+  const isAdminTier = role === 'admin' || role === 'admin_ta';
+
+  const [tas, setTas] = useState([]);
+  useEffect(() => {
+    if (isAdminTier) listTAs().then(setTas).catch(() => setTas([]));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdminTier]);
+  const [assignTo, setAssignTo] = useState('');
+  const [assigning, setAssigning] = useState(false);
 
   const [remote, setRemote] = useState({ loading: true, app: null });
   const reloadRemote = () => {
@@ -87,19 +205,93 @@ export default function TACandidateDetailPage() {
   }, [candidateId]);
 
   const app = remote.app;
+
+  // Pipeline is shown one page at a time (Step 1/2/3), not stacked. Opening
+  // the candidate lands on whichever page they're currently at; completing
+  // a step's action (advance, request documents, send offer...) moves the
+  // status forward, which carries the page forward with it automatically.
+  // Earlier pages stay reachable via the step tabs, for reference only.
+  const [activeStep, setActiveStep] = useState(1);
+  const maxStep = app?.status ? pipelineStepForStatus(app.status) : 1;
+  const seenMaxStepRef = useRef(null);
+  useEffect(() => {
+    if (!app?.status) return;
+    if (seenMaxStepRef.current === null || maxStep > seenMaxStepRef.current) {
+      setActiveStep(maxStep);
+    }
+    seenMaxStepRef.current = maxStep;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [app?.status]);
+
   const [modal, setModal] = useState(null); // 'return' | 'reject' | 'schedule'
   const [showAllAct, setShowAllAct] = useState(false);
   const [tab, setTab] = useState('overview'); // overview | contact | experience | skills
   const [rounds, setRounds] = useState([]);
   const [feedbackFor, setFeedbackFor] = useState(null); // round being scored
   const [busy, setBusy] = useState(false);
+  const [resending, setResending] = useState(null); // round id currently resending its invitation
+  const [resendingVerification, setResendingVerification] = useState(false);
   const [offerStatus, setOfferStatus] = useState(null);
   const [offer, setOffer] = useState(null);
+  const [docs, setDocs] = useState([]);
+  const [docActionBusy, setDocActionBusy] = useState(null); // application_document id currently being verified
+  const [docReasonFor, setDocReasonFor] = useState(null); // the doc a "request re-upload" reason is being written for
+  const [acceptingOffer, setAcceptingOffer] = useState(false);
+  const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
+  const [assignedRole, setAssignedRole] = useState('');
+  const [assignedRoleError, setAssignedRoleError] = useState('');
 
   const reloadRounds = () => {
     if (candidateId) listInterviewRounds(candidateId).then(setRounds).catch(() => setRounds([]));
   };
   useEffect(reloadRounds, [candidateId]);
+
+  const reloadDocs = () => {
+    if (candidateId) listApplicationDocuments(candidateId).then(setDocs).catch(() => setDocs([]));
+  };
+  useEffect(reloadDocs, [candidateId]);
+
+  const viewDoc = async (d) => {
+    const files = d.document_files || [];
+    const current = files.find((f) => f.is_current) || files[files.length - 1];
+    if (!current) return;
+    setPreview({ url: null, fileName: current.file_name, title: d.document_requirements?.name });
+    try {
+      const url = await documentFileUrl(current.storage_path);
+      setPreview({ url, fileName: current.file_name, title: d.document_requirements?.name });
+    } catch (e) {
+      setPreview(null);
+      toast.error(e.message || 'Could not open this document.');
+    }
+  };
+
+  const approveDoc = async (d) => {
+    setDocActionBusy(d.id);
+    try {
+      await verifyApplicationDocument(d.id, 'approve');
+      toast.success(`${d.document_requirements?.name} approved — sent to HR for final sign-off.`);
+      reloadDocs();
+    } catch (e) {
+      toast.error(e.message || 'Could not approve this document.');
+    } finally {
+      setDocActionBusy(null);
+    }
+  };
+
+  const submitDocReupload = async (reason) => {
+    const d = docReasonFor;
+    setDocReasonFor(null);
+    setDocActionBusy(d.id);
+    try {
+      await verifyApplicationDocument(d.id, 'reupload_required', reason);
+      toast.success(`${d.document_requirements?.name} sent back to the candidate for re-upload.`);
+      reloadDocs();
+    } catch (e) {
+      toast.error(e.message || 'Could not submit this review.');
+    } finally {
+      setDocActionBusy(null);
+    }
+  };
 
   const reloadOffer = () => {
     if (!candidateId) return;
@@ -108,19 +300,6 @@ export default function TACandidateDetailPage() {
   };
   useEffect(reloadOffer, [candidateId]);
 
-  // Keep the Activity card no taller than the workflow column beside it.
-  const leftColRef = useRef(null);
-  const [sideMax, setSideMax] = useState(null);
-  useLayoutEffect(() => {
-    const el = leftColRef.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const sync = () => setSideMax(window.innerWidth > 1160 ? el.offsetHeight : null);
-    sync();
-    const ro = new ResizeObserver(sync);
-    ro.observe(el);
-    window.addEventListener('resize', sync);
-    return () => { ro.disconnect(); window.removeEventListener('resize', sync); };
-  }, []);
 
   useEffect(() => {
     if (!app || app.status !== APP_STATUS.SUBMITTED) return;
@@ -148,23 +327,53 @@ export default function TACandidateDetailPage() {
   const rejected = app.status === APP_STATUS.REJECTED;
   const progress = rejected ? 0 : Math.round(((stageIdx + 1) / PIPELINE_STAGES.length) * 100);
 
-  // TA review decision — calls the real edge function and refreshes.
+  const doAssign = async () => {
+    if (!assignTo) return;
+    setAssigning(true);
+    try {
+      await assignApplications([app.id], assignTo);
+      toast.success('Application assigned.');
+      setAssignTo('');
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not assign this application.');
+    } finally {
+      setAssigning(false);
+    }
+  };
+
+  // TA review decision — calls the real edge function and refreshes. Guarded
+  // against a fast double-click firing the same decision twice (the second
+  // request would otherwise reach the server and come back as a confusing
+  // "cannot advance from X" error instead of being silently prevented here).
   const decide = async (action, reason, msg) => {
+    if (busy) return;
+    setBusy(true);
     try {
       await decideApplication(app.id, action, reason);
       await reloadRemote();
       toast.success(msg);
     } catch (e) {
       toast.error(e.message || 'Could not complete that action.');
+    } finally {
+      setBusy(false);
     }
   };
 
+  // Scheduling the round and notifying the candidate are two separate
+  // outcomes — a failed email never gets reported as if it were a success.
   const doSchedule = async (payload) => {
     setBusy(true);
     try {
-      await scheduleInterview({ applicationId: app.id, ...payload });
+      const result = await scheduleInterview({ applicationId: app.id, ...payload });
       setModal(null);
-      toast.success('Interview scheduled.');
+      if (result.emailStatus === 'sent') {
+        toast.success(`Interview scheduled successfully. Invitation sent to ${result.candidateEmail}.`);
+      } else if (result.emailStatus === 'no_email') {
+        toast.success('Interview scheduled. This candidate has no email on file, so no invitation was sent.');
+      } else {
+        toast.error('Interview scheduled, but the candidate email could not be sent. You can retry from the round below.');
+      }
       reloadRounds();
       reloadRemote();
     } catch (e) {
@@ -174,18 +383,74 @@ export default function TACandidateDetailPage() {
     }
   };
 
-  const doSendOffer = async (payload) => {
+  const resendFor = async (round) => {
+    setResending(round.id);
+    try {
+      const result = await resendInterviewInvitation(round.id);
+      if (result.emailStatus === 'sent') {
+        toast.success(`Invitation sent successfully to ${result.candidateEmail}.`);
+      } else {
+        toast.error('Unable to send invitation. Please try again.');
+      }
+      reloadRounds();
+    } catch (e) {
+      toast.error(e.message || 'Unable to send invitation. Please try again.');
+    } finally {
+      setResending(null);
+    }
+  };
+
+  const resendVerification = async () => {
+    setResendingVerification(true);
+    try {
+      const result = await resendTaCandidateVerification(app.id);
+      if (result.emailStatus === 'sent') {
+        toast.success(`Verification link sent to ${result.candidateEmail}.`);
+      } else {
+        toast.error('Unable to send the verification link. Please try again.');
+      }
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Unable to send the verification link. Please try again.');
+    } finally {
+      setResendingVerification(false);
+    }
+  };
+
+  const doSendOffer = async () => {
+    if (!assignedRole.trim()) {
+      setAssignedRoleError('Assigned Role is required.');
+      return;
+    }
     setBusy(true);
     try {
-      await sendOffer({ applicationId: app.id, ...payload });
+      // designation is the only term this app records for the TA — HR fills
+      // in everything else (department, location, joining date) during its
+      // own onboarding process, not here.
+      await sendOffer({ applicationId: app.id, designation: assignedRole.trim() });
       setModal(null);
-      toast.success('Offer sent to the candidate.');
+      toast.success(`Offer marked as sent — role assigned: ${assignedRole.trim()}.`);
       reloadOffer();
       reloadRemote();
     } catch (e) {
-      toast.error(e.message || 'Could not send the offer.');
+      toast.error(e.message || 'Could not record the offer.');
     } finally {
       setBusy(false);
+    }
+  };
+
+  const doAcceptOffer = async () => {
+    if (!offer?.id) return;
+    setAcceptingOffer(true);
+    try {
+      await acceptOffer(offer.id);
+      toast.success('Offer marked as accepted — HR onboarding has been notified.');
+      reloadOffer();
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not record the acceptance.');
+    } finally {
+      setAcceptingOffer(false);
     }
   };
 
@@ -208,7 +473,7 @@ export default function TACandidateDetailPage() {
     <>
       <TAHeader
         title={name}
-        subtitle={`${app.candidateId} · applied for ${app.jobTitle}`}
+        subtitle={`${app.candidateId}${app.candidateCode ? ` · ${app.candidateCode}` : ''} · applied for ${app.jobTitle}`}
         backTo="/ta/candidates"
         backLabel="Candidates"
       />
@@ -227,8 +492,10 @@ export default function TACandidateDetailPage() {
         <div className="ta-note ta-note--err"><Icon name="XCircle" size={15} /> Application closed{app.rejectReason ? `: ${app.rejectReason}` : ''}</div>
       )}
 
+      <AtsCard ats={app.atsScore} />
+
       <div className="ta-detail-grid">
-        <div className="ta-stack" ref={leftColRef}>
+        <div className="ta-stack">
           <Card>
             <div className="ta-ptabs">
               {[
@@ -258,14 +525,16 @@ export default function TACandidateDetailPage() {
                   {[
                     ['Current role', pr.currentJobTitle ? `${pr.currentJobTitle}${pr.currentCompany ? ` @ ${pr.currentCompany}` : ''}` : null],
                     ['Experience', pr.totalExperience ? `${pr.totalExperience} yrs` : null],
-                    ['Notice period', pr.noticePeriod || null],
+                    // Notice period only makes sense for someone currently employed —
+                    // never shown here for a fresher (0 years experience).
+                    Number(pr.totalExperience) > 0 ? ['Notice period', pr.noticePeriod || 'Not specified'] : null,
                     ['Expected CTC', pr.expectedCTC ? formatCurrencyINR(pr.expectedCTC) : null],
                     ['Location', p.currentLocation ? `${p.currentLocation}${p.preferredLocation && p.preferredLocation !== p.currentLocation ? ` → ${p.preferredLocation}` : ''}` : null],
                     ['Application', app.isGeneral ? 'General' : 'Specific vacancy'],
                     ['Source', app.source || null],
                     ['Submitted', formatDate(app.submittedAt)],
                     ['Assigned to', app.assignedTo || null],
-                  ].filter(([, v]) => v).map(([k, v]) => (
+                  ].filter(Boolean).filter(([, v]) => v).map(([k, v]) => (
                     <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
                   ))}
                 </dl>
@@ -312,16 +581,70 @@ export default function TACandidateDetailPage() {
             )}
           </Card>
 
-          <Card title="Application review">
-            {IN_REVIEW.includes(app.status) ? (
+          {isAdminTier && (
+            <Card title="Assignment">
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                <div className="ta-info__item">
+                  <span className="ta-info__label">Assigned to</span>
+                  <span className="ta-info__value">{app.assignedTo || 'Unassigned'}</span>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <select className="ta-select" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} aria-label="Assign to">
+                    <option value="">{app.assignedTaId ? 'Reassign to…' : 'Assign to…'}</option>
+                    {tas.map((t) => <option key={t.id} value={t.id}>{t.full_name || t.email}</option>)}
+                  </select>
+                  <Button onClick={doAssign} disabled={!assignTo || assigning}>{assigning ? 'Assigning…' : 'Assign'}</Button>
+                </div>
+              </div>
+            </Card>
+          )}
+
+          {!(app.status === 'DRAFT' && app.rawSource === 'ta_sourced') && (
+            <Card bodyStyle={{ padding: '12px 16px' }}>
+              <div className="ta-stepper">
+                {[[1, 'Application review'], [2, 'Interview'], [3, 'Documents'], [4, 'Offer']]
+                  .filter(([n]) => n <= maxStep)
+                  .map(([n, label], i, arr) => (
+                    <Fragment key={n}>
+                      <button
+                        type="button"
+                        className={`ta-step${activeStep === n ? ' is-active' : ''}`}
+                        onClick={() => setActiveStep(n)}
+                      >
+                        <span className="ta-step__num">{n < activeStep ? <Icon name="Check" size={12} /> : n}</span>
+                        <span className="ta-step__label">{label}</span>
+                      </button>
+                      {i < arr.length - 1 && <span className="ta-step__sep" />}
+                    </Fragment>
+                  ))}
+              </div>
+            </Card>
+          )}
+
+          {app.status === 'DRAFT' && app.rawSource === 'ta_sourced' ? (
+            <Card title="Candidate verification">
+              <div className="ta-note ta-note--warn" style={{ marginBottom: 12 }}>
+                <Icon name="Clock3" size={15} /> Awaiting candidate verification — {app.candidateEmail} has not confirmed this application yet.
+              </div>
+              <p className="ta-cell-sub" style={{ marginBottom: 12 }}>
+                This candidate was created from an uploaded resume. Once they open the verification link, review and confirm their details, it will enter the normal recruitment pipeline.
+              </p>
+              <Button icon="Send" disabled={resendingVerification} onClick={resendVerification}>
+                {resendingVerification ? 'Sending…' : 'Resend Verification Link'}
+              </Button>
+            </Card>
+          ) : activeStep === 1 ? (
+            <>
+              <Card title="Step 1 · Application review">
+                {IN_REVIEW.includes(app.status) ? (
               <>
                 <p className="ta-cell-sub" style={{ marginBottom: 12 }}>
                   Check the profile against the role, then take the candidate forward to interviews or send the application back.
                 </p>
                 <div className="ta-btnrow">
-                  <Button icon="CheckCircle2" onClick={() => decide('advance', null, 'Candidate advanced to the interview stage.')}>Advance candidate</Button>
-                  <Button variant="ghost" icon="RotateCcw" onClick={() => setModal('return')}>Request update</Button>
-                  <Button variant="ghost" icon="XCircle" onClick={() => setModal('reject')}>Close application</Button>
+                  <Button icon="CheckCircle2" disabled={busy} onClick={() => decide('advance', null, 'Candidate advanced to the interview stage.')}>Advance candidate</Button>
+                  <Button variant="ghost" icon="RotateCcw" disabled={busy} onClick={() => setModal('return')}>Request update</Button>
+                  <Button variant="ghost" icon="XCircle" disabled={busy} onClick={() => setModal('reject')}>Close application</Button>
                 </div>
               </>
             ) : app.status === APP_STATUS.RETURNED ? (
@@ -329,13 +652,15 @@ export default function TACandidateDetailPage() {
             ) : rejected ? (
               <p className="ta-cell-sub">Application was not taken forward{app.rejectReason ? `: ${app.rejectReason}` : '.'}</p>
             ) : (
-              <p className="ta-cell-sub">Approved — the candidate has moved forward to interviews.</p>
-            )}
-          </Card>
+                  <p className="ta-cell-sub">Approved — the candidate has moved forward to interviews.</p>
+                )}
+              </Card>
+            </>
+          ) : null}
 
-          {(IN_INTERVIEW.includes(app.status) || app.status === APP_STATUS.DOC_VERIFICATION) && (
+          {activeStep === 2 && (
             <Card
-              title="Interview process"
+              title="Step 2 · Interview"
               action={
                 [APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS, APP_STATUS.INTERVIEW_PASSED].includes(app.status) && (
                   <Button variant="ghost" icon="CalendarPlus" onClick={() => setModal('schedule')}>Schedule round</Button>
@@ -363,6 +688,35 @@ export default function TACandidateDetailPage() {
                           {formatDate(r.scheduled_at)} {new Date(r.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                           {panel.length > 0 ? ` · Panel: ${panel.join(', ')}` : ''}
                         </div>
+                        <div className="ta-cell-sub" style={{ marginTop: 2 }}>
+                          {r.meeting_type === 'in_person' ? (
+                            <>In-Person{r.location ? ` · ${r.location}` : ''}{r.location_details ? ` — ${r.location_details}` : ''}</>
+                          ) : (
+                            <>Virtual{r.meeting_platform ? ` · ${PLATFORM_LABEL[r.meeting_platform] || r.meeting_platform}` : ''}</>
+                          )}
+                        </div>
+                        {r.meeting_type !== 'in_person' && r.meeting_url && (
+                          <div style={{ marginTop: 6 }}>
+                            <a className="ta-btn ta-btn--ghost ta-btn--sm" href={r.meeting_url} target="_blank" rel="noreferrer">
+                              <Icon name="Video" size={13} /> Join Meeting
+                            </a>
+                          </div>
+                        )}
+                        <div className="ta-cell-sub" style={{ marginTop: 6 }}>
+                          {r.invitation?.status === 'sent' && <>Invitation sent to: {r.invitation.sentTo}</>}
+                          {r.invitation?.status === 'failed' && (
+                            <span style={{ color: 'var(--tag-red-fg)' }}>Invitation could not be sent to {r.invitation.sentTo}.</span>
+                          )}
+                          {!r.invitation && <>No invitation sent yet.</>}
+                          {r.invitation?.status !== 'sent' && (
+                            <button
+                              type="button" className="ta-link" style={{ marginLeft: 8 }}
+                              disabled={resending === r.id} onClick={() => resendFor(r)}
+                            >
+                              {resending === r.id ? 'Sending invitation…' : 'Resend invitation'}
+                            </button>
+                          )}
+                        </div>
                         {feedback && (
                           <div className="ta-cell-sub" style={{ marginTop: 4 }}>Remarks: {feedback.remarks}</div>
                         )}
@@ -381,18 +735,82 @@ export default function TACandidateDetailPage() {
                       </Button>
                     </div>
                   )}
-                  {app.status === APP_STATUS.DOC_VERIFICATION && (
-                    <p className="ta-cell-sub" style={{ marginTop: 4 }}>
-                      Pre-offer documents requested — the candidate is uploading, and HR verifies each one. You'll be notified once verification is complete.
-                    </p>
-                  )}
                 </div>
               )}
             </Card>
           )}
 
-          {(CAN_OFFER_STAGE.includes(app.status) || OFFER_SENT_STAGE.includes(app.status)) && (
-            <Card title="Offer">
+          {activeStep === 3 && (
+            <Card
+              title="Step 3 · Documents"
+              action={docs.length > 0 && <Tag tone={docs.every((d) => ['verified', 'cannot_provide'].includes(d.status)) ? 'green' : 'amber'}>
+                {docs.filter((d) => ['verified', 'cannot_provide'].includes(d.status)).length} of {docs.length} done
+              </Tag>}
+            >
+              {app.status === APP_STATUS.DOC_VERIFICATION && (
+                <p className="ta-note ta-note--info" style={{ marginBottom: 12 }}>
+                  Pre-offer documents requested. Two-step verification: review each upload below and approve it to
+                  send it to HR, who gives the final sign-off — you'll be notified once every document has cleared.
+                </p>
+              )}
+              {docs.length === 0 ? (
+                <p className="ta-cell-sub">No documents requested yet.</p>
+              ) : (
+                <>
+                  <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
+                    Open each upload to check it. Approve to pass it on to HR for final sign-off, or send it back to
+                    the candidate for re-upload with a reason.
+                  </p>
+                  <div className="ta-stack" style={{ gap: 6 }}>
+                    {docs.map((d) => {
+                      const meta = DOC_STATUS_META[d.status] || { label: d.status, tone: 'grey' };
+                      const hasFile = (d.document_files || []).length > 0;
+                      const awaitingReview = d.status === 'uploaded'; // 'under_verification' means the TA already passed it on to HR
+                      const busy = docActionBusy === d.id;
+                      return (
+                        <div key={d.id} className="ta-docrow" style={{ flexWrap: 'wrap' }}>
+                          <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
+                          <div className="grow" style={{ minWidth: 0 }}>
+                            <div className="ta-cell-strong">{d.document_requirements?.name}</div>
+                            {d.status === 'cannot_provide' && d.cannot_provide_reason && (
+                              <div className="ta-cell-sub">Reason: {d.cannot_provide_reason}</div>
+                            )}
+                            {d.status === 'revision_required' && d.hr_remarks && (
+                              <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
+                            )}
+                          </div>
+                          <Tag tone={meta.tone}>{meta.label}</Tag>
+                          <span style={{ display: 'flex', gap: 6 }}>
+                            {hasFile && (
+                              <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => viewDoc(d)}>
+                                <Icon name="Eye" size={13} /> View
+                              </button>
+                            )}
+                            {awaitingReview && (
+                              <>
+                                <button type="button" className="ta-btn ta-btn--sm" disabled={busy} onClick={() => approveDoc(d)}>
+                                  <Icon name="CheckCircle2" size={13} /> Approve
+                                </button>
+                                <button
+                                  type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={busy}
+                                  onClick={() => setDocReasonFor(d)}
+                                >
+                                  <Icon name="RotateCcw" size={13} /> Re-upload
+                                </button>
+                              </>
+                            )}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </Card>
+          )}
+
+          {activeStep === 4 && (
+            <Card title="Step 4 · Offer">
               {OFFER_SENT_STAGE.includes(app.status) && offer ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -410,13 +828,23 @@ export default function TACandidateDetailPage() {
                       <Icon name="CheckCircle2" size={15} /> Candidate accepted the offer.
                     </div>
                   )}
+                  {['sent', 'viewed'].includes(offer.status) && (
+                    <>
+                      <p className="ta-cell-sub" style={{ margin: '12px 0' }}>
+                        Once the candidate replies to your email accepting the offer, record it here.
+                      </p>
+                      <Button icon="CheckCircle2" onClick={doAcceptOffer} disabled={acceptingOffer}>
+                        {acceptingOffer ? 'Recording…' : 'Mark offer accepted'}
+                      </Button>
+                    </>
+                  )}
                 </>
               ) : offerStatus?.offerReady ? (
                 <>
                   <div className="ta-note ta-note--ok" style={{ marginBottom: 12 }}>
-                    <Icon name="CheckCircle2" size={15} /> All required pre-offer documents have been verified by HR. You can now prepare and send the offer letter.
+                    <Icon name="CheckCircle2" size={15} /> All required pre-offer documents have been verified by HR. Send the offer letter from your own email, then record it here.
                   </div>
-                  <Button icon="FileCheck" onClick={() => setModal('offer')}>Prepare offer</Button>
+                  <Button icon="FileCheck" onClick={() => setModal('offer')}>Record offer</Button>
                 </>
               ) : (
                 <>
@@ -436,10 +864,7 @@ export default function TACandidateDetailPage() {
           )}
         </div>
 
-        <div
-          className="ta-stack ta-actside"
-          style={sideMax ? { maxHeight: `${sideMax}px` } : undefined}
-        >
+        <div className="ta-stack ta-actside">
           <Card title="Activity">
             {app.events.length === 0 ? (
               <p className="ta-cell-mute">No activity yet.</p>
@@ -483,18 +908,48 @@ export default function TACandidateDetailPage() {
         title="Close application" label="Reason (internal)" confirmLabel="Close application" tone="danger"
         onSubmit={(reason) => { setModal(null); decide('close', reason, 'Application closed.'); }}
       />
+      <ReasonModal
+        open={!!docReasonFor} onClose={() => setDocReasonFor(null)}
+        title={`Request re-upload — ${docReasonFor?.document_requirements?.name || 'Document'}`}
+        label="What's wrong with it? The candidate sees this exact text." confirmLabel="Send to candidate" tone="secondary"
+        onSubmit={submitDocReupload}
+      />
       <ScheduleInterviewModal
         open={modal === 'schedule'} onClose={() => setModal(null)}
         roundNumber={rounds.length + 1} busy={busy} onSchedule={doSchedule}
+        candidateEmail={p.email}
       />
       <InterviewFeedbackModal
         open={!!feedbackFor} onClose={() => setFeedbackFor(null)}
         round={feedbackFor} busy={busy} onSubmit={doFeedback}
       />
-      <OfferComposerModal
-        open={modal === 'offer'} onClose={() => setModal(null)}
-        applicationId={app.id} candidateName={name} jobTitle={app.jobTitle}
-        busy={busy} onSend={doSendOffer}
+      <Modal
+        open={modal === 'offer'}
+        onClose={() => { setModal(null); setAssignedRole(''); setAssignedRoleError(''); }}
+        title="Mark offer as sent"
+        footer={
+          <>
+            <Button variant="secondary" onClick={() => { setModal(null); setAssignedRole(''); setAssignedRoleError(''); }}>Cancel</Button>
+            <Button onClick={doSendOffer} disabled={busy}>{busy ? 'Saving…' : 'Mark offer as sent'}</Button>
+          </>
+        }
+      >
+        <p className="ta-cell-sub" style={{ marginBottom: 14 }}>
+          Send the offer letter to {name} from your own email first, then confirm here — this just records that it went
+          out. HR handles department, location, and joining date during onboarding.
+        </p>
+        <Field label="Assigned Role" required error={assignedRoleError}>
+          <Input
+            value={assignedRole}
+            placeholder="e.g. Software Engineer"
+            error={assignedRoleError}
+            onChange={(e) => { setAssignedRole(e.target.value); if (assignedRoleError) setAssignedRoleError(''); }}
+          />
+        </Field>
+      </Modal>
+      <DocumentPreviewModal
+        open={!!preview} onClose={() => setPreview(null)}
+        url={preview?.url} fileName={preview?.fileName} title={preview?.title}
       />
     </>
   );

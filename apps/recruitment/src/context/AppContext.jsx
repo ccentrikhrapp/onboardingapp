@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext.jsx';
-import { listAllJobs, createJob as createJobApi } from '../api/jobs.js';
+import { listAllJobs, createJob as createJobApi, deleteJob as deleteJobApi } from '../api/jobs.js';
 import { jobFromDb } from '../api/mappers.js';
 
 /**
@@ -43,6 +43,11 @@ export function AppProvider({ children }) {
     []
   );
 
+  const deleteJob = useCallback(async (id) => {
+    await deleteJobApi(id);
+    setLiveJobs((prev) => (prev || []).filter((j) => j.id !== id));
+  }, []);
+
   const selectors = useMemo(() => {
     const allJobs = liveJobs || [];
     return {
@@ -62,9 +67,10 @@ export function AppProvider({ children }) {
       signOut: auth.signOut,
       reloadJobs,
       createJob,
+      deleteJob,
       ...selectors,
     }),
-    [auth.role, auth.profile, auth.configured, auth.loading, auth.signOut, reloadJobs, createJob, selectors]
+    [auth.role, auth.profile, auth.configured, auth.loading, auth.signOut, reloadJobs, createJob, deleteJob, selectors]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

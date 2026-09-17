@@ -8,7 +8,7 @@ export default function KpiCard({ icon, label, value, trend, note, meter, accent
   const wash = `var(--tag-${accent}-bg)`;
 
   const Tag = onClick ? 'button' : 'div';
-  const pct = meter ? Math.max(2, Math.min(100, Math.round((meter.value / (meter.max || 1)) * 100))) : 0;
+  const pct = meter ? Math.max(0, Math.min(100, Math.round((meter.value / (meter.max || 1)) * 100))) : 0;
 
   let footer = note ? <span className="ta-trend ta-trend--flat">{note}</span> : null;
   if (trend) {

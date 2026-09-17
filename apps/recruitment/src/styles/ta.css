@@ -59,12 +59,17 @@
   background: var(--ta-surface);
   border-right: 1px solid var(--ta-line);
   display: flex; flex-direction: column;
-  padding: 14px 12px;
+  padding: 16px 14px;
   position: fixed; inset: 0 auto 0 0; z-index: 40;
   transition: width 0.2s ease;
 }
+/* No global anchor reset exists in this app, so a NavLink's <a> falls back to
+   the browser's default blue/underlined link style wherever a scoped rule
+   doesn't explicitly win — scope the reset to the sidebar rather than adding
+   a site-wide `a` rule that could affect unrelated pages. */
+.ta-sidebar a { text-decoration: none; color: inherit; }
 
-.ta-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 16px; }
+.ta-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--ta-line-soft, var(--ta-line)); }
 .ta-brand__mark {
   width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
   background: linear-gradient(150deg, #4b7bf7, #2a53c8);
@@ -93,18 +98,32 @@
 }
 .ta-collapse-btn:hover { color: var(--ta-blue); border-color: var(--ta-blue-wash); }
 
-.ta-nav { display: flex; flex-direction: column; gap: 2px; }
+.ta-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 .ta-nav__link {
-  display: flex; align-items: center; gap: 11px;
-  padding: 8px 10px; border-radius: 9px;
+  position: relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; border-radius: 10px;
   color: var(--ta-text-soft); font-size: 13px; font-weight: 500;
   white-space: nowrap; overflow: hidden;
-  transition: background 0.15s, color 0.15s;
+  transition: background 0.15s ease, color 0.15s ease;
 }
-.ta-nav__link svg { flex-shrink: 0; }
-.ta-nav__link:hover { background: var(--ta-bg); color: var(--ta-text); }
+/* left accent bar for the active item — grows in from nothing rather than
+   just appearing, so switching pages reads as a small, deliberate motion. */
+.ta-nav__link::before {
+  content: ''; position: absolute; left: -14px; top: 50%; translate: 0 -50%;
+  width: 3px; height: 0; border-radius: 0 3px 3px 0; background: var(--ta-blue);
+  transition: height 0.15s ease;
+}
+.ta-nav__link.active::before { height: 18px; }
+.ta-nav__link svg {
+  flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 9px;
+  box-sizing: border-box; background: transparent; color: var(--ta-text-mute);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.ta-nav__link:hover { color: var(--ta-text); }
+.ta-nav__link:hover svg { background: var(--ta-bg); color: var(--ta-text-soft); }
 .ta-nav__link.active { background: var(--ta-blue-wash); color: var(--ta-blue-ink); font-weight: 600; }
-.ta-nav__link.active svg { color: var(--ta-blue); }
+.ta-nav__link.active svg { background: var(--ta-blue); color: #fff; box-shadow: 0 3px 8px -2px color-mix(in srgb, var(--ta-blue) 55%, transparent); }
 .ta-nav__count {
   flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
   background: var(--tag-amber-bg); color: var(--tag-amber-fg);
@@ -401,8 +420,37 @@
 .ta-ptab.is-active svg { background: var(--pt); color: #fff; }
 @media (max-width: 1180px) { .ta-ptabs { grid-template-columns: repeat(2, 1fr); } }
 
-/* activity sidebar — never taller than the workflow column; scroll inside */
-.ta-actside { overflow: hidden; }
+/* pipeline stepper — plain numbered progress, not the colorful profile tabs */
+.ta-stepper { display: flex; align-items: center; flex-wrap: wrap; }
+.ta-step {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px; border: none; border-radius: 9px; background: none;
+  cursor: pointer; font: inherit; line-height: 1.2;
+  transition: background 0.14s ease;
+}
+.ta-step:hover { background: var(--ta-bg); }
+.ta-step__num {
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+  background: var(--ta-line-soft); color: var(--ta-text-mute);
+}
+.ta-step__label { font-size: 12.5px; font-weight: 600; color: var(--ta-text-mute); white-space: nowrap; }
+.ta-step.is-active { background: var(--ta-blue-wash); }
+.ta-step.is-active .ta-step__num { background: var(--ta-blue); color: #fff; }
+.ta-step.is-active .ta-step__label { color: var(--ta-blue-ink); }
+.ta-step:not(.is-active) .ta-step__num { background: var(--ta-blue-wash); color: var(--ta-blue-ink); }
+.ta-step:not(.is-active):hover .ta-step__label { color: var(--ta-text-soft); }
+.ta-step__sep { width: 20px; height: 1px; background: var(--ta-line); flex-shrink: 0; margin: 0 2px; }
+@media (max-width: 560px) { .ta-step__label { display: none; } .ta-step__sep { width: 12px; } }
+
+/* activity panel — a fixed, compact height always, not "as tall as whatever
+   sits beside it" (that used to be measured off the workflow column via
+   ResizeObserver, which meant a long workflow made this panel just as long).
+   A flat max-height keeps the panel small and predictable regardless of
+   viewport width or how many events exist, with the excess handled entirely
+   by .ta-timeline--scroll's own internal scrollbar. */
+.ta-actside { max-height: 440px; overflow: hidden; }
 .ta-actside > .ta-card { max-height: 100%; overflow: hidden; }
 .ta-actside > .ta-card > .ta-card__body { display: flex; flex-direction: column; min-height: 0; }
 .ta-timeline--scroll {
@@ -414,11 +462,6 @@
 .ta-timeline--scroll::-webkit-scrollbar-track { background: transparent; }
 .ta-timeline--scroll::-webkit-scrollbar-thumb { background: var(--ta-line); border-radius: 999px; }
 .ta-timeline--scroll:hover::-webkit-scrollbar-thumb { background: var(--ta-text-mute); }
-@media (max-width: 1160px) {
-  .ta-actside { max-height: none !important; overflow: visible; }
-  .ta-actside > .ta-card { max-height: none; }
-  .ta-timeline--scroll { overflow-y: visible; }
-}
 
 /* activity feed — show a few, expand for the rest */
 .ta-actmore {
@@ -1303,6 +1346,31 @@
   .profilemenu__who, .profilemenu__btn > svg { display: none; }
   .profilemenu__btn { padding: 3px; }
 }
+.cx-header__signin {
+  display: flex; align-items: center; gap: 9px; flex-shrink: 0;
+  height: 38px; padding: 0 18px 0 15px; border-radius: 10px;
+  border: 1px solid var(--ta-line); background: #fff; color: var(--ta-text);
+  font: inherit; font-size: 13px; font-weight: 650; cursor: pointer;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  transition: border-color 0.14s, box-shadow 0.14s, background 0.14s;
+}
+.cx-header__signin:hover:not(:disabled) {
+  border-color: #c6cbd3; background: #fafbfc;
+  box-shadow: 0 2px 6px -1px rgba(16, 24, 40, 0.08);
+}
+.cx-header__signin:active:not(:disabled) { transform: translateY(1px); }
+.cx-header__signin:disabled { opacity: 0.6; cursor: default; }
+.cx-header__signin-spinner {
+  width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0;
+  border: 2px solid var(--ta-line); border-top-color: var(--ta-blue);
+  animation: cx-signin-spin 0.6s linear infinite;
+}
+@keyframes cx-signin-spin { to { transform: rotate(360deg); } }
+@media (max-width: 640px) {
+  .cx-header__signin span:not(.cx-header__signin-spinner) { display: none; }
+  .cx-header__signin { padding: 0 11px; }
+}
+
 .profilemenu__panel {
   position: absolute; right: 0; top: calc(100% + 8px); width: 236px; z-index: 60;
   background: var(--ta-surface); border: 1px solid var(--ta-line);
@@ -1466,6 +1534,41 @@
   border: 1px solid var(--ta-line); border-radius: 8px; background: var(--ta-bg-soft, #f6f7f9); color: var(--ta-text);
 }
 
+/* Schedule Interview modal — meeting-type / platform radio cards. */
+.ta-modalsection {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; color: var(--ta-text-mute);
+  margin: 18px 0 10px; padding-top: 14px; border-top: 1px solid var(--ta-line-soft);
+}
+.ta-modalsection:first-child { margin-top: 0; padding-top: 0; border-top: none; }
+.ta-choice-group { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ta-choice-group--sm { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.ta-choice {
+  display: flex; align-items: flex-start; gap: 10px; text-align: left;
+  padding: 12px 14px; border: 1.5px solid var(--ta-line); border-radius: var(--ta-radius-sm);
+  background: var(--ta-surface); cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.ta-choice:hover { border-color: #c7d2fe; }
+.ta-choice.is-selected { border-color: var(--ta-blue); background: var(--ta-blue-wash); }
+.ta-choice--sm { align-items: center; padding: 10px 12px; }
+.ta-choice__icon {
+  flex-shrink: 0; width: 30px; height: 30px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--ta-blue-wash); color: var(--ta-blue-ink);
+}
+.ta-choice.is-selected .ta-choice__icon { background: var(--ta-blue); color: #fff; }
+.ta-choice__title { display: block; font-size: 13px; font-weight: 600; color: var(--ta-text); }
+.ta-choice__sub { display: block; font-size: 11.5px; color: var(--ta-text-soft); margin-top: 2px; }
+
+.ta-summarybox {
+  margin-top: 14px; padding: 12px 14px; border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
+  background: var(--ta-bg);
+}
+.ta-summarybox__row {
+  display: flex; justify-content: space-between; gap: 12px; padding: 4px 0; font-size: 12.5px;
+}
+.ta-summarybox__row span { color: var(--ta-text-soft); }
+.ta-summarybox__row b { color: var(--ta-text); font-weight: 600; text-align: right; }
+
 /* job detail — title on the left, key facts fill the space on the right */
 .cx-jobhead {
   display: flex; align-items: flex-start; justify-content: space-between;
@@ -1607,6 +1710,20 @@
 .cx-jobinfo__progress-top { display: flex; justify-content: space-between; font-size: 11px; color: var(--ta-text-soft); margin-bottom: 5px; }
 .cx-progress { height: 5px; border-radius: 999px; background: var(--ta-line); overflow: hidden; }
 .cx-progress > div { height: 100%; background: var(--ta-blue); border-radius: 999px; transition: width 0.4s ease; }
+
+.cx-signin-note {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  background: var(--ta-blue-wash, #eef3ff); color: var(--ta-blue-ink, #2a53c8);
+  border: 1px solid rgba(59, 110, 245, 0.18); border-radius: var(--ta-radius-sm);
+  padding: 10px 14px; margin-bottom: 16px; font-size: 12.5px;
+}
+.cx-signin-note svg { flex-shrink: 0; }
+.cx-signin-note__btn {
+  margin-left: auto; border: 0; background: var(--ta-blue); color: #fff;
+  padding: 5px 12px; border-radius: 7px; font: inherit; font-size: 12px; font-weight: 650;
+  cursor: pointer; white-space: nowrap;
+}
+.cx-signin-note__btn:hover { filter: brightness(1.06); }
 
 .cx-formbar {
   display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
@@ -1799,3 +1916,6 @@
   .ta-page > *, .ta-kpi, .ta-sidebar, .ta-main { animation: none; transition: none; }
   .ta-sk { animation: none; }
 }
+
+/* The landing/front-door page now lives in styles/welcome.css (imported
+   directly by WelcomePage.jsx) — this old two-card version is gone. */

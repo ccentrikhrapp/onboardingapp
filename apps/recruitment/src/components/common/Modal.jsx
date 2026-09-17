@@ -17,7 +17,7 @@ export function Modal({ open, onClose, title, children, footer, size }) {
   if (!open) return null;
   return (
     <div className="overlay overlay--center" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={`modal${size === 'lg' ? ' modal--lg' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`modal${size === 'lg' ? ' modal--lg' : ''}${size === 'xl' ? ' modal--xl' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal__header">
           <h3 className="modal__title">{title}</h3>
           <button className="icon-btn" onClick={onClose} aria-label="Close">

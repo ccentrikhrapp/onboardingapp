@@ -11,6 +11,7 @@ import RoleRoute from '../components/routing/RoleRoute.jsx';
 
 import LoginPage from '../pages/LoginPage.jsx';
 import TALoginPage from '../pages/TALoginPage.jsx';
+import WelcomePage from '../pages/WelcomePage.jsx';
 
 import LandingPage from '../pages/candidate/LandingPage.jsx';
 import JobsPage from '../pages/candidate/JobsPage.jsx';
@@ -25,6 +26,8 @@ import TACandidatesPage from '../pages/talentAcquisition/TACandidatesPage.jsx';
 import TACandidateDetailPage from '../pages/talentAcquisition/TACandidateDetailPage.jsx';
 import TAJobsPage from '../pages/talentAcquisition/TAJobsPage.jsx';
 import TAJobDetailPage from '../pages/talentAcquisition/TAJobDetailPage.jsx';
+import TAManagementPage from '../pages/talentAcquisition/TAManagementPage.jsx';
+import CreateCandidatePage from '../pages/talentAcquisition/CreateCandidatePage.jsx';
 
 import SettingsPage from '../pages/shared/SettingsPage.jsx';
 import ProfilePage from '../pages/shared/ProfilePage.jsx';
@@ -32,8 +35,17 @@ import ProfilePage from '../pages/shared/ProfilePage.jsx';
 export default function AppRoutes() {
   return (
     <Routes>
-      <Route path="/" element={<LoginPage />} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
+      {/* A visitor with no specific destination (typed the bare domain) picks
+          candidate vs TA here — replaces the old ad-hoc "looking to apply?"
+          / "TA sign in here" footer links on each login page with one
+          explicit choice. Anyone arriving via a real job link skips this
+          entirely and lands straight on /candidate/jobs/:id (fully public —
+          see JobDetailsPage). Signing in is deferred to the moment a
+          candidate actually starts an application (ApplyPage's own compact
+          "Sign in with Google" prompt), not forced up front. */}
+      <Route path="/" element={<WelcomePage />} />
+      <Route path="/candidate/login" element={<LoginPage />} />
+      <Route path="/login" element={<Navigate to="/candidate" replace />} />
       <Route path="/ta/login" element={<TALoginPage />} />
 
       {/* Candidate / public */}
@@ -67,9 +79,11 @@ export default function AppRoutes() {
         <Route path="/ta" element={<TADashboard />} />
         <Route path="/ta/applications" element={<Navigate to="/ta/candidates" replace />} />
         <Route path="/ta/candidates" element={<TACandidatesPage />} />
+        <Route path="/ta/candidates/new" element={<CreateCandidatePage />} />
         <Route path="/ta/candidates/:candidateId" element={<TACandidateDetailPage />} />
         <Route path="/ta/jobs" element={<TAJobsPage />} />
         <Route path="/ta/jobs/:jobId" element={<TAJobDetailPage />} />
+        <Route path="/ta/team" element={<RoleRoute allow="admin"><TAManagementPage /></RoleRoute>} />
         <Route path="/ta/settings" element={<SettingsPage />} />
         <Route path="/ta/profile" element={<ProfilePage role="ta" />} />
       </Route>
@@ -79,7 +93,7 @@ export default function AppRoutes() {
           reaching this app (it shouldn't — HR staff sign in on the HR app's
           own Supabase project) is handled by LoginPage, not routed here. */}
 
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<Navigate to="/candidate" replace />} />
     </Routes>
   );
 }

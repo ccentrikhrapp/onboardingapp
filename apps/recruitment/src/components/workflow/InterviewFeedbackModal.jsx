@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal } from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
-import { Field, Textarea, Checkbox } from '../ta/Field.jsx';
+import { Field, Textarea } from '../ta/Field.jsx';
 
 const DECISIONS = [
   { value: 'advance', label: 'Advance', icon: '✓' },
@@ -10,18 +10,22 @@ const DECISIONS = [
 ];
 
 /* Remarks are mandatory for every decision — the backend rejects an empty
-   submission too, this is not just a frontend nicety (master prompt §41). */
+   submission too, this is not just a frontend nicety (master prompt §41).
+   Sharing with the candidate is likewise not optional here: every recorded
+   decision is shared, so remarks should be written with the candidate as
+   the audience, not just internal shorthand. */
 export default function InterviewFeedbackModal({ open, onClose, round, onSubmit, busy }) {
   const [decision, setDecision] = useState('');
   const [remarks, setRemarks] = useState('');
-  const [share, setShare] = useState(false);
-  const [error, setError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState({});
 
   const submit = () => {
-    if (!decision) { setError('Choose a decision.'); return; }
-    if (!remarks.trim()) { setError('Please provide interview remarks before submitting.'); return; }
-    setError('');
-    onSubmit({ decision, remarks: remarks.trim(), shareWithCandidate: share });
+    const fe = {};
+    if (!decision) fe.decision = 'Choose a decision.';
+    if (!remarks.trim()) fe.remarks = 'Please provide interview remarks before submitting.';
+    setFieldErrors(fe);
+    if (Object.keys(fe).length) return;
+    onSubmit({ decision, remarks: remarks.trim(), shareWithCandidate: true });
   };
 
   return (
@@ -36,8 +40,7 @@ export default function InterviewFeedbackModal({ open, onClose, round, onSubmit,
         </>
       }
     >
-      {error && <p className="ta-field__error" style={{ marginBottom: 10 }}>{error}</p>}
-      <Field label="Decision" required>
+      <Field label="Decision" required error={fieldErrors.decision}>
         <div className="ta-btnrow">
           {DECISIONS.map((d) => (
             <button
@@ -51,10 +54,9 @@ export default function InterviewFeedbackModal({ open, onClose, round, onSubmit,
           ))}
         </div>
       </Field>
-      <Field label="Remarks" required hint="Visible to the recruitment team; optionally shared with the candidate below.">
+      <Field label="Remarks" required error={fieldErrors.remarks} hint="Shared with the candidate once you save — write for that audience.">
         <Textarea rows={4} value={remarks} onChange={(e) => setRemarks(e.target.value)} placeholder="What stood out — strengths, gaps, overall impression…" />
       </Field>
-      <Checkbox checked={share} onChange={(e) => setShare(e.target.checked)}>Share these remarks with the candidate</Checkbox>
     </Modal>
   );
 }

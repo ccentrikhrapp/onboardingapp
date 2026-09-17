@@ -1,5 +1,5 @@
 import { supabase } from '../lib/supabase.js';
-import { unwrap } from './client.js';
+import { unwrap, callFn } from './client.js';
 
 const COLUMNS =
   'id, source_application_id, source_document_id, candidate_name, candidate_email, ' +
@@ -18,6 +18,12 @@ export function listVerificationsForApplication(sourceApplicationId) {
     .eq('source_application_id', sourceApplicationId)
     .order('requirement_name')
     .then(unwrap);
+}
+
+/** The file lives in the recruitment project's storage — this proxies a signed URL from there. */
+export async function getVerificationDocumentUrl(sourceDocumentId) {
+  const { url, fileName } = await callFn('get-document-url', { body: { sourceDocumentId } });
+  return { url, fileName };
 }
 
 export function getVerificationHistory(documentVerificationId) {

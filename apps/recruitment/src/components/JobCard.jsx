@@ -2,14 +2,15 @@ import { useNavigate } from 'react-router-dom';
 import Icon from './common/Icon.jsx';
 import Button from './ta/Button.jsx';
 
-/* Roughly how long ago a job was posted (deadlines are ~30 days out). */
-function postedAgo(deadline) {
-  const d = new Date(deadline);
-  d.setDate(d.getDate() - 30);
-  const days = Math.max(1, Math.round((Date.now() - d.getTime()) / 86400000));
+/* How long ago a job was actually posted. */
+function postedAgo(createdAt) {
+  if (!createdAt) return 'recently';
+  const days = Math.max(0, Math.round((Date.now() - new Date(createdAt).getTime()) / 86400000));
+  if (days === 0) return 'today';
   if (days === 1) return '1 day ago';
   if (days < 30) return `${days} days ago`;
-  return `${Math.round(days / 30)} months ago`;
+  const months = Math.round(days / 30);
+  return months === 1 ? '1 month ago' : `${months} months ago`;
 }
 
 export default function JobCard({ job }) {
@@ -25,7 +26,7 @@ export default function JobCard({ job }) {
             <div className="cx-job__title">{job.title}</div>
             <div className="cx-job__dept">{job.department}</div>
           </div>
-          <span className="cx-job__posted"><Icon name="CalendarDays" size={11} /> Posted {postedAgo(job.deadline)}</span>
+          <span className="cx-job__posted"><Icon name="CalendarDays" size={11} /> Posted {postedAgo(job.createdAt)}</span>
         </div>
 
         <div className="cx-job__meta">

@@ -52,6 +52,12 @@ export async function queueEmail(
     template?: string;
     entity_type?: string;
     entity_id?: string | null;
+    // Email of whoever's action triggered this — when they've connected
+    // Gmail send access (see store-google-token), send-email delivers it
+    // through their own Google account instead of the shared/dead fallback
+    // mailbox. Email, not profile id, since recruitment and HR are separate
+    // Supabase projects with their own profile UUIDs for the same person.
+    sender_email?: string | null;
   },
 ) {
   const { data: row } = await svc

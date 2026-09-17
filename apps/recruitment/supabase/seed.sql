@@ -12,54 +12,16 @@
 -- instead of 'candidate'. Change the emails to your real team.
 -- ---------------------------------------------------------------------------
 insert into staff_invites (email, role) values
-  ('claudeworkk01@gmail.com', 'admin')
+  ('ccentrikhrapp@gmail.com', 'admin')
 on conflict (email) do update set role = excluded.role;
 -- add your TA / HR here, e.g.:
 -- insert into staff_invites (email, role) values ('ta1@ccentrik.com', 'ta') on conflict (email) do nothing;
 -- insert into staff_invites (email, role) values ('hr1@ccentrik.com', 'hr') on conflict (email) do nothing;
 
 -- ---------------------------------------------------------------------------
--- Jobs (published). Mirrors the old src/data/jobs.js catalogue.
+-- Jobs — none seeded. Publish real openings from the TA workspace
+-- (/ta/jobs → New Job) instead of demo placeholders.
 -- ---------------------------------------------------------------------------
-insert into jobs (job_code, title, department, location, work_mode, employment_type, experience, description, required_skills, deadline, status)
-values
-  ('JOB-1024', 'SAP Consultant', 'SAP Functional', 'Bengaluru, India', 'Hybrid', 'Full-time', '4-7 years',
-   'Implement and support SAP S/4HANA and BTP solutions for enterprise clients.',
-   '{SAP,"SAP CAP",OData,Fiori,JavaScript}', '2026-10-15', 'published'),
-  ('JOB-1025', 'Senior Frontend Engineer', 'Engineering', 'Remote, India', 'Remote', 'Full-time', '5-9 years',
-   'Build delightful, accessible user interfaces for our flagship SaaS platform using React.',
-   '{React,TypeScript,CSS,Testing,Accessibility}', '2026-10-05', 'published'),
-  ('JOB-1026', 'Talent Acquisition Partner', 'Talent Acquisition', 'Mumbai, India', 'On-site', 'Full-time', '3-6 years',
-   'Drive full-cycle recruitment for technology roles.',
-   '{Sourcing,Interviewing,ATS,"Stakeholder management"}', '2026-09-28', 'published'),
-  ('JOB-1027', 'Backend Engineer (Node.js)', 'Engineering', 'Hyderabad, India', 'Hybrid', 'Full-time', '3-6 years',
-   'Design and operate scalable APIs and services that power our platform.',
-   '{Node.js,PostgreSQL,REST,Docker}', '2026-10-20', 'published'),
-  ('JOB-1028', 'Product Designer', 'Design', 'Bengaluru, India', 'Hybrid', 'Full-time', '4-8 years',
-   'Shape end-to-end product experiences from research to polished UI.',
-   '{Figma,"Interaction Design",Prototyping,"Design Systems"}', '2026-10-12', 'published'),
-  ('JOB-1029', 'Data Analyst', 'Analytics', 'Pune, India', 'On-site', 'Full-time', '2-5 years',
-   'Turn raw data into decisions with dashboards, analysis and clear storytelling.',
-   '{SQL,Python,"Power BI",Statistics}', '2026-09-30', 'published'),
-  ('JOB-1030', 'QA Automation Engineer', 'Engineering', 'Remote, India', 'Remote', 'Full-time', '3-6 years',
-   'Own automated test coverage across web and API layers.',
-   '{Playwright,JavaScript,CI/CD,"API Testing"}', '2026-10-18', 'published'),
-  ('JOB-1031', 'DevOps Engineer', 'Engineering', 'Bengaluru, India', 'Hybrid', 'Full-time', '4-8 years',
-   'Build the infrastructure and tooling that lets teams ship safely and fast.',
-   '{AWS,Terraform,Kubernetes,CI/CD}', '2026-10-25', 'published'),
-  ('JOB-1032', 'HR Operations Specialist', 'Human Resource', 'Mumbai, India', 'On-site', 'Full-time', '2-5 years',
-   'Run smooth onboarding, documentation and HR systems for a growing workforce.',
-   '{HRIS,Onboarding,Documentation,Compliance}', '2026-09-26', 'published'),
-  ('JOB-1033', 'Engineering Manager', 'Engineering', 'Bengaluru, India', 'Hybrid', 'Full-time', '8-12 years',
-   'Lead and grow a team of engineers delivering customer-facing product.',
-   '{"People Management","System Design",Agile,Hiring}', '2026-11-01', 'published'),
-  ('JOB-1034', 'Business Analyst', 'Sales', 'Chennai, India', 'Hybrid', 'Full-time', '3-6 years',
-   'Bridge business and technology teams, translating needs into clear requirements.',
-   '{"Requirements Analysis",UML,SQL,Agile}', '2026-10-08', 'published'),
-  ('JOB-1035', 'Customer Success Manager', 'Sales', 'Remote, India', 'Remote', 'Full-time', '4-7 years',
-   'Own the post-sale relationship and drive adoption, retention and growth.',
-   '{"Account Management",SaaS,Communication,Analytics}', '2026-10-14', 'published')
-on conflict (job_code) do nothing;
 
 -- ---------------------------------------------------------------------------
 -- Pre-offer document checklist — see docs/requirements/01-*.md
@@ -149,24 +111,8 @@ values
 on conflict (stage, key) do nothing;
 
 -- ---------------------------------------------------------------------------
--- Application-stage documents — collected as part of the application itself
--- (docs/requirements — Phase 1 candidate/TA spec, 2026-09-11, §22-26). A
--- minimal starter set; add/remove rows here as the real requirement list is
--- finalized — nothing about this is hardcoded into the app.
+-- Application-stage documents — none. Candidates upload only a resume when
+-- applying; document collection (ID, education, etc.) happens later at the
+-- pre-offer stage, once shortlisted. Add rows with stage='application' here
+-- if that ever needs to change — the ApplyPage renders whatever exists.
 -- ---------------------------------------------------------------------------
-insert into document_requirements
-  (stage, key, name, requirement_class, condition_type, quantity_required,
-   requires_front_back, requires_employer, employer_count, requires_period, period_count,
-   multiple_files, structured_data, can_mark_cannot_provide, warning_message,
-   allowed_file_types, max_file_size_mb, display_order)
-values
-  ('application', 'identity_proof', 'Identity Proof', 'required', null, 1,
-   false, false, 0, false, 0, false, false, true,
-   'You have indicated that you cannot provide a required document. Please note that failure to submit this document may affect your application and may result in rejection.',
-   '{pdf,jpg,jpeg,png}', 10, 1),
-
-  ('application', 'education_certificate', 'Education Certificate', 'required', null, 1,
-   false, false, 0, false, 0, false, false, true,
-   'You have indicated that you cannot provide a required document. Please note that failure to submit this document may affect your application and may result in rejection.',
-   '{pdf,jpg,jpeg,png}', 10, 2)
-on conflict (stage, key) do nothing;

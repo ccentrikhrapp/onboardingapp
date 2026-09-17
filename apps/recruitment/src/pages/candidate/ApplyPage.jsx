@@ -15,10 +15,9 @@ import { listRequirements, uploadPendingDocument } from '../../api/documents.js'
 import { submitApplication as submitApplicationApi } from '../../api/applications.js';
 import { ApiError } from '../../api/client.js';
 import { jobFromDb } from '../../api/mappers.js';
+import { nameError, emailError, phoneError, locationError, urlError, numberError, fileUploadError } from '../../utils/validation.js';
 
 const DRAFT_KEY = 'talentflow.apply.draft.v2';
-const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const phoneRe = /^[+]?[\d\s()-]{8,}$/;
 const EXP_OPTIONS = ['Fresher', '0–2 years', '2–5 years', '5–8 years', '8+ years'];
 const NOTICE_OPTIONS = ['Immediate', '15 Days', '30 Days', '60 Days', '90 Days'];
 const SOURCE_OPTIONS = ['Job Board', 'Referral', 'Social', 'Direct'];
@@ -40,6 +39,11 @@ function expToNumber(b) {
 function blankForm(jobId) {
   return {
     jobId: jobId || null,
+    // Lets a resume be uploaded/parsed before the candidate has signed in
+    // at all — an unguessable folder name for the anonymous "pending"
+    // storage path, adopted into their real folder once they do sign in
+    // (see api/resumes.js#uploadResume and submit-application).
+    draftId: crypto.randomUUID(),
     firstName: '', lastName: '', email: '', phone: '', currentLocation: '', experience: '',
     currentCompany: '', currentJobTitle: '', highestQualification: '', noticePeriod: '', expectedSalary: '',
     coverNote: '', portfolio: '', source: '',
@@ -50,7 +54,20 @@ function blankForm(jobId) {
 const REQUIRED = ['firstName', 'lastName', 'email', 'phone', 'currentLocation', 'experience'];
 const LABELS = {
   firstName: 'First name', lastName: 'Last name', email: 'Email', phone: 'Phone number',
-  currentLocation: 'Current location', experience: 'Total experience',
+  currentLocation: 'Current location', experience: 'Total experience', noticePeriod: 'Notice period',
+};
+
+// Format checks layered on top of the plain required-field check above —
+// shared with every other form via src/utils/validation.js, not redefined
+// here. `req` is whether REQUIRED includes this key (see validateField).
+const FIELD_VALIDATORS = {
+  firstName: (v, req) => nameError(v, { required: req, label: 'first name' }),
+  lastName: (v, req) => nameError(v, { required: req, label: 'last name' }),
+  email: (v, req) => emailError(v, { required: req }),
+  phone: (v, req) => phoneError(v, { required: req }),
+  currentLocation: (v, req) => locationError(v, { required: req, label: 'current location' }),
+  portfolio: (v) => urlError(v, { required: false, label: 'portfolio/LinkedIn URL' }),
+  expectedSalary: (v) => numberError(v, { required: false, label: 'expected salary', min: 0 }),
 };
 
 export default function ApplyPage() {
@@ -61,7 +78,7 @@ export default function ApplyPage() {
 
   const navigate = useNavigate();
   const { getJob } = useApp();
-  const { configured, user, signInWithGoogle } = useAuth();
+  const { configured, ensureSession } = useAuth();
   const toast = useToast();
 
   // A TA link (?ref=token) is resolved server-side into the job + recruiter.
@@ -87,17 +104,20 @@ export default function ApplyPage() {
   }
 
   const job = link ? jobFromDb(link.job) : jobId ? getJob(jobId) : null;
-  const needsSignIn = configured && !user;
 
   const [form, setForm] = useState(() => {
     const d = loadJSON(DRAFT_KEY, null);
-    return d && d.jobId === (jobId || null) ? d : blankForm(jobId);
+    if (d && d.jobId === (jobId || null)) return d.draftId ? d : { ...d, draftId: crypto.randomUUID() };
+    return blankForm(jobId);
   });
   const [errors, setErrors] = useState({});
   const [analyzeIdx, setAnalyzeIdx] = useState(-1);
   const [submitting, setSubmitting] = useState(false);
   const fileRef = useRef(null);
   const timers = useRef([]);
+  // Bumped on every new upload so an in-flight upload/parse from a resume
+  // the candidate has since replaced can't land its results after the fact.
+  const uploadToken = useRef(0);
 
   // Required documents — data-driven (document_requirements, stage='application').
   const [requirements, setRequirements] = useState([]);
@@ -112,11 +132,15 @@ export default function ApplyPage() {
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const isAuto = (k) => parsed && form.autofilled.includes(k);
 
+  // Notice period only makes sense for someone leaving a current job — a
+  // fresher has none to give, so it's required only once experience is
+  // non-zero, not unconditionally like the rest of REQUIRED.
+  const isRequired = (k) => REQUIRED.includes(k) || (k === 'noticePeriod' && Number(expToNumber(form.experience)) > 0);
+
   const validateField = (k, v) => {
-    let msg = '';
-    if (REQUIRED.includes(k) && !String(v).trim()) msg = `${LABELS[k]} is required.`;
-    else if (k === 'email' && v && !emailRe.test(v)) msg = 'Please enter a valid email address.';
-    else if (k === 'phone' && v && !phoneRe.test(v)) msg = 'Please enter a valid phone number.';
+    const required = isRequired(k);
+    const validator = FIELD_VALIDATORS[k];
+    const msg = validator ? validator(v, required) : required && !String(v).trim() ? `${LABELS[k]} is required.` : '';
     setErrors((e) => ({ ...e, [k]: msg || undefined }));
     return !msg;
   };
@@ -127,11 +151,13 @@ export default function ApplyPage() {
 
   const validateAll = () => {
     const e = {};
-    REQUIRED.forEach((k) => {
-      if (!String(form[k]).trim()) e[k] = `${LABELS[k]} is required.`;
+    const keys = new Set([...REQUIRED, ...Object.keys(FIELD_VALIDATORS), 'noticePeriod']);
+    keys.forEach((k) => {
+      const required = isRequired(k);
+      const validator = FIELD_VALIDATORS[k];
+      const msg = validator ? validator(form[k], required) : required && !String(form[k]).trim() ? `${LABELS[k]} is required.` : '';
+      if (msg) e[k] = msg;
     });
-    if (form.email && !emailRe.test(form.email)) e.email = 'Please enter a valid email address.';
-    if (form.phone && !phoneRe.test(form.phone)) e.phone = 'Please enter a valid phone number.';
     if (!form.resume) e.resume = 'Please upload your resume (PDF, DOC or DOCX under 5 MB).';
     requirements
       .filter((r) => r.requirement_class !== 'conditional')
@@ -170,18 +196,35 @@ export default function ApplyPage() {
   const handleFile = async (fileList) => {
     const file = fileList?.[0];
     if (!file) return;
-    if (!/\.(pdf|docx?)$/i.test(file.name) || file.size > 5 * 1024 * 1024) {
-      setErrors((e) => ({ ...e, resume: 'Please upload a PDF, DOC or DOCX file under 5 MB.' }));
+    const fileErr = fileUploadError(file, { allowedExt: ['pdf', 'doc', 'docx'], maxMB: 5 });
+    if (fileErr) {
+      setErrors((e) => ({ ...e, resume: fileErr }));
       return;
     }
     setErrors((e) => ({ ...e, resume: undefined }));
 
+    // Guards against a slower upload/parse from a resume the candidate has
+    // since replaced landing its results after a newer one already did.
+    const myToken = ++uploadToken.current;
+    const isStale = () => uploadToken.current !== myToken;
+
+    // A new file (including "Replace") should reflect only what this resume
+    // says — clear the previously auto-filled fields first so nothing from
+    // an earlier upload (or an earlier draft) can linger and look mismatched.
+    set({
+      firstName: '', lastName: '', email: '', phone: '', currentLocation: '', experience: '',
+      currentCompany: '', currentJobTitle: '', highestQualification: '', portfolio: '',
+      skills: [], autofilled: [],
+    });
+
     try {
       setAnalyzeIdx(0);
-      const { path, meta } = await uploadResume(file);
+      const { path, meta } = await uploadResume(file, form.draftId);
+      if (isStale()) return;
       set({ resume: meta, resumePath: path });
       setAnalyzeIdx(2);
       const { fields, extracted } = await parseResume(path);
+      if (isStale()) return;
       setAnalyzeIdx(ANALYZE_STEPS.length);
       if (extracted?.length) {
         applyParsed(fields);
@@ -191,6 +234,7 @@ export default function ApplyPage() {
       }
       setAnalyzeIdx(-1);
     } catch (err) {
+      if (isStale()) return;
       setAnalyzeIdx(-1);
       set({ resume: null, resumePath: null });
       setErrors((e) => ({ ...e, resume: err.message || 'Upload failed. Please try again.' }));
@@ -210,6 +254,7 @@ export default function ApplyPage() {
     if (!file) return;
     setDoc(req.id, { uploading: true });
     try {
+      await ensureSession();
       const uploaded = await uploadPendingDocument(file, req);
       setDoc(req.id, {
         uploading: false, path: uploaded.path, fileName: uploaded.fileName,
@@ -281,9 +326,15 @@ export default function ApplyPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
+    // Submission never waits on Google — it silently gets (or creates) a
+    // real row owner behind the scenes (see AuthContext.ensureSession).
+    // Google sign-in, if the candidate wants it, is offered only after a
+    // successful submission, on the success page.
+    if (submitting) return; // guards a fast double-click/double-tap
     setSubmitting(true);
 
     try {
+      await ensureSession();
       const result = await submitApplicationApi(buildPayload());
       saveJSON(DRAFT_KEY, null);
       setSubmitting(false);
@@ -340,35 +391,6 @@ export default function ApplyPage() {
   }
 
   const confidential = link?.inviteType === 'confidential';
-
-  if (needsSignIn) {
-    return (
-      <div className="cx-page cx-page--form">
-        <div className="cx-page__head">
-          <h1 className="cx-page__title">
-            {confidential ? "You've been invited to explore an opportunity" : job ? `Apply — ${job.title}` : 'Start your application'}
-          </h1>
-          <p className="cx-page__sub">
-            {confidential
-              ? 'Sign in with your Google account to view the details and continue.'
-              : link?.recruiterName
-              ? `You're applying through ${link.recruiterName}. Sign in to continue.`
-              : 'Sign in with your Google account to start and track your application.'}
-          </p>
-        </div>
-        {job && (
-          <div className="cx-jobinfo" style={{ marginBottom: 16 }}>
-            <div className="cx-jobinfo__item"><span className="cx-jobinfo__label">Position</span><span className="cx-jobinfo__value">{job.title}</span></div>
-            <div className="cx-jobinfo__item"><span className="cx-jobinfo__label">Department</span><span className="cx-jobinfo__value">{job.department}</span></div>
-            <div className="cx-jobinfo__item"><span className="cx-jobinfo__label">Location</span><span className="cx-jobinfo__value">{job.location}</span></div>
-          </div>
-        )}
-        <Card>
-          <Button icon="LogIn" onClick={() => signInWithGoogle(window.location.href)}>Sign in with Google</Button>
-        </Card>
-      </div>
-    );
-  }
 
   return (
     <div className="cx-page cx-page--form">
@@ -496,11 +518,15 @@ export default function ApplyPage() {
                 <Field label="Highest qualification" extracted={isAuto('highestQualification')}>
                   <Input value={form.highestQualification} onChange={(e) => set({ highestQualification: e.target.value })} />
                 </Field>
-                <Field label="Notice period">
-                  <Select value={form.noticePeriod} placeholder="Select" options={NOTICE_OPTIONS} onChange={(e) => set({ noticePeriod: e.target.value })} />
+                <Field label="Notice period" required={isRequired('noticePeriod')} error={errors.noticePeriod}>
+                  <Select value={form.noticePeriod} error={errors.noticePeriod} placeholder="Select" options={NOTICE_OPTIONS} onChange={(e) => setAndValidate('noticePeriod', e.target.value)} />
                 </Field>
-                <Field label="Expected salary (₹ / year)" hint="Optional" full>
-                  <Input type="number" value={form.expectedSalary} onChange={(e) => set({ expectedSalary: e.target.value })} />
+                <Field label="Expected salary (₹ / year)" hint="Optional" full error={errors.expectedSalary}>
+                  <Input
+                    type="number" min="0" value={form.expectedSalary} error={errors.expectedSalary}
+                    onChange={(e) => setAndValidate('expectedSalary', e.target.value)}
+                    onBlur={(e) => validateField('expectedSalary', e.target.value)}
+                  />
                 </Field>
               </FieldGrid>
             </Card>
@@ -516,8 +542,12 @@ export default function ApplyPage() {
                 <Textarea rows={3} value={form.coverNote} onChange={(e) => set({ coverNote: e.target.value })} placeholder="Anything you'd like the hiring team to know" />
               </Field>
               <FieldGrid>
-                <Field label="Portfolio / LinkedIn URL" hint="Optional">
-                  <Input value={form.portfolio} onChange={(e) => set({ portfolio: e.target.value })} placeholder="https://" />
+                <Field label="Portfolio / LinkedIn URL" hint="Optional" error={errors.portfolio}>
+                  <Input
+                    value={form.portfolio} error={errors.portfolio} placeholder="https://"
+                    onChange={(e) => setAndValidate('portfolio', e.target.value)}
+                    onBlur={(e) => validateField('portfolio', e.target.value)}
+                  />
                 </Field>
                 <Field label="How did you hear about us?" hint="Optional">
                   <Select value={form.source} placeholder="Select" options={SOURCE_OPTIONS} onChange={(e) => set({ source: e.target.value })} />

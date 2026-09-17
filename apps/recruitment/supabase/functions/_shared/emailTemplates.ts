@@ -24,6 +24,35 @@ function button(label: string, href: string): string {
 }
 
 export const templates: Record<string, (v: Vars) => { subject: string; html: string; text: string }> = {
+  // TA-created candidate — the resume-derived application already exists;
+  // this link signs the candidate in (Supabase magic link) straight to it.
+  ta_candidate_verification: (v) => ({
+    subject: "Action Required: Please Verify Your Recruitment Application",
+    html: shell(
+      "Please verify your application",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>Our Talent Acquisition team has created your application based on the resume provided to us.</p>
+       <p>Please review and verify your information using the secure link below.</p>
+       ${button("Verify My Application", v.verify_link)}
+       <p style="font-size:13px;color:#6b7280">You'll be able to:</p>
+       <ul style="font-size:13px;color:#6b7280;padding-left:18px;margin:4px 0 14px">
+         <li>Review your personal details</li>
+         <li>Correct inaccurate information</li>
+         <li>Add missing information</li>
+         <li>Confirm your professional details</li>
+         <li>Review your resume</li>
+         <li>Submit your verified application</li>
+       </ul>
+       <p style="font-size:13px;color:#6b7280">You do not need to enter your application details from scratch.</p>`,
+    ),
+    text:
+      `Hi ${v.candidate_name},\n\nOur Talent Acquisition team has created your application based on the resume provided to us. ` +
+      `Please review and verify your information using the secure link below.\n\n${v.verify_link}\n\n` +
+      `You will be able to review, correct, add missing information, confirm your professional details, review your resume, ` +
+      `and submit your verified application. You do not need to enter your application details from scratch.\n\n` +
+      `Regards,\nTalent Acquisition Team\nCcentrik`,
+  }),
+
   application_submitted: (v) => ({
     subject: `Application received — ${v.job_title}`,
     html: shell(
@@ -109,22 +138,96 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     text: `Hi ${v.candidate_name},\n\nAll required documents for ${v.job_title} have been verified.\n\n— Ccentrik`,
   }),
 
-  interview_scheduled: (v) => ({
-    subject: `Interview scheduled — ${v.job_title}`,
+  onboarding_documents_requested: (v) => ({
+    subject: `Welcome aboard — please submit your onboarding documents`,
     html: shell(
-      "Your interview is scheduled",
+      "A few documents to complete your onboarding",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Your <strong>${v.round_name}</strong> for <strong>${v.job_title}</strong> is scheduled.</p>
-       <div style="background:#f4f6ff;border:1px solid #dbe3ff;border-radius:8px;padding:12px 14px;font-size:14px">
-         <div><strong>Round:</strong> ${v.round_name}</div>
-         <div><strong>When:</strong> ${v.when}</div>
-         ${v.meeting_info ? `<div><strong>Where:</strong> ${v.meeting_info}</div>` : ""}
-       </div>
-       ${v.instructions ? `<p style="font-size:13px;color:#6b7280">${v.instructions}</p>` : ""}
-       ${button("View your application", v.application_link)}`,
+       <p>Congratulations again on joining as <strong>${v.job_title}</strong>! HR needs a few documents to complete your onboarding.</p>
+       <p>Open your onboarding checklist below to see what's required and upload each item.</p>
+       ${button("Open onboarding checklist", v.onboarding_link)}`,
     ),
-    text: `Hi ${v.candidate_name},\n\n${v.round_name} for ${v.job_title} is scheduled: ${v.when}${v.meeting_info ? ` (${v.meeting_info})` : ""}.\n\n— Ccentrik`,
+    text: `Hi ${v.candidate_name},\n\nPlease submit your onboarding documents for ${v.job_title}:\n${v.onboarding_link}\n\n— Ccentrik`,
   }),
+
+  onboarding_document_correction_required: (v) => ({
+    subject: `Onboarding document needs a correction`,
+    html: shell(
+      "One onboarding document needs a correction",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>HR reviewed your onboarding documents and needs a correction on:</p>
+       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
+       ${button("Re-upload document", v.onboarding_link)}`,
+    ),
+    text: `Hi ${v.candidate_name},\n\nAn onboarding document needs correction:\n${v.reason}\n\n${v.onboarding_link}\n\n— Ccentrik`,
+  }),
+
+  onboarding_documents_completed: (v) => ({
+    subject: `Onboarding documents verified`,
+    html: shell(
+      "Your onboarding documents are verified",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>All your onboarding documents have been verified. HR will be in touch with next steps ahead of your joining date.</p>`,
+    ),
+    text: `Hi ${v.candidate_name},\n\nAll your onboarding documents have been verified. HR will be in touch with next steps.\n\n— Ccentrik`,
+  }),
+
+  // v.meeting_type: 'Virtual' | 'In-Person'. Virtual carries platform_label +
+  // meeting_link; In-Person carries location + location_details.
+  interview_scheduled: (v) => {
+    const isVirtual = v.meeting_type === "Virtual";
+    const modeLabel = isVirtual ? v.platform_label : "In-Person";
+    const meetingRow = isVirtual
+      ? `<tr><td style="padding:5px 0;color:#6b7280;width:110px;vertical-align:top">Meeting Link</td><td style="padding:5px 0;font-weight:600"><a href="${v.meeting_link}" style="color:#2563eb">${v.meeting_link}</a></td></tr>`
+      : `<tr><td style="padding:5px 0;color:#6b7280;width:110px;vertical-align:top">Location</td><td style="padding:5px 0;font-weight:600">${v.location}${v.location_details ? `<br/><span style="font-weight:400;color:#6b7280">${v.location_details}</span>` : ""}</td></tr>`;
+    const joinButton = isVirtual ? button("Join Meeting", v.meeting_link) : "";
+    return {
+      subject: `Interview Scheduled – ${v.round_name} | Ccentrik`,
+      html: shell(
+        "Interview Invitation",
+        `<p>Hi ${v.candidate_name},</p>
+         <p>You're invited to an interview for <strong>${v.job_title}</strong>.</p>
+         <table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0">
+           <tr>
+             <td style="vertical-align:top;width:76px;padding-right:16px">
+               <div style="background:#2563eb;color:#fff;border-radius:8px 8px 0 0;text-align:center;padding:5px 0;font-size:10px;font-weight:700;letter-spacing:.04em">${v.month_short} ${v.year}</div>
+               <div style="border:1px solid #dbe3ff;border-top:none;border-radius:0 0 8px 8px;text-align:center;padding:8px 0">
+                 <div style="font-size:26px;font-weight:800;color:#0f1729;line-height:1">${v.day_of_month}</div>
+                 <div style="font-size:10px;color:#6b7280;margin-top:2px">${v.weekday}</div>
+               </div>
+             </td>
+             <td style="vertical-align:top">
+               <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em">${v.round_name}</div>
+               <div style="font-weight:700;font-size:16px;color:#0f1729;margin:2px 0 6px">${v.time} · ${v.duration}</div>
+               <span style="background:#dbe3ff;color:#2540c9;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700">${modeLabel}</span>
+             </td>
+           </tr>
+         </table>
+         <table role="presentation" style="width:100%;border-collapse:collapse;background:#f4f6ff;border:1px solid #dbe3ff;border-radius:8px;padding:14px;font-size:13px">
+           <tr><td style="padding:14px 0 5px 14px;color:#6b7280;width:110px">Position</td><td style="padding:14px 14px 5px 0;font-weight:600">${v.job_title}</td></tr>
+           <tr><td style="padding:5px 0 14px 14px;color:#6b7280;vertical-align:top">Organizer</td><td style="padding:5px 14px 14px 0;font-weight:600">Ccentrik Talent Acquisition</td></tr>
+         </table>
+         <table role="presentation" style="width:100%;border-collapse:collapse;font-size:13px;margin-top:4px">${meetingRow}</table>
+         <div style="text-align:center">${joinButton}</div>
+         <p style="margin:22px 0 10px;font-size:13px;color:#374151">Let us know if you can make it:</p>
+         <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:8px 0">
+           <tr>
+             <td style="text-align:center"><a href="${v.accept_link}" style="display:block;padding:11px 0;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Accept</a></td>
+             <td style="text-align:center"><a href="${v.reschedule_link}" style="display:block;padding:11px 0;background:#f59e0b;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Reschedule</a></td>
+             <td style="text-align:center"><a href="${v.decline_link}" style="display:block;padding:11px 0;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Decline</a></td>
+           </tr>
+         </table>
+         <p style="margin-top:18px"><a href="${v.application_link}" style="color:#2563eb;font-size:13px">View your application →</a></p>`,
+      ),
+      text:
+        `Hi ${v.candidate_name},\n\nYou're invited to an interview for ${v.job_title}.\n\n` +
+        `Interview Round: ${v.round_name}\nDate: ${v.date}\nTime: ${v.time}\nDuration: ${v.duration}\nMeeting Type: ${v.meeting_type}\n` +
+        (isVirtual
+          ? `Platform: ${v.platform_label}\nMeeting Link: ${v.meeting_link}\n`
+          : `Location: ${v.location}\n${v.location_details ? `Location Details: ${v.location_details}\n` : ""}`) +
+        `\nAccept: ${v.accept_link}\nReschedule: ${v.reschedule_link}\nDecline: ${v.decline_link}\n\nRegards,\nTalent Acquisition Team\nCcentrik`,
+    };
+  },
 
   interview_scheduled_panelist: (v) => ({
     subject: `Interview panel — ${v.candidate_name} for ${v.job_title}`,

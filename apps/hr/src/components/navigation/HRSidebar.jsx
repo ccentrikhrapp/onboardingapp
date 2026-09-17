@@ -1,14 +1,35 @@
+import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import Icon from '../common/Icon.jsx';
 import logo from '../../assets/ccentrik-logo.png';
+import { listVerifications } from '../../api/verification.js';
+import { listOnboardingCases } from '../../api/onboarding.js';
 
-const NAV = [
-  { to: '/hr', label: 'Verification queue', icon: 'Home', end: true },
-  { to: '/hr/onboarding', label: 'Onboarding', icon: 'ClipboardCheck' },
-  { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
-];
+const ACTIVE_ONBOARDING = new Set(['onboarding_initiated', 'documents_pending', 'documents_submitted', 'verification_in_progress', 'formalities_pending']);
 
 export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
+  const [counts, setCounts] = useState({ verification: 0, onboarding: 0 });
+
+  useEffect(() => {
+    Promise.all([listVerifications(), listOnboardingCases()])
+      .then(([verifications, cases]) => {
+        setCounts({
+          verification: (verifications || []).filter((v) => ['pending', 'under_review'].includes(v.status)).length,
+          onboarding: (cases || []).filter((c) => ACTIVE_ONBOARDING.has(c.status)).length,
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const nav = [
+    { to: '/hr', label: 'Dashboard', icon: 'Home', end: true },
+    { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
+    { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
+    { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
+    { to: '/hr/activity', label: 'Activity', icon: 'History' },
+    { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
+  ];
+
   return (
     <aside className={`hr-sidebar${open ? ' hr-sidebar--open' : ''}`}>
       <button
@@ -29,7 +50,7 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
       </div>
 
       <nav className="hr-nav">
-        {NAV.map((item) => (
+        {nav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
@@ -40,6 +61,7 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
           >
             <Icon name={item.icon} size={19} />
             <span className="hr-nav__label">{item.label}</span>
+            {!!item.count && <span className="hr-nav__count">{item.count}</span>}
           </NavLink>
         ))}
       </nav>

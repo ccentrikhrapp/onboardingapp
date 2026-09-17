@@ -75,9 +75,27 @@ Deno.serve(async (req) => {
 
     const { data: app } = await svc
       .from("applications")
-      .select("id, assigned_ta_id, candidates(profile_id, email, first_name, last_name), jobs(title)")
+      .select("id, status, assigned_ta_id, candidates(profile_id, email, first_name, last_name), jobs(title)")
       .eq("id", doc.application_id)
       .maybeSingle();
+
+    // Nothing ever advanced applications.status once every pre-offer document
+    // cleared — DOCS_VERIFIED existed in the status enum and the TA UI's step
+    // list, but no code path ever set it, so the Offer step (gated on this
+    // status) was unreachable for every candidate no matter how complete
+    // their documents were. Mirrors verify-onboarding-document's
+    // allRequiredVerified check on the HR side of this same pattern.
+    if (mapped === "verified" && app?.status === "DOC_VERIFICATION") {
+      const { data: allDocs } = await svc
+        .from("application_documents")
+        .select("status, document_requirements!inner(stage)")
+        .eq("application_id", doc.application_id)
+        .eq("document_requirements.stage", "pre_offer");
+      const allDone = (allDocs ?? []).every((d: any) => ["verified", "cannot_provide"].includes(d.status));
+      if (allDone) {
+        await svc.from("applications").update({ status: "DOCS_VERIFIED" }).eq("id", doc.application_id);
+      }
+    }
 
     await addEvent(svc, {
       application_id: doc.application_id,
@@ -125,6 +143,7 @@ Deno.serve(async (req) => {
           template: "document_correction_required",
           entity_type: "application_document",
           entity_id: doc.id,
+          sender_email: body.reviewedByEmail ?? null,
         });
       }
     } else if (app?.assigned_ta_id) {

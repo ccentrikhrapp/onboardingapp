@@ -1,14 +1,20 @@
 import { NavLink } from 'react-router-dom';
 import Icon from '../common/Icon.jsx';
 import logo from '../../assets/ccentrik-logo.png';
+import { useApp } from '../../context/AppContext.jsx';
 
 const NAV = [
   { to: '/ta', label: 'Dashboard', icon: 'Home', end: true },
   { to: '/ta/candidates', label: 'Candidates', icon: 'Users' },
   { to: '/ta/jobs', label: 'Jobs', icon: 'Briefcase' },
 ];
+// TA user management (invite/role/activate) is Super Admin only — an Admin
+// TA has full pipeline oversight but not TA-account authority (§33-35, §74).
+const SUPER_ADMIN_NAV = { to: '/ta/team', label: 'Team', icon: 'ShieldCheck' };
 
 export default function TASidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
+  const { role } = useApp();
+  const nav = role === 'admin' ? [...NAV, SUPER_ADMIN_NAV] : NAV;
   return (
     <aside className={`ta-sidebar${open ? ' ta-sidebar--open' : ''}`}>
       <button
@@ -29,7 +35,7 @@ export default function TASidebar({ open, collapsed, onToggleCollapse, onNavigat
       </div>
 
       <nav className="ta-nav">
-        {NAV.map((item) => (
+        {nav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

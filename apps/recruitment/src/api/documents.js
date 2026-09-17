@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase.js';
-import { unwrap, ApiError, callFn } from './client.js';
+import { unwrap, ApiError, callFn, signedUrl } from './client.js';
+import { fileUploadError } from '../utils/validation.js';
 
 /** Active document requirements for a given stage (e.g. 'application', 'pre_offer'). */
 export function listRequirements(stage) {
@@ -18,15 +19,11 @@ export function listRequirements(stage) {
  * real documents/{applicationId}/... path once the application is created.
  */
 export async function uploadPendingDocument(file, requirement) {
-  const allowed = requirement.allowed_file_types || [];
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (allowed.length && !allowed.includes(ext)) {
-    throw new ApiError(`Please upload a ${allowed.join(', ').toUpperCase()} file.`, 'BAD_FILE_TYPE');
-  }
-  const maxBytes = (requirement.max_file_size_mb || 10) * 1024 * 1024;
-  if (file.size > maxBytes) {
-    throw new ApiError(`File must be under ${requirement.max_file_size_mb || 10} MB.`, 'FILE_TOO_LARGE');
-  }
+  const fileErr = fileUploadError(file, {
+    allowedExt: requirement.allowed_file_types || [],
+    maxMB: requirement.max_file_size_mb || 10,
+  });
+  if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
 
   const { data: me } = await supabase.auth.getUser();
   if (!me.user) throw new ApiError('Please sign in first.', 'UNAUTHENTICATED');
@@ -46,26 +43,34 @@ export async function uploadPendingDocument(file, requirement) {
   };
 }
 
-/** The candidate's checklist for an already-created application (pre-offer stage). */
+/** The candidate's checklist for an already-created application (pre-offer stage).
+    Also embeds document_files so a TA/HR viewer can open what was uploaded. */
 export function listApplicationDocuments(applicationId) {
   return supabase
     .from('application_documents')
-    .select('*, document_requirements(*)')
+    .select('*, document_requirements(*), document_files(storage_path, file_name, is_current, uploaded_at)')
     .eq('application_id', applicationId)
     .then(unwrap);
 }
 
+/** Short-lived signed URL to open a document's current uploaded file. */
+export function documentFileUrl(storagePath) {
+  return signedUrl('documents', storagePath.replace(/^documents\//, ''));
+}
+
+/** TA: verify an uploaded document. action = 'approve' | 'reject' | 'reupload_required'.
+    remarks required for reject/reupload_required — the candidate sees it verbatim. */
+export function verifyApplicationDocument(applicationDocumentId, action, remarks) {
+  return callFn('verify-application-document', { body: { applicationDocumentId, action, remarks } });
+}
+
 /** Real upload against an application that already exists (post-submission). */
 export async function uploadDocumentFile(applicationId, requirement, file) {
-  const allowed = requirement.allowed_file_types || [];
-  const ext = file.name.split('.').pop()?.toLowerCase();
-  if (allowed.length && !allowed.includes(ext)) {
-    throw new ApiError(`Please upload a ${allowed.join(', ').toUpperCase()} file.`, 'BAD_FILE_TYPE');
-  }
-  const maxBytes = (requirement.max_file_size_mb || 10) * 1024 * 1024;
-  if (file.size > maxBytes) {
-    throw new ApiError(`File must be under ${requirement.max_file_size_mb || 10} MB.`, 'FILE_TOO_LARGE');
-  }
+  const fileErr = fileUploadError(file, {
+    allowedExt: requirement.allowed_file_types || [],
+    maxMB: requirement.max_file_size_mb || 10,
+  });
+  if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
   const path = `${applicationId}/${requirement.key}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
   const { error } = await supabase.storage.from('documents').upload(path, file, {
     upsert: true,

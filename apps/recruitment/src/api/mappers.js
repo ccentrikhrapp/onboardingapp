@@ -14,6 +14,7 @@ export function jobFromDb(row) {
     employmentType: row.employment_type || '—',
     experience: row.experience || '',
     deadline: row.deadline || null,
+    applicationLimit: row.application_limit ?? null,
     description: row.description || '',
     responsibilities: row.responsibilities || [],
     requiredSkills: row.required_skills || [],
@@ -38,6 +39,7 @@ export function applicationFromDb(row) {
     jobId: row.job_id,
     jobTitle: row.jobs?.title || 'General Application',
     assignedTo: row.assigned_ta_id || null,
+    assignedToName: row.assigned_ta?.full_name || row.assigned_ta?.email || null,
     personal: row.personal || {},
     professional: row.professional || {},
     education: row.education || [],
@@ -45,11 +47,13 @@ export function applicationFromDb(row) {
     autofilled: row.autofilled || [],
     resumePath: row.resume_path || null,
     resumeMeta: row.resume_meta || null,
+    atsScore: row.ats_score || null,
     returnReason: row.return_reason || null,
     rejectReason: row.reject_reason || null,
     candidateName: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
     candidateEmail: c.email || row.personal?.email || '',
     candidatePhone: c.phone || row.personal?.mobile || '',
+    candidateCode: c.candidate_code || null,
   };
 }
 

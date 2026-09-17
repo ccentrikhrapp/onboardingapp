@@ -116,7 +116,26 @@ export default function TADashboard() {
   }));
 
   // Candidate-driven updates, newest first, resolved to a clickable candidate.
-  const candidateUpdates = activities.filter((a) => CANDIDATE_UPDATE_TITLES.has(a.title)).slice(0, 6);
+  // A candidate uploading several documents in one sitting fires one
+  // "Document Uploaded" event per file — collapsed here into a single row
+  // per candidate (newest wins) instead of flooding this list with repeats.
+  const GROUPED_UPDATE_TITLES = new Set(['Document Uploaded', 'Document Not Provided']);
+  const groupedRows = [];
+  const groupedSeen = new Map(); // `${candidateId}:${title}` -> the kept row, for its count to grow
+  for (const a of activities) {
+    if (!CANDIDATE_UPDATE_TITLES.has(a.title)) continue;
+    if (GROUPED_UPDATE_TITLES.has(a.title)) {
+      const key = `${a.candidateId}:${a.title}`;
+      const existing = groupedSeen.get(key);
+      if (existing) { existing.count += 1; continue; }
+      const row = { ...a, count: 1 };
+      groupedSeen.set(key, row);
+      groupedRows.push(row);
+    } else {
+      groupedRows.push({ ...a, count: 1 });
+    }
+  }
+  const candidateUpdates = groupedRows.slice(0, 6);
 
   // ----- FILTERING -----
   // Applications inside the selected time period (used by the pipeline + source chart).
@@ -224,7 +243,10 @@ export default function TADashboard() {
                 <button key={u.id} type="button" className="ta-updates__row" onClick={() => navigate(`/ta/candidates/${u.candidateId}`)}>
                   <span className="ta-updates__icon"><Icon name={UPDATE_ICON[u.title] || 'Bell'} size={14} /></span>
                   <span className="ta-updates__body">
-                    <span className="ta-updates__title">{u.who} — {u.title}</span>
+                    <span className="ta-updates__title">
+                      {u.who} — {u.count > 1 ? u.title.replace('Document', 'Documents') : u.title}
+                      {u.count > 1 ? ` (${u.count})` : ''}
+                    </span>
                     <span className="ta-cell-sub">{u.description}</span>
                   </span>
                   <span className="ta-updates__when">{timeAgo(u.at)} <Icon name="ArrowRight" size={13} /></span>

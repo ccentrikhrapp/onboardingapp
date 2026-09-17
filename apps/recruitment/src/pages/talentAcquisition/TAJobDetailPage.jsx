@@ -6,11 +6,13 @@ import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
+import DangerButton from '../../components/common/Button.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { createLink, setLinkActive, createConfidentialInvite, listConfidentialInvites } from '../../api/applicationLinks.js';
 import { Field, Input } from '../../components/ta/Field.jsx';
+import { emailError } from '../../utils/validation.js';
 import { listApplications } from '../../api/applications.js';
 import { APP_STATUS, stageIndexForStatus } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
@@ -71,12 +73,16 @@ function ConfidentialInviteCard({ jobId }) {
   const [invites, setInvites] = useState([]);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [emailErr, setEmailErr] = useState('');
   const [creating, setCreating] = useState(false);
 
   const reload = () => listConfidentialInvites(jobId).then(setInvites).catch(() => {});
   useEffect(() => { reload(); }, [jobId]);
 
   const generate = async () => {
+    const msg = emailError(email, { required: false });
+    setEmailErr(msg);
+    if (msg) return;
     setCreating(true);
     try {
       await createConfidentialInvite(jobId, { invitedName: name.trim(), invitedEmail: email.trim() });
@@ -101,8 +107,12 @@ function ConfidentialInviteCard({ jobId }) {
         <Field label="Candidate name" hint="Optional">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Optional" />
         </Field>
-        <Field label="Candidate email" hint="Optional">
-          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Optional" />
+        <Field label="Candidate email" hint="Optional" error={emailErr}>
+          <Input
+            value={email} error={emailErr} placeholder="Optional"
+            onChange={(e) => setEmail(e.target.value)}
+            onBlur={(e) => setEmailErr(emailError(e.target.value, { required: false }))}
+          />
         </Field>
       </div>
       <Button variant="ghost" icon="UserPlus" onClick={generate} disabled={creating}>
@@ -153,10 +163,24 @@ function List({ title, items }) {
 export default function TAJobDetailPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { getJob } = useApp();
+  const { getJob, deleteJob, role } = useApp();
+  const canManageJobs = role === 'admin' || role === 'admin_ta';
   const { configured } = useAuth();
+  const toast = useToast();
   const job = getJob(jobId);
   const [applicants, setApplicants] = useState([]);
+
+  const removeJob = async () => {
+    const ok = window.confirm(`Delete "${job.title}"? This can't be undone.`);
+    if (!ok) return;
+    try {
+      await deleteJob(job.id);
+      toast.success(`${job.title} deleted.`);
+      navigate('/ta/jobs');
+    } catch (e) {
+      toast.error(e.message || 'Could not delete the job.');
+    }
+  };
 
   useEffect(() => {
     listApplications()
@@ -187,6 +211,9 @@ export default function TAJobDetailPage() {
 
       <div className="ta-page-actions">
         <Button icon="Users" onClick={() => navigate(`/ta/candidates?job=${encodeURIComponent(job.title)}`)}>View applicants</Button>
+        {canManageJobs && (
+          <DangerButton variant="danger" icon="Trash2" onClick={removeJob}>Delete job</DangerButton>
+        )}
       </div>
 
       <div className="ta-detail-grid">

@@ -2,13 +2,17 @@ import { supabase } from '../lib/supabase.js';
 import { unwrap } from './client.js';
 
 const COLUMNS =
-  'id, job_code, title, department, location, work_mode, employment_type, experience, description, responsibilities, required_skills, qualifications, preferred_skills, benefits, deadline, status, created_at';
+  'id, job_code, title, department, location, work_mode, employment_type, experience, description, responsibilities, required_skills, qualifications, preferred_skills, benefits, deadline, application_limit, status, created_at';
 
+/** Excludes deadline-passed jobs even on the day they expire, ahead of the
+    nightly cron job (close_expired_jobs) that formally closes their status. */
 export function listPublishedJobs() {
+  const today = new Date().toISOString().slice(0, 10);
   return supabase
     .from('jobs')
     .select(COLUMNS)
     .eq('status', 'published')
+    .or(`deadline.is.null,deadline.gte.${today}`)
     .order('created_at', { ascending: false })
     .then(unwrap);
 }
@@ -47,6 +51,7 @@ export function createJob(payload) {
     preferred_skills: payload.preferredSkills || [],
     benefits: payload.benefits || [],
     deadline: payload.deadline || null,
+    application_limit: payload.applicationLimit ? Number(payload.applicationLimit) : null,
     status: payload.status || 'published',
   };
   return supabase.from('jobs').insert(row).select(COLUMNS).single().then(unwrap);
@@ -54,4 +59,8 @@ export function createJob(payload) {
 
 export function updateJob(id, patch) {
   return supabase.from('jobs').update(patch).eq('id', id).select(COLUMNS).single().then(unwrap);
+}
+
+export function deleteJob(id) {
+  return supabase.from('jobs').delete().eq('id', id).then(unwrap);
 }

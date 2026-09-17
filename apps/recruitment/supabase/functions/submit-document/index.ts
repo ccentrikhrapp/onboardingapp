@@ -1,9 +1,14 @@
 // POST /functions/v1/submit-document
 // Auth: the candidate who owns the application. Records an upload or a
 // Can't-Provide + reason against an already-requested application_documents
-// row (created by application-decision's request_documents action), then —
-// for real uploads on the pre-offer stage — forwards it to the HR app
-// (integration point 1, docs/requirements/03-*.md §5).
+// row (created by application-decision's request_documents action).
+//
+// Pre-offer uploads are NOT forwarded to HR here — the TA's own approval
+// (verify-application-document) is what forwards it, once the TA has passed
+// it. HR is only ever meant to see a document after that first-pass review;
+// calling out to HR at upload time (as this used to do) put every document
+// in HR's queue immediately, before the TA had even looked at it, which
+// defeated the two-step review this app's own UI already promises the TA.
 //
 // Body: {
 //   applicationDocumentId,
@@ -14,7 +19,6 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify } from "../_shared/workflow.ts";
-import { callHr } from "../_shared/hrIntegration.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -85,35 +89,16 @@ Deno.serve(async (req) => {
     await svc.from("application_documents").update({
       status: "uploaded", cannot_provide_reason: null,
     }).eq("id", doc.id);
-
-    if (requirement.stage === "pre_offer") {
-      const candidateName = `${app.candidates?.first_name ?? ""} ${app.candidates?.last_name ?? ""}`.trim();
-      await callHr(
-        svc,
-        "integration-document-submitted",
-        "DOCUMENT_SUBMITTED",
-        `doc-${doc.id}-v${version}`,
-        {
-          sourceApplicationId: app.id,
-          sourceDocumentId: doc.id,
-          version,
-          candidate: { name: candidateName, email: app.candidates?.email ?? null },
-          job: { title: (app.jobs as any)?.title ?? null },
-          applicationCode: app.application_code,
-          requirement: { key: requirement.key, name: requirement.name },
-        },
-        { entity_type: "application_document", entity_id: doc.id },
-      );
-    }
   }
 
+  const candidateName = `${app.candidates?.first_name ?? ""} ${app.candidates?.last_name ?? ""}`.trim() || "Candidate";
   await addEvent(svc, {
     application_id: app.id,
     type: "documents",
     title: cannotProvide ? "Document Not Provided" : "Document Uploaded",
     description: `${requirement.name}${cannotProvide ? ` — reason: ${body.reason}` : " submitted for verification."}`,
     actor_profile_id: profile.id,
-    actor_label: "Candidate",
+    actor_label: candidateName,
   });
   await audit(svc, {
     actor_profile_id: profile.id,

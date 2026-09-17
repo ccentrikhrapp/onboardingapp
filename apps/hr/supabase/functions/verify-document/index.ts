@@ -86,17 +86,27 @@ Deno.serve(async (req) => {
   let syncedToRecruitment = false;
   const base = Deno.env.get("RECRUITMENT_FUNCTIONS_URL");
   const secret = Deno.env.get("INTEGRATION_SHARED_SECRET");
+  // Supabase's gateway requires a valid Supabase JWT on every call regardless
+  // of our own X-Integration-Secret check; the target project's own (public,
+  // non-secret) anon key satisfies that without weakening either project's
+  // JWT verification.
+  const recruitmentAnonKey = Deno.env.get("RECRUITMENT_ANON_KEY");
   if (base && secret) {
     try {
       const res = await fetch(`${base}/integration-verification-status`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-Integration-Secret": secret },
+        headers: {
+          "Content-Type": "application/json",
+          "X-Integration-Secret": secret,
+          ...(recruitmentAnonKey ? { Authorization: `Bearer ${recruitmentAnonKey}`, apikey: recruitmentAnonKey } : {}),
+        },
         body: JSON.stringify({
           eventId: crypto.randomUUID(),
           sourceDocumentId: doc.source_document_id,
           status,
           remarks: remarks || null,
           reviewedBy: profile.full_name ?? profile.email,
+          reviewedByEmail: profile.email,
         }),
       });
       syncedToRecruitment = res.ok;
