@@ -243,7 +243,7 @@ export default function HRCandidateDetailPage() {
                       const canAct = doc.status === 'uploaded';
                       const canView = doc.status !== 'requested';
                       return (
-                        <div className="hr-docrow" key={doc.id}>
+                        <div className="hr-docrow hr-docrow--stacked" key={doc.id}>
                           <div className="hr-docrow__head">
                             <span className="hr-docrow__icon"><Icon name="FileText" size={16} /></span>
                             <div className="grow">

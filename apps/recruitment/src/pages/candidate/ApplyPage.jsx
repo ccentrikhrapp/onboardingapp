@@ -5,36 +5,26 @@ import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
 import { Field, FieldGrid, Input, Select, Textarea } from '../../components/ta/Field.jsx';
 import { useApp } from '../../context/AppContext.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { loadJSON, saveJSON } from '../../hooks/useLocalStorage.js';
-import { uid } from '../../utils/ids.js';
+import { candidateSupabase } from '../../lib/supabase.js';
 import { resolveLink } from '../../api/applicationLinks.js';
 import { uploadResume, parseResume } from '../../api/resumes.js';
 import { listRequirements, uploadPendingDocument } from '../../api/documents.js';
 import { submitApplication as submitApplicationApi } from '../../api/applications.js';
 import { ApiError } from '../../api/client.js';
 import { jobFromDb } from '../../api/mappers.js';
-import { nameError, emailError, phoneError, locationError, urlError, numberError, fileUploadError } from '../../utils/validation.js';
+import { fileUploadError } from '../../utils/validation.js';
+import {
+  EXP_OPTIONS, NOTICE_OPTIONS, REQUIRED, expToNumber, isFieldRequired, fieldError, validateFormFields,
+  RESET_ON_NEW_RESUME, parsedToFormPatch, formToApplicationBlocks,
+} from '../../utils/candidateForm.js';
 
 const DRAFT_KEY = 'talentflow.apply.draft.v2';
-const EXP_OPTIONS = ['Fresher', '0–2 years', '2–5 years', '5–8 years', '8+ years'];
-const NOTICE_OPTIONS = ['Immediate', '15 Days', '30 Days', '60 Days', '90 Days'];
 const SOURCE_OPTIONS = ['Job Board', 'Referral', 'Social', 'Direct'];
 /* Steps shown while the resume is uploading + being parsed server-side. */
 const ANALYZE_STEPS = ['Uploading resume', 'Extracting text', 'Reading details', 'Populating your application'];
-
-function expBucket(y) {
-  const n = Number(y) || 0;
-  if (n <= 0) return 'Fresher';
-  if (n <= 2) return '0–2 years';
-  if (n <= 5) return '2–5 years';
-  if (n <= 8) return '5–8 years';
-  return '8+ years';
-}
-function expToNumber(b) {
-  return { Fresher: '0', '0–2 years': '1', '2–5 years': '3', '5–8 years': '6', '8+ years': '9' }[b] || '';
-}
 
 function blankForm(jobId) {
   return {
@@ -51,25 +41,6 @@ function blankForm(jobId) {
   };
 }
 
-const REQUIRED = ['firstName', 'lastName', 'email', 'phone', 'currentLocation', 'experience'];
-const LABELS = {
-  firstName: 'First name', lastName: 'Last name', email: 'Email', phone: 'Phone number',
-  currentLocation: 'Current location', experience: 'Total experience', noticePeriod: 'Notice period',
-};
-
-// Format checks layered on top of the plain required-field check above —
-// shared with every other form via src/utils/validation.js, not redefined
-// here. `req` is whether REQUIRED includes this key (see validateField).
-const FIELD_VALIDATORS = {
-  firstName: (v, req) => nameError(v, { required: req, label: 'first name' }),
-  lastName: (v, req) => nameError(v, { required: req, label: 'last name' }),
-  email: (v, req) => emailError(v, { required: req }),
-  phone: (v, req) => phoneError(v, { required: req }),
-  currentLocation: (v, req) => locationError(v, { required: req, label: 'current location' }),
-  portfolio: (v) => urlError(v, { required: false, label: 'portfolio/LinkedIn URL' }),
-  expectedSalary: (v) => numberError(v, { required: false, label: 'expected salary', min: 0 }),
-};
-
 export default function ApplyPage() {
   const { jobId: paramJobId } = useParams();
   const [sp] = useSearchParams();
@@ -78,7 +49,7 @@ export default function ApplyPage() {
 
   const navigate = useNavigate();
   const { getJob } = useApp();
-  const { configured, ensureSession } = useAuth();
+  const { configured, ensureSession } = useCandidateAuth();
   const toast = useToast();
 
   // A TA link (?ref=token) is resolved server-side into the job + recruiter.
@@ -132,15 +103,10 @@ export default function ApplyPage() {
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
   const isAuto = (k) => parsed && form.autofilled.includes(k);
 
-  // Notice period only makes sense for someone leaving a current job — a
-  // fresher has none to give, so it's required only once experience is
-  // non-zero, not unconditionally like the rest of REQUIRED.
-  const isRequired = (k) => REQUIRED.includes(k) || (k === 'noticePeriod' && Number(expToNumber(form.experience)) > 0);
+  const isRequired = (k) => isFieldRequired(form, k);
 
   const validateField = (k, v) => {
-    const required = isRequired(k);
-    const validator = FIELD_VALIDATORS[k];
-    const msg = validator ? validator(v, required) : required && !String(v).trim() ? `${LABELS[k]} is required.` : '';
+    const msg = fieldError(form, k, v);
     setErrors((e) => ({ ...e, [k]: msg || undefined }));
     return !msg;
   };
@@ -150,14 +116,7 @@ export default function ApplyPage() {
   };
 
   const validateAll = () => {
-    const e = {};
-    const keys = new Set([...REQUIRED, ...Object.keys(FIELD_VALIDATORS), 'noticePeriod']);
-    keys.forEach((k) => {
-      const required = isRequired(k);
-      const validator = FIELD_VALIDATORS[k];
-      const msg = validator ? validator(form[k], required) : required && !String(form[k]).trim() ? `${LABELS[k]} is required.` : '';
-      if (msg) e[k] = msg;
-    });
+    const e = validateFormFields(form);
     if (!form.resume) e.resume = 'Please upload your resume (PDF, DOC or DOCX under 5 MB).';
     requirements
       .filter((r) => r.requirement_class !== 'conditional')
@@ -174,22 +133,7 @@ export default function ApplyPage() {
   };
 
   const applyParsed = (p) => {
-    setForm((f) => ({
-      ...f,
-      firstName: p.firstName || f.firstName,
-      lastName: p.lastName || f.lastName,
-      email: p.email || f.email,
-      phone: p.mobile || f.phone,
-      currentLocation: p.currentLocation || f.currentLocation,
-      experience: p.totalExperience ? expBucket(p.totalExperience) : f.experience,
-      currentCompany: p.currentCompany || f.currentCompany,
-      currentJobTitle: p.currentJobTitle || f.currentJobTitle,
-      highestQualification: p.education?.[0]?.qualification || f.highestQualification,
-      portfolio: p.portfolio || p.linkedin || f.portfolio,
-      skills: p.skills?.length ? [...p.skills] : f.skills,
-      autofilled: ['firstName', 'lastName', 'email', 'phone', 'currentLocation', 'experience', 'currentCompany', 'currentJobTitle', 'highestQualification']
-        .filter((k) => (k === 'phone' ? p.mobile : p[k])),
-    }));
+    setForm((f) => ({ ...f, ...parsedToFormPatch(f, p) }));
     setErrors({});
   };
 
@@ -211,19 +155,15 @@ export default function ApplyPage() {
     // A new file (including "Replace") should reflect only what this resume
     // says — clear the previously auto-filled fields first so nothing from
     // an earlier upload (or an earlier draft) can linger and look mismatched.
-    set({
-      firstName: '', lastName: '', email: '', phone: '', currentLocation: '', experience: '',
-      currentCompany: '', currentJobTitle: '', highestQualification: '', portfolio: '',
-      skills: [], autofilled: [],
-    });
+    set({ ...RESET_ON_NEW_RESUME });
 
     try {
       setAnalyzeIdx(0);
-      const { path, meta } = await uploadResume(file, form.draftId);
+      const { path, meta } = await uploadResume(file, form.draftId, candidateSupabase);
       if (isStale()) return;
       set({ resume: meta, resumePath: path });
       setAnalyzeIdx(2);
-      const { fields, extracted } = await parseResume(path);
+      const { fields, extracted } = await parseResume(path, candidateSupabase);
       if (isStale()) return;
       setAnalyzeIdx(ANALYZE_STEPS.length);
       if (extracted?.length) {
@@ -292,22 +232,7 @@ export default function ApplyPage() {
     linkToken: refToken || undefined,
     source: link ? 'ta_link' : 'careers',
     autofilled: form.autofilled,
-    personal: {
-      firstName: form.firstName, middleName: '', lastName: form.lastName,
-      email: form.email, mobile: form.phone, dob: '', gender: '', nationality: '',
-      currentLocation: form.currentLocation, preferredLocation: form.currentLocation,
-      address: { line1: '', line2: '', city: form.currentLocation, state: '', country: 'India', postalCode: '' },
-    },
-    professional: {
-      currentJobTitle: form.currentJobTitle, currentCompany: form.currentCompany,
-      totalExperience: expToNumber(form.experience), relevantExperience: '',
-      employmentStatus: form.currentCompany ? 'Employed' : '', currentCTC: '',
-      expectedCTC: form.expectedSalary, noticePeriod: form.noticePeriod,
-      preferredJobLocation: form.currentLocation,
-      skills: form.skills, certifications: [], languages: [],
-    },
-    education: [{ id: uid('edu'), qualification: form.highestQualification, university: '', specialization: '', year: '', grade: '' }],
-    additional: { coverNote: form.coverNote, referral: '', portfolio: form.portfolio, howHeard: form.source },
+    ...formToApplicationBlocks(form),
     resumePath: form.resumePath,
     resumeMeta: form.resume,
     documents: requirements.map((r) => {
@@ -327,7 +252,7 @@ export default function ApplyPage() {
       return;
     }
     // Submission never waits on Google — it silently gets (or creates) a
-    // real row owner behind the scenes (see AuthContext.ensureSession).
+    // real row owner behind the scenes (see CandidateAuthContext.ensureSession).
     // Google sign-in, if the candidate wants it, is offered only after a
     // successful submission, on the success page.
     if (submitting) return; // guards a fast double-click/double-tap

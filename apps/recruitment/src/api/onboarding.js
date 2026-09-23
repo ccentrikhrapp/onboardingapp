@@ -1,11 +1,11 @@
-import { supabase } from '../lib/supabase.js';
+import { candidateSupabase } from '../lib/supabase.js';
 import { unwrap, ApiError, callFn, signedUrl } from './client.js';
 import { fileUploadError } from '../utils/validation.js';
 import { generateOnboardingFormPdf } from '../utils/onboardingPdf.js';
 
 /** Candidate: their onboarding checklist for the given application (empty until HR requests one). */
 export function listOnboardingDocuments(applicationId) {
-  return supabase
+  return candidateSupabase
     .from('onboarding_documents')
     .select('*')
     .eq('application_id', applicationId)
@@ -19,7 +19,7 @@ export async function uploadOnboardingDocument(applicationId, doc, file) {
   if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
 
   const path = `${applicationId}/${doc.requirement_key}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
-  const { error } = await supabase.storage.from('onboarding-documents').upload(path, file, {
+  const { error } = await candidateSupabase.storage.from('onboarding-documents').upload(path, file, {
     upsert: true,
     contentType: file.type || undefined,
   });
@@ -33,7 +33,7 @@ export async function uploadOnboardingDocument(applicationId, doc, file) {
       mimeType: file.type,
       sizeBytes: file.size,
     },
-  });
+  }, candidateSupabase);
 }
 
 /** Candidate submits a filled-in onboarding form (bank details, emergency
@@ -52,7 +52,7 @@ export async function submitOnboardingForm(applicationId, doc, candidateName, fo
 
   const fileName = `${doc.requirement_key}.pdf`;
   const path = `${applicationId}/${doc.requirement_key}/${Date.now()}-${fileName}`;
-  const { error } = await supabase.storage.from('onboarding-documents').upload(path, pdfBlob, {
+  const { error } = await candidateSupabase.storage.from('onboarding-documents').upload(path, pdfBlob, {
     upsert: true,
     contentType: 'application/pdf',
   });
@@ -74,10 +74,10 @@ export async function submitOnboardingForm(applicationId, doc, candidateName, fo
       sizeBytes: pdfBlob.size,
       formData: jsonSafeData,
     },
-  });
+  }, candidateSupabase);
 }
 
 /** Candidate views their own already-uploaded onboarding file. */
 export function onboardingDocumentUrl(storagePath) {
-  return signedUrl('onboarding-documents', storagePath.replace(/^onboarding-documents\//, ''));
+  return signedUrl('onboarding-documents', storagePath.replace(/^onboarding-documents\//, ''), 300, candidateSupabase);
 }

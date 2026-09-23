@@ -31,10 +31,29 @@ export async function currentProfile(req: Request) {
   if (error || !userData.user) return null;
   const { data: profile } = await svc
     .from("profiles")
-    .select("id, email, full_name, role")
+    .select("id, email, full_name, role, active, must_change_password")
     .eq("id", userData.user.id)
     .single();
-  return profile ?? null;
+  // A disabled account is treated as signed out by every function — the JWT
+  // it already holds stays cryptographically valid until it expires, so this
+  // is where "disabled users are rejected" is actually enforced server-side.
+  if (!profile || profile.active === false) return null;
+  // A session made with an emailed temporary password may only set the
+  // permanent password (set-initial-password does its own auth) — for every
+  // other function it is signed out.
+  if (profile.must_change_password && sessionMethod(token) === "password") return null;
+  return profile;
+}
+
+// How this session was established, from the JWT's newest "amr" entry
+// ("password", "oauth", ...). getUser() already proved the token is valid.
+export function sessionMethod(token: string): string {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    return payload.amr?.[0]?.method ?? "";
+  } catch {
+    return "";
+  }
 }
 
 // Append an immutable audit row.

@@ -1,10 +1,11 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase, candidateSupabase } from '../lib/supabase.js';
 import { unwrap, ApiError, callFn, signedUrl } from './client.js';
 import { fileUploadError } from '../utils/validation.js';
 
-/** Active document requirements for a given stage (e.g. 'application', 'pre_offer'). */
+/** Active document requirements for a given stage (e.g. 'application', 'pre_offer').
+    Candidate-only (the Apply form's checklist) — always the candidate's own session. */
 export function listRequirements(stage) {
-  return supabase
+  return candidateSupabase
     .from('document_requirements')
     .select('*')
     .eq('stage', stage)
@@ -25,11 +26,11 @@ export async function uploadPendingDocument(file, requirement) {
   });
   if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
 
-  const { data: me } = await supabase.auth.getUser();
+  const { data: me } = await candidateSupabase.auth.getUser();
   if (!me.user) throw new ApiError('Please sign in first.', 'UNAUTHENTICATED');
 
   const path = `pending/${me.user.id}/${requirement.key}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
-  const { error } = await supabase.storage.from('documents').upload(path, file, {
+  const { error } = await candidateSupabase.storage.from('documents').upload(path, file, {
     upsert: true,
     contentType: file.type || undefined,
   });
@@ -44,9 +45,11 @@ export async function uploadPendingDocument(file, requirement) {
 }
 
 /** The candidate's checklist for an already-created application (pre-offer stage).
-    Also embeds document_files so a TA/HR viewer can open what was uploaded. */
-export function listApplicationDocuments(applicationId) {
-  return supabase
+    Also embeds document_files so a TA/HR viewer can open what was uploaded.
+    `client` defaults to the TA session; the candidate's own page passes
+    `candidateSupabase`. */
+export function listApplicationDocuments(applicationId, client = supabase) {
+  return client
     .from('application_documents')
     .select('*, document_requirements(*), document_files(storage_path, file_name, is_current, uploaded_at)')
     .eq('application_id', applicationId)
@@ -72,7 +75,7 @@ export async function uploadDocumentFile(applicationId, requirement, file) {
   });
   if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
   const path = `${applicationId}/${requirement.key}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
-  const { error } = await supabase.storage.from('documents').upload(path, file, {
+  const { error } = await candidateSupabase.storage.from('documents').upload(path, file, {
     upsert: true,
     contentType: file.type || undefined,
   });
@@ -82,5 +85,5 @@ export async function uploadDocumentFile(applicationId, requirement, file) {
 
 /** Record an upload or a Can't-Provide+reason against a requested document row. */
 export function submitDocument(payload) {
-  return callFn('submit-document', { body: payload });
+  return callFn('submit-document', { body: payload }, candidateSupabase);
 }

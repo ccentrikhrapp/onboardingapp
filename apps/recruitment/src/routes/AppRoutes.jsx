@@ -8,10 +8,14 @@ function LegacyJobRedirect() {
 import CandidateLayout from '../layouts/CandidateLayout.jsx';
 import TALayout from '../layouts/TALayout.jsx';
 import RoleRoute from '../components/routing/RoleRoute.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 import LoginPage from '../pages/LoginPage.jsx';
 import TALoginPage from '../pages/TALoginPage.jsx';
 import WelcomePage from '../pages/WelcomePage.jsx';
+import SetPasswordPage from '../pages/SetPasswordPage.jsx';
+import LegalPage from '../pages/LegalPage.jsx';
+import RootGate from '../components/routing/RootGate.jsx';
 
 import LandingPage from '../pages/candidate/LandingPage.jsx';
 import JobsPage from '../pages/candidate/JobsPage.jsx';
@@ -33,6 +37,10 @@ import SettingsPage from '../pages/shared/SettingsPage.jsx';
 import ProfilePage from '../pages/shared/ProfilePage.jsx';
 
 export default function AppRoutes() {
+  const { mustChangePassword } = useAuth();
+  // First sign-in with the emailed temporary password: nothing else is reachable
+  // until the person chooses their own password.
+  if (mustChangePassword) return <SetPasswordPage mode="temp" />;
   return (
     <Routes>
       {/* A visitor with no specific destination (typed the bare domain) picks
@@ -43,7 +51,11 @@ export default function AppRoutes() {
           see JobDetailsPage). Signing in is deferred to the moment a
           candidate actually starts an application (ApplyPage's own compact
           "Sign in with Google" prompt), not forced up front. */}
-      <Route path="/" element={<WelcomePage />} />
+      <Route path="/" element={<RootGate><WelcomePage /></RootGate>} />
+      <Route path="/privacy" element={<LegalPage kind="privacy" />} />
+      <Route path="/terms" element={<LegalPage kind="terms" />} />
+      <Route path="/accept-invite" element={<SetPasswordPage mode="invite" />} />
+      <Route path="/reset-password" element={<SetPasswordPage mode="reset" />} />
       <Route path="/candidate/login" element={<LoginPage />} />
       <Route path="/login" element={<Navigate to="/candidate" replace />} />
       <Route path="/ta/login" element={<TALoginPage />} />
@@ -83,7 +95,7 @@ export default function AppRoutes() {
         <Route path="/ta/candidates/:candidateId" element={<TACandidateDetailPage />} />
         <Route path="/ta/jobs" element={<TAJobsPage />} />
         <Route path="/ta/jobs/:jobId" element={<TAJobDetailPage />} />
-        <Route path="/ta/team" element={<RoleRoute allow="admin"><TAManagementPage /></RoleRoute>} />
+        <Route path="/ta/team" element={<RoleRoute allow="team"><TAManagementPage /></RoleRoute>} />
         <Route path="/ta/settings" element={<SettingsPage />} />
         <Route path="/ta/profile" element={<ProfilePage role="ta" />} />
       </Route>

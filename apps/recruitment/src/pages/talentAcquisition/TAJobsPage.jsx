@@ -39,8 +39,9 @@ export default function TAJobsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { jobs, createJob, deleteJob, role } = useApp();
-  // Job creation/deletion is admin-tier only (Part 4) — a Normal TA can still
-  // view every job and work applications, just not manage the postings.
+  // Every TA-workspace role can post a job; deleting a posting stays admin-tier
+  // only (a Normal TA can create jobs but not remove or edit existing ones).
+  const canCreateJobs = role === 'ta' || role === 'admin' || role === 'admin_ta';
   const canManageJobs = role === 'admin' || role === 'admin_ta';
   const [open, setOpen] = useState(false);
   const [appsByJob, setAppsByJob] = useState({});
@@ -136,7 +137,7 @@ export default function TAJobsPage() {
         ]}
         chips={chips}
         onClearAll={chips.length > 1 ? clearAll : undefined}
-        action={canManageJobs ? <Button icon="Plus" onClick={() => setOpen(true)}>Create Job</Button> : undefined}
+        action={canCreateJobs ? <Button icon="Plus" onClick={() => setOpen(true)}>Create Job</Button> : undefined}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 

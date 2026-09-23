@@ -13,17 +13,21 @@ const ALLOWED = ['pdf', 'doc', 'docx'];
  * the real candidate folder once they've actually signed in. `draftId` is
  * required in the not-signed-in case (the caller generates/persists it
  * alongside the rest of the application draft).
+ *
+ * `client` defaults to the TA session (the "Add Candidate" form uploads a
+ * sourced resume as the TA); the candidate's own Apply form passes
+ * `candidateSupabase` — see lib/supabase.js for why these are never the same.
  */
-export async function uploadResume(file, draftId) {
+export async function uploadResume(file, draftId, client = supabase) {
   const fileErr = fileUploadError(file, { allowedExt: ALLOWED, maxMB: MAX_MB });
   if (fileErr) throw new ApiError(fileErr, 'BAD_FILE');
-  const { data: me } = await supabase.auth.getUser();
+  const { data: me } = await client.auth.getUser();
 
   const folder = me.user ? me.user.id : `pending-anon/${draftId}`;
   if (!me.user && !draftId) throw new ApiError('Missing draft id.', 'BAD_REQUEST');
 
   const path = `${folder}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
-  const { error } = await supabase.storage.from('resumes').upload(path, file, {
+  const { error } = await client.storage.from('resumes').upload(path, file, {
     // Upsert needs both INSERT and UPDATE policies to satisfy RLS (Postgres checks
     // the ON CONFLICT DO UPDATE path even when nothing actually conflicts). The
     // anonymous pending-anon folder only has an INSERT policy, and the timestamped
@@ -40,10 +44,10 @@ export async function uploadResume(file, draftId) {
 }
 
 /** Server-side text extraction + heuristic parse. */
-export function parseResume(path) {
-  return callFn('parse-resume', { body: { path } });
+export function parseResume(path, client = supabase) {
+  return callFn('parse-resume', { body: { path } }, client);
 }
 
-export function resumeUrl(path) {
-  return signedUrl('resumes', path.replace(/^resumes\//, ''));
+export function resumeUrl(path, client = supabase) {
+  return signedUrl('resumes', path.replace(/^resumes\//, ''), 300, client);
 }

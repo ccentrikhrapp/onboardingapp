@@ -38,3 +38,7 @@ secret = "env(GOOGLE_OAUTH_SECRET)"
 [auth.email]
 enable_signup = false
 enable_confirmations = false
+
+# Public: the one-time invitation token is the credential (see accept-invite).
+[functions.accept-invite]
+verify_jwt = false

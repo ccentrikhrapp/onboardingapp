@@ -1,6 +1,6 @@
 # Ccentrik — Recruitment (Candidate + Talent Acquisition)
 
-Application 1 of the C-Centrik platform. A real backend (Supabase — Postgres,
+Application 1 of the Ccentrik platform. A real backend (Supabase — Postgres,
 Auth, Storage, edge functions) — no mock data, no offline demo mode. HR is a
 completely separate application (see the repo root's
 [`docs/requirements/`](../../docs/requirements/)) reached only through a

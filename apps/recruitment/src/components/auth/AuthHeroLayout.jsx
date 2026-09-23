@@ -82,7 +82,7 @@ export default function AuthHeroLayout({
           )}
           {notConfigured && (
             <div className="wsauth__alert" role="alert">
-              <Icon name="AlertCircle" size={15} /> Backend not configured yet — see .env.example.
+              <Icon name="AlertCircle" size={15} /> Sign-in is temporarily unavailable. Please try again shortly.
             </div>
           )}
 

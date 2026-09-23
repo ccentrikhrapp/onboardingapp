@@ -14,7 +14,7 @@
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { addEvent, notify, queueEmail } from "../_shared/workflow.ts";
-import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
+import { audit, currentProfile, isStaffRole, serviceClient } from "../_shared/supabase.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { extractResumeText } from "../_shared/resumeText.ts";
 import { computeAtsScore } from "../_shared/ats.ts";
@@ -29,6 +29,9 @@ Deno.serve(async (req) => {
 
   const profile = await currentProfile(req);
   if (!profile) return fail("UNAUTHENTICATED", "Please sign in.", 401);
+  // Defense-in-depth: a Talent Acquisition / admin session is never a
+  // candidate — see submit-application for the full reasoning.
+  if (isStaffRole(profile.role)) return fail("FORBIDDEN", "This account can't verify a candidate application.", 403);
 
   let body: Record<string, any>;
   try {

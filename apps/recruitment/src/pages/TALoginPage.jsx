@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Icon from '../components/common/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -6,6 +6,7 @@ import { ROLE_META } from '../constants/roles.js';
 import AuthHeroLayout from '../components/auth/AuthHeroLayout.jsx';
 import { useGoogleSignIn } from '../components/auth/useGoogleSignIn.js';
 import { emailError } from '../utils/validation.js';
+import { isAuthReturn, hasStoredSession, returnErrorMessage, cleanAuthUrl, SIGN_IN_FAILED, NOT_AUTHORIZED } from '../utils/authFlow.js';
 
 function homeForRole(role) {
   return ROLE_META[role]?.home || '/candidate';
@@ -24,22 +25,71 @@ const JOURNEY = [
    (route, copy, colour). Recruiters get a password form too (for accounts an
    admin has provisioned), on top of Google — candidates only ever use Google. */
 export default function TALoginPage() {
-  const { configured, role, loading: authLoading, signInWithPassword } = useAuth();
-  const { error: googleError, signing, trigger } = useGoogleSignIn();
+  const { configured, session, role, loading: authLoading, signInWithPassword, requestPasswordReset, signOut } = useAuth();
+  const { error: googleError, signing, trigger } = useGoogleSignIn('/ta/login');
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => { try { return new URLSearchParams(window.location.search).get('email') || ''; } catch { return ''; } });
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState(() => {
+    // Set by AuthContext when a disabled account was just signed out.
+    try {
+      const n = sessionStorage.getItem('ccx_auth_notice');
+      if (n) sessionStorage.removeItem('ccx_auth_notice');
+      if (n) return n;
+      // Supabase sends the browser back with an error in the URL when the
+      // database refuses to create the account (e.g. a removed member's
+      // address signing in with Google) — shown in plain language.
+      return returnErrorMessage();
+    } catch { return ''; }
+  });
+  const [formInfo, setFormInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Already signed in — send them straight to their own portal instead of
   // trapping them on a dead-end "wrong account type" screen (see the
   // matching fix in LoginPage.jsx — same bug, same reason: a stray link can
   // land any already-authenticated role on this staff-only page).
-  if (configured && !authLoading && role) {
+  // A Google account that isn't on the staff list still gets a (candidate)
+  // session from Google — it must never look like a successful staff login.
+  const notStaff = configured && !authLoading && role === 'candidate';
+  // Signed in with Google but no usable profile could be loaded: say so plainly
+  // and reset, instead of leaving a silent login form.
+  const noProfile = configured && !authLoading && !!session && !session.user?.is_anonymous && !role;
+  useEffect(() => {
+    if (authLoading) return;
+    cleanAuthUrl();
+    if (noProfile) {
+      setFormError(SIGN_IN_FAILED);
+      signOut();
+    }
+  }, [authLoading, noProfile]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (configured && !authLoading && role && !notStaff) {
     return <Navigate to={homeForRole(role)} replace />;
   }
+  // Coming back from Google (or restoring a saved session): show one calm
+  // "signing you in" screen — never the login form, never the main screen.
+  if (configured && authLoading && (isAuthReturn() || hasStoredSession())) {
+    return (
+      <div className="wsauth wsauth--ta" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', boxSizing: 'border-box' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span className="wsauth__spinner" style={{ display: 'inline-block' }} />
+          <p className="wsauth__lede" style={{ marginTop: 12 }}>Signing you in…</p>
+        </div>
+      </div>
+    );
+  }
+
+  const forgot = async () => {
+    setFormInfo('');
+    const trimmed = email.trim();
+    const msg = emailError(trimmed, { required: true });
+    if (msg) { setFormError('Enter your email above, then choose Forgot password.'); return; }
+    setFormError('');
+    await requestPasswordReset(trimmed);
+    setFormInfo(`If an account exists for ${trimmed}, we've emailed a password reset link.`);
+  };
 
   const submitPassword = async (e) => {
     e.preventDefault();
@@ -58,7 +108,11 @@ export default function TALoginPage() {
     setSubmitting(true);
     const { error } = await signInWithPassword(trimmedEmail, password);
     if (error) {
-      setFormError(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
+      setFormError(
+        error.message === 'Invalid login credentials' ? 'Incorrect email or password.'
+          : /banned/i.test(error.message) ? 'Your account has been disabled. Please contact your administrator.'
+            : SIGN_IN_FAILED,
+      );
       setSubmitting(false);
     }
   };
@@ -74,7 +128,7 @@ export default function TALoginPage() {
       tags="Recruitment Team"
       panelTitle="Recruiter sign-in"
       panelLede="Sign in with your Ccentrik credentials or Google account."
-      error={googleError}
+      error={googleError || (notStaff ? NOT_AUTHORIZED : '')}
       notConfigured={!configured}
       configured={configured}
       signing={signing}
@@ -83,6 +137,14 @@ export default function TALoginPage() {
       footer="For internal use by the Ccentrik Talent Acquisition team."
     >
       <form onSubmit={submitPassword} noValidate>
+        {notStaff && (
+          <button type="button" className="wsauth__forgot" onClick={() => signOut()}>Use a different account</button>
+        )}
+        {formInfo && (
+          <div className="wsauth__alert" role="status">
+            <Icon name="Check" size={15} /> {formInfo}
+          </div>
+        )}
         {formError && (
           <div className="wsauth__alert" role="alert">
             <Icon name="AlertCircle" size={15} /> {formError}
@@ -112,7 +174,7 @@ export default function TALoginPage() {
         </label>
         <button
           type="button" className="wsauth__forgot"
-          onClick={() => setFormError('Password resets are handled by your workspace administrator.')}
+          onClick={forgot}
         >
           Forgot password?
         </button>

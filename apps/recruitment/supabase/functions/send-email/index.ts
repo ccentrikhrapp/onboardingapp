@@ -13,6 +13,8 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { sendGmailAsActor } from "../_shared/gmailSend.ts";
+import { companyMailConfigured, sendCompanyMail } from "../_shared/companyMail.ts";
+import { sendAsUser, withHostedLogo } from "../_shared/userMail.ts";
 
 const FROM = Deno.env.get("MAIL_FROM") ?? "Ccentrik <no-reply@ccentrik.com>";
 
@@ -113,17 +115,30 @@ Deno.serve(async (req) => {
   // hasn't connected Gmail send access (or none was specified at all).
   let error: string | null = null;
   let sentFrom: string | null = null;
+  const siteUrl = Deno.env.get("PUBLIC_SITE_URL") ?? "";
   if (senderEmail) {
-    const gmailResult = await sendGmailAsActor(svc, { actorEmail: senderEmail, to: recipient, subject, html, text });
-    if (gmailResult.sent) {
-      sentFrom = gmailResult.from;
-    } else if (gmailResult.reason !== "no_token") {
-      error = `Gmail send failed (${gmailResult.reason}): ${gmailResult.detail ?? ""}`;
+    // 1. The triggering person's own App Password (saved in Settings -> Email), sent from
+    //    their own address over SMTP — same model as the CRM, no Google permission needed.
+    const smtp = await sendAsUser(svc, senderEmail, { to: recipient, subject, html: withHostedLogo(html, siteUrl), text });
+    if (smtp.sent) sentFrom = smtp.from;
+    else if (smtp.reason === "failed") error = `Email send failed: ${smtp.detail}`;
+    // 2. Their connected Google account (Gmail API), if they use that instead.
+    if (!sentFrom && !error) {
+      const gmailResult = await sendGmailAsActor(svc, { actorEmail: senderEmail, to: recipient, subject, html, text });
+      if (gmailResult.sent) sentFrom = gmailResult.from;
+      else if (gmailResult.reason !== "no_token") error = `Gmail send failed (${gmailResult.reason}): ${gmailResult.detail ?? ""}`;
     }
-    // reason === "no_token" falls through to the shared-mailbox fallback below.
   }
+  // 3. An optional company mailbox configured as a server secret, then 4. the legacy relay.
   if (!sentFrom && !error) {
-    error = await sendViaFirebase({ to: recipient, from: FROM, subject, html, text: text || " " });
+    if (companyMailConfigured()) {
+      const r = await sendCompanyMail({ to: recipient, subject, html: withHostedLogo(html, siteUrl), text });
+      if (r.sent) sentFrom = r.from;
+      else error = `Company mail failed: ${r.reason === "failed" ? r.detail : r.reason}`;
+    } else {
+      error = await sendViaFirebase({ to: recipient, from: FROM, subject, html, text: text || " " });
+      if (error) error = "No email sender is set up for this account yet. Save your Gmail App Password in Settings → Email, then resend.";
+    }
   }
 
   if (error) {

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import HRSidebar from '../components/navigation/HRSidebar.jsx';
 import HRTopbar from '../components/navigation/HRTopbar.jsx';
+import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
 
 const COLLAPSE_KEY = 'ccentrik.hr.sidebar.collapsed';
 
@@ -32,6 +33,7 @@ export default function HRLayout() {
 
       <div className="hr-main">
         <HRTopbar head={head} onMenu={() => setOpen(true)} />
+        <ConnectGoogleBanner settingsPath="/hr/settings" />
         <div className="hr-page" key={pathname}>
           <Outlet context={ctx} />
         </div>

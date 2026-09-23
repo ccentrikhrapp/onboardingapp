@@ -6,8 +6,8 @@ export function getOfferStatus(applicationId) {
   return callFn('get-offer-status', { method: 'GET', query: { applicationId } });
 }
 
-export function getOffer(applicationId) {
-  return supabase.from('offers').select('*').eq('application_id', applicationId).maybeSingle().then(unwrap);
+export function getOffer(applicationId, client = supabase) {
+  return client.from('offers').select('*').eq('application_id', applicationId).maybeSingle().then(unwrap);
 }
 
 /** TA uploads the actual offer letter file before composing the email. */

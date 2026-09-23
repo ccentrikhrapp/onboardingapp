@@ -7,5 +7,5 @@ export const ROLES = {
 
 export const ROLE_META = {
   [ROLES.HR]: { label: 'HR', home: '/hr' },
-  [ROLES.ADMIN]: { label: 'Admin', home: '/hr' },
+  [ROLES.ADMIN]: { label: 'Super Admin', home: '/hr' },
 };

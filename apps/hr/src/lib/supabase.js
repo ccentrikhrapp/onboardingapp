@@ -32,6 +32,9 @@ export const supabase = createClient(
   }
 );
 
+// In a browser, sign-in always returns to the address the app is running on, so a
+// build can never send people to a different host (e.g. a leftover local value).
 export const SITE_URL =
-  env.VITE_SITE_URL ||
-  (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:5173');
+  typeof window !== 'undefined'
+    ? window.location.origin
+    : env.VITE_SITE_URL || 'http://localhost:5174';

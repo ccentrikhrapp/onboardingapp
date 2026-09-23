@@ -3,6 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import TASidebar from '../components/navigation/TASidebar.jsx';
 import TATopbar from '../components/navigation/TATopbar.jsx';
 import Icon from '../components/common/Icon.jsx';
+import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
 
 const BOTTOM_NAV = [
   { to: '/ta', label: 'Dashboard', icon: 'Home', end: true },
@@ -44,6 +45,7 @@ export default function TALayout() {
 
       <div className="ta-main">
         <TATopbar head={head} onMenu={() => setOpen(true)} />
+        <ConnectGoogleBanner needCalendar settingsPath="/ta/settings" />
         <div className="ta-page" key={pathname}>
           <Outlet context={ctx} />
         </div>

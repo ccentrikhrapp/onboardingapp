@@ -1,9 +1,12 @@
 import { supabase } from '../lib/supabase.js';
 
 /** Error carrying the backend's { code, message, fields } so forms can show it. */
+// Backend/library wording that must never reach a person's screen.
+const TECHNICAL = /non-2xx|failed to fetch|networkerror|load failed|functionshttp|jwt|row-level|\brls\b|pgrst|postgres|violates|supabase|oauth|edge function|unexpected token|is not valid json|permission denied/i;
+
 export class ApiError extends Error {
   constructor(message, code = 'ERROR', fields = {}) {
-    super(message || 'Something went wrong.');
+    super(!message || TECHNICAL.test(message) ? 'Something went wrong. Please try again.' : message);
     this.name = 'ApiError';
     this.code = code;
     this.fields = fields;
@@ -19,18 +22,33 @@ export function unwrap({ data, error }) {
 /**
  * Call an edge function and unwrap the { success, data } / { success, error }
  * envelope into either the payload or a thrown ApiError.
+ *
+ * `client` picks which identity's session the call carries — the TA client by
+ * default (every existing call site keeps working unchanged); candidate-facing
+ * API functions pass the candidate client explicitly (see lib/supabase.js for
+ * why the two are never the same session).
  */
-export async function callFn(name, { body, method = 'POST', query } = {}) {
+export async function callFn(name, { body, method = 'POST', query } = {}, client = supabase) {
   let path = name;
   if (query) path += `?${new URLSearchParams(query)}`;
 
-  const { data, error } = await supabase.functions.invoke(path, {
+  const { data, error } = await client.functions.invoke(path, {
     method,
     ...(body ? { body } : {}),
   });
 
   // Non-2xx: supabase-js puts the parsed body on error.context
   if (error) {
+    // A 401/403 can mean "not allowed" — or that the server has revoked this
+    // session (password changed, account removed, signed out elsewhere) while
+    // the page still looks signed in. Ask the server; if the session is dead,
+    // sign out so the route guards send the person to the login page instead of
+    // leaving them on a screen where everything silently fails.
+    const st = error.context?.status;
+    if (st === 401 || st === 403) {
+      const { error: sessionErr } = await client.auth.getUser();
+      if (sessionErr) await client.auth.signOut();
+    }
     let payload = null;
     try {
       payload = await error.context?.json?.();
@@ -47,9 +65,9 @@ export async function callFn(name, { body, method = 'POST', query } = {}) {
   return data?.data ?? data;
 }
 
-/** Short-lived signed URL for a private file. */
-export async function signedUrl(bucket, path, expiresIn = 300) {
-  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
+/** Short-lived signed URL for a private file. See `callFn` for what `client` means. */
+export async function signedUrl(bucket, path, expiresIn = 300, client = supabase) {
+  const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn);
   if (error) throw new ApiError(error.message, 'STORAGE_ERROR');
   return data.signedUrl;
 }

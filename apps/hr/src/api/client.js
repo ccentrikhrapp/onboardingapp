@@ -31,6 +31,16 @@ export async function callFn(name, { body, method = 'POST', query } = {}) {
 
   // Non-2xx: supabase-js puts the parsed body on error.context
   if (error) {
+    // A 401/403 can mean "not allowed" — or that the server has revoked this
+    // session (password changed, account removed, signed out elsewhere) while
+    // the page still looks signed in. Ask the server; if the session is dead,
+    // sign out so the route guards send the person to the login page instead of
+    // leaving them on a screen where everything silently fails.
+    const st = error.context?.status;
+    if (st === 401 || st === 403) {
+      const { error: sessionErr } = await supabase.auth.getUser();
+      if (sessionErr) await supabase.auth.signOut();
+    }
     let payload = null;
     try {
       payload = await error.context?.json?.();

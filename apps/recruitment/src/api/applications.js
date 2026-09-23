@@ -1,4 +1,4 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase, candidateSupabase } from '../lib/supabase.js';
 import { unwrap, callFn } from './client.js';
 
 // jobs!left — job_id is nullable (general applications, or a since-deleted
@@ -24,9 +24,10 @@ async function enrichAssignedToNames(rows) {
   return (rows || []).map((r) => ({ ...r, assigned_ta: r.assigned_ta_id ? byId[r.assigned_ta_id] || null : null }));
 }
 
-/** Candidate: submit through the transactional edge function. */
+/** Candidate: submit through the transactional edge function. Always the
+    candidate's OWN session — this can never be a TA's, see lib/supabase.js. */
 export function submitApplication(payload) {
-  return callFn('submit-application', { body: payload });
+  return callFn('submit-application', { body: payload }, candidateSupabase);
 }
 
 /** Candidate: my applications (RLS already limits this to me). No DRAFT
@@ -34,15 +35,17 @@ export function submitApplication(payload) {
     inserts straight to SUBMITTED), so the only DRAFT a candidate will ever
     see here is one a TA created for them and they haven't verified yet. */
 export function listMyApplications() {
-  return supabase
+  return candidateSupabase
     .from('applications')
     .select(LIST_COLUMNS)
     .order('created_at', { ascending: false })
     .then(unwrap);
 }
 
-export async function getApplication(id) {
-  const row = await supabase
+/** `client` defaults to the TA session (TA candidate-detail page); the
+    candidate's own My Application page passes `candidateSupabase`. */
+export async function getApplication(id, client = supabase) {
+  const row = await client
     .from('applications')
     .select(
       `${LIST_COLUMNS}, autofilled, resume_path, resume_meta, ats_score, ` +
@@ -65,8 +68,10 @@ export function listRecentEvents(limit = 40) {
     .then(unwrap);
 }
 
-export function getApplicationEvents(id) {
-  return supabase
+/** `client` defaults to the TA session; the candidate's own page passes
+    `candidateSupabase` (see submitApplication above for why). */
+export function getApplicationEvents(id, client = supabase) {
+  return client
     .from('application_events')
     .select('*')
     .eq('application_id', id)
@@ -106,7 +111,7 @@ export function startReview(applicationId) {
 
 /** Candidate: apply edits to a RETURNED application and send it back to review. */
 export function resubmitApplication(applicationId, patch = {}) {
-  return callFn('resubmit-application', { body: { applicationId, ...patch } });
+  return callFn('resubmit-application', { body: { applicationId, ...patch } }, candidateSupabase);
 }
 
 /** Super Admin / Admin TA only — RLS enforces this, not just the UI.
@@ -140,7 +145,7 @@ export function resendTaCandidateVerification(applicationId) {
 /** Candidate: review/edit + confirm a TA-created (DRAFT) application, moving
     it into the normal SUBMITTED pipeline. */
 export function verifyTaCandidate(applicationId, patch = {}) {
-  return callFn('verify-ta-candidate', { body: { applicationId, ...patch } });
+  return callFn('verify-ta-candidate', { body: { applicationId, ...patch } }, candidateSupabase);
 }
 
 /** Live updates for the TA dashboard/table — refetch on any change RLS lets

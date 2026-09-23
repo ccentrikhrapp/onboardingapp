@@ -43,13 +43,15 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
          <li>Review your resume</li>
          <li>Submit your verified application</li>
        </ul>
-       <p style="font-size:13px;color:#6b7280">You do not need to enter your application details from scratch.</p>`,
+       <p style="font-size:13px;color:#6b7280">You do not need to enter your application details from scratch.</p>
+       <p style="font-size:12px;color:#9aa3b2">This link is time-limited. If it has expired, just sign in with Google on our careers site using this same email address and your application will be waiting for you.</p>`,
     ),
     text:
       `Hi ${v.candidate_name},\n\nOur Talent Acquisition team has created your application based on the resume provided to us. ` +
       `Please review and verify your information using the secure link below.\n\n${v.verify_link}\n\n` +
       `You will be able to review, correct, add missing information, confirm your professional details, review your resume, ` +
       `and submit your verified application. You do not need to enter your application details from scratch.\n\n` +
+      `This link is time-limited. If it has expired, just sign in with Google on our careers site using this same email address and your application will be waiting for you.\n\n` +
       `Regards,\nTalent Acquisition Team\nCcentrik`,
   }),
 
@@ -273,9 +275,9 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
        ${v.note ? `<p style="white-space:pre-wrap">${v.note}</p>` : ""}
        <p>Please review the attached offer letter and use the link below to review and respond.</p>
        ${button("Review your offer", v.offer_link)}
-       <p>Regards,<br/>C-Centrik Talent Acquisition Team</p>`,
+       <p>Regards,<br/>Ccentrik Talent Acquisition Team</p>`,
     ),
-    text: `Dear ${v.candidate_name},\n\nYour offer for ${v.job_title} is ready: ${v.offer_link}\n\n— C-Centrik Talent Acquisition Team`,
+    text: `Dear ${v.candidate_name},\n\nYour offer for ${v.job_title} is ready: ${v.offer_link}\n\n— Ccentrik Talent Acquisition Team`,
   }),
 
   offer_accepted_ack: (v) => ({

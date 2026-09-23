@@ -57,7 +57,12 @@ Deno.serve(async (req) => {
   if (!personal.lastName?.trim()) fields.lastName = "Last name is required.";
   else if (!nameRe.test(personal.lastName.trim())) fields.lastName = "Enter a valid last name.";
   if (!personal.email?.trim() || !emailRe.test(personal.email)) fields.email = "A valid candidate email is required.";
-  if (personal.mobile?.trim() && !phoneRe.test(personal.mobile.trim())) fields.mobile = "Enter a valid phone number.";
+  if (!personal.mobile?.trim()) fields.mobile = "Phone number is required.";
+  else if (!phoneRe.test(personal.mobile.trim())) fields.mobile = "Enter a valid phone number.";
+  if (!personal.currentLocation?.trim()) fields.currentLocation = "Current location is required.";
+  const totalExp = String(body.professional?.totalExperience ?? "").trim();
+  if (totalExp === "") fields.experience = "Total experience is required.";
+  else if (Number(totalExp) > 0 && !String(body.professional?.noticePeriod ?? "").trim()) fields.noticePeriod = "Notice period is required.";
   if (!body.resumePath) fields.resume = "A resume is required.";
   if (Object.keys(fields).length) return fail("VALIDATION_ERROR", "Please complete the required fields.", 422, fields);
 
@@ -84,7 +89,7 @@ Deno.serve(async (req) => {
       .from("applications")
       .select("id, application_code, status, job_id, jobs(title)")
       .eq("candidate_id", existingCandidate.id);
-    return ok({
+    if (existingApps?.length) return ok({
       duplicate: true,
       existingCandidate: { id: existingCandidate.id, name: `${existingCandidate.first_name ?? ""} ${existingCandidate.last_name ?? ""}`.trim(), email: existingCandidate.email },
       existingApplications: (existingApps ?? []).map((a) => ({ id: a.id, code: a.application_code, status: a.status, jobTitle: (a.jobs as any)?.title ?? "General Application" })),
@@ -97,9 +102,8 @@ Deno.serve(async (req) => {
       .select("id")
       .eq("candidate_id", existingCandidate.id)
       .eq("job_id", jobId)
-      .neq("status", "DRAFT")
       .maybeSingle();
-    if (dupeApp) return fail("DUPLICATE_APPLICATION", "This candidate has already applied for this role.", 409);
+    if (dupeApp) return fail("DUPLICATE_APPLICATION", "This candidate already has an application for this role. Open their existing record instead.", 409);
   }
 
   // --- resolve/claim the candidate's auth identity ----------------------
@@ -108,37 +112,63 @@ Deno.serve(async (req) => {
   // email), so "continue as new candidate" was never actually possible once
   // a match was found by email; always reuse the existing account here.
   let profileId: string;
+  let createdUserId: string | null = null;
+  // Undo a half-finished creation so a failed attempt never leaves an orphan
+  // account/candidate behind (deleting the auth user cascades to its rows).
+  const rollback = async () => { if (createdUserId) await svc.auth.admin.deleteUser(createdUserId); };
   if (existingCandidate) {
     profileId = existingCandidate.profile_id;
+    // A candidate with no application yet is left over from an earlier TA creation that
+    // didn't finish. Its account was made unconfirmed — confirm it now so a Google
+    // sign-in with this email links to this record instead of replacing it.
+    const { count: appCount } = await svc.from("applications").select("id", { count: "exact", head: true }).eq("candidate_id", existingCandidate.id);
+    if (!appCount) await svc.auth.admin.updateUserById(profileId, { email_confirm: true });
   } else {
     const { data: created, error: createErr } = await svc.auth.admin.createUser({
       email,
-      email_confirm: false,
+      // Confirmed on purpose: the address is the candidate's identity. They can sign in
+      // with the emailed link or with Google (same email) and land on THIS record —
+      // an unconfirmed account could be replaced by a Google sign-in instead.
+      email_confirm: true,
       user_metadata: { full_name: `${personal.firstName} ${personal.lastName}`.trim() },
     });
     if (createErr || !created?.user) {
       return fail("USER_CREATE_FAILED", createErr?.message ?? "Could not create the candidate's account.", 500);
     }
     profileId = created.user.id;
+    createdUserId = created.user.id;
   }
 
   // --- candidate record -------------------------------------------------
-  const { data: candidate, error: candErr } = await svc
-    .from("candidates")
-    .upsert(
-      {
-        profile_id: profileId,
-        first_name: personal.firstName,
-        last_name: personal.lastName,
-        email,
-        phone: personal.mobile ?? null,
-        current_location: personal.currentLocation ?? null,
-      },
-      { onConflict: "profile_id" },
-    )
-    .select("id")
-    .single();
-  if (candErr || !candidate) return fail("DB_ERROR", "Could not save the candidate profile.", 500);
+  let candidate: { id: string; candidate_code: string } | null = null;
+  if (existingCandidate) {
+    // Already a candidate: keep their own profile data and Candidate ID as they are.
+    const { data } = await svc.from("candidates").select("id, candidate_code").eq("id", existingCandidate.id).single();
+    candidate = data;
+  } else {
+    const { data, error: candErr } = await svc
+      .from("candidates")
+      .upsert(
+        {
+          profile_id: profileId,
+          first_name: personal.firstName,
+          last_name: personal.lastName,
+          email,
+          phone: personal.mobile ?? null,
+          current_location: personal.currentLocation ?? null,
+          portfolio_url: body.additional?.portfolio || null,
+        },
+        { onConflict: "profile_id" },
+      )
+      .select("id, candidate_code")
+      .single();
+    if (candErr) console.error("create-ta-candidate: candidate upsert failed", candErr.message);
+    candidate = data;
+  }
+  if (!candidate) {
+    await rollback();
+    return fail("DB_ERROR", "Could not save the candidate profile.", 500);
+  }
 
   // --- adopt the resume the TA uploaded (in their own folder) into the --
   // candidate's folder, same move pattern submit-application already uses
@@ -157,7 +187,7 @@ Deno.serve(async (req) => {
     personal: { ...personal, email },
     professional: body.professional ?? {},
     education: body.education ?? [],
-    additional: { candidateSource: body.candidateSource ?? "TA Sourced", createdByTa: profile.full_name ?? "Talent Acquisition" },
+    additional: { ...(body.additional ?? {}), candidateSource: body.candidateSource ?? "TA Sourced", createdByTa: profile.full_name ?? "Talent Acquisition" },
     resume_path: resumePath,
     resume_meta: body.resumeMeta ?? null,
   };
@@ -174,7 +204,11 @@ Deno.serve(async (req) => {
     })
     .select("id, application_code")
     .single();
-  if (appErr || !application) return fail("DB_ERROR", "Could not create the application.", 500);
+  if (appErr || !application) {
+    console.error("create-ta-candidate: application insert failed", appErr?.message);
+    await rollback();
+    return fail("DB_ERROR", "Could not create the candidate. Please try again.", 500);
+  }
 
   await svc.from("application_versions").insert({ application_id: application.id, version: 1, payload });
 
@@ -233,6 +267,7 @@ Deno.serve(async (req) => {
     applicationId: application.id,
     applicationCode: application.application_code,
     candidateId: candidate.id,
+    candidateCode: candidate.candidate_code,
     candidateEmail: email,
     emailStatus,
   });

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Icon from '../components/common/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useCandidateAuth } from '../context/CandidateAuthContext.jsx';
 import { ROLE_META } from '../constants/roles.js';
 import AuthHeroLayout from '../components/auth/AuthHeroLayout.jsx';
 import { useGoogleSignIn } from '../components/auth/useGoogleSignIn.js';
@@ -29,8 +30,15 @@ const JOURNEY = [
    too (same as TALoginPage) purely so a manually-created test user can sign
    in during setup. Remove this once Google sign-in is configured. */
 export default function LoginPage() {
-  const { configured, role, loading: authLoading, signInWithPassword } = useAuth();
-  const { error: googleError, signing, trigger } = useGoogleSignIn();
+  // Two separate identities are relevant on this one screen: if a TA/HR
+  // account is ALREADY signed in on this device (their own, separate session —
+  // see lib/supabase.js), send them straight to their portal instead of
+  // showing a candidate login form. Everything the person actually does here
+  // (Google sign-in, the password form) acts on the candidate session only,
+  // and never assumes an existing TA session means this person is a candidate.
+  const { role, loading: staffLoading } = useAuth();
+  const { configured, loading: authLoading, signInWithPassword } = useCandidateAuth();
+  const { error: googleError, signing, trigger } = useGoogleSignIn('/candidate/login', useCandidateAuth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,7 +52,7 @@ export default function LoginPage() {
   // regardless of who clicks it, so a TA/HR account landing on this
   // candidate-only page is expected, not an error — homeForRole already
   // knows exactly where every role belongs.
-  if (configured && !authLoading && role) {
+  if (configured && !staffLoading && role) {
     return <Navigate to={homeForRole(role)} replace />;
   }
 

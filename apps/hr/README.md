@@ -1,6 +1,6 @@
 # Ccentrik HR
 
-Application 2 of the C-Centrik platform — the HR side. A completely separate
+Application 2 of the Ccentrik platform — the HR side. A completely separate
 application from the Candidate/TA recruitment app: own frontend, own backend
 (Supabase project — own database/auth/storage), own deploy. The two apps
 communicate only through a secured integration layer (shared-secret edge

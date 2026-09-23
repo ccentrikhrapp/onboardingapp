@@ -10,11 +10,11 @@ const NAV = [
 ];
 // TA user management (invite/role/activate) is Super Admin only — an Admin
 // TA has full pipeline oversight but not TA-account authority (§33-35, §74).
-const SUPER_ADMIN_NAV = { to: '/ta/team', label: 'Team', icon: 'ShieldCheck' };
+const TEAMS_NAV = { to: '/ta/team', label: 'Teams', icon: 'ShieldCheck' };
 
 export default function TASidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
   const { role } = useApp();
-  const nav = role === 'admin' ? [...NAV, SUPER_ADMIN_NAV] : NAV;
+  const nav = role === 'admin' || role === 'admin_ta' ? [...NAV, TEAMS_NAV] : NAV;
   return (
     <aside className={`ta-sidebar${open ? ' ta-sidebar--open' : ''}`}>
       <button

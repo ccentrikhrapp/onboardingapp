@@ -1,5 +1,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { supabase, isSupabaseConfigured, SITE_URL } from '../lib/supabase.js';
+import { supabase, isSupabaseConfigured, SITE_URL, markAuthIntent } from '../lib/supabase.js';
+import { recordLogin } from '../api/team.js';
+
+const STAFF_ROLES = ['ta', 'admin_ta', 'admin'];
 
 /**
  * Real authentication. One Google account -> one profile row -> one role.
@@ -21,8 +24,14 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
       if (!data.session) setLoading(false);
-    });
+    }).catch(() => setLoading(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
+      // Emailed password-reset link: supabase-js has just turned it into a
+      // temporary session — take the person to the set-password screen.
+      if (_e === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
+        window.location.replace('/reset-password');
+        return;
+      }
       setSession(s ?? null);
       if (!s) {
         setProfile(null);
@@ -36,8 +45,9 @@ export function AuthProvider({ children }) {
       if (s?.provider_refresh_token && s.user?.email) {
         supabase.functions
           .invoke('store-google-token', {
-            body: { refreshToken: s.provider_refresh_token, googleEmail: s.user.email, scope: 'gmail.send' },
+            body: { refreshToken: s.provider_refresh_token, googleEmail: s.user.email, scope: 'gmail.send calendar.events' },
           })
+          .then(() => window.dispatchEvent(new Event('ccx-google-connected')))
           .catch(() => {});
       }
     });
@@ -50,29 +60,81 @@ export function AuthProvider({ children }) {
     if (!userId) return;
     let cancelled = false;
     setLoading(true);
-    supabase
-      .from('profiles')
-      .select('id, email, full_name, avatar_url, role, phone, active')
-      .eq('id', userId)
-      .single()
-      .then(({ data }) => {
+    // Right after a first Google sign-in the profile row can lag the session by a
+    // moment, and a network blip is possible — retry a few times before giving up,
+    // and always finish loading so the UI can never hang on a spinner.
+    const load = async () => {
+      let data = null;
+      // The database client already retries network failures on its own, so the
+      // whole lookup is capped — the person is never left waiting on a spinner.
+      const deadline = Date.now() + 8000;
+      for (let attempt = 0; attempt < 4 && !data && Date.now() < deadline; attempt += 1) {
+        if (attempt) await new Promise((r) => setTimeout(r, 500 * attempt));
         if (cancelled) return;
-        // A deactivated TA/Admin TA/HR account (see TA Management) is signed
-        // out immediately rather than left holding a live session — RLS is
-        // keyed on role, not on `active`, so this is enforced here instead.
-        if (data && data.active === false) {
-          supabase.auth.signOut();
-          setProfile(null);
-          setLoading(false);
-          return;
-        }
-        setProfile(data ?? null);
-        setLoading(false);
-      });
+        try {
+          const res = await Promise.race([
+            supabase
+              .from('profiles')
+              .select('id, email, full_name, avatar_url, role, phone, active, must_change_password')
+              .eq('id', userId)
+              .maybeSingle(),
+            new Promise((resolve) => setTimeout(() => resolve({ data: null }), Math.max(1000, deadline - Date.now()))),
+          ]);
+          data = res.data ?? null;
+        } catch { /* retry */ }
+      }
+      if (cancelled) return;
+      // A deactivated TA/Admin TA/HR account (see TA Management) is signed
+      // out immediately rather than left holding a live session — RLS is
+      // keyed on role, not on `active`, so this is enforced here instead.
+      if (data && data.active === false) {
+        try { sessionStorage.setItem('ccx_auth_notice', 'Your account has been disabled. Please contact your administrator.'); } catch { /* private mode */ }
+        supabase.auth.signOut();
+        setProfile(null);
+      } else {
+        setProfile(data);
+      }
+      setLoading(false);
+    };
+    load();
     return () => {
       cancelled = true;
     };
   }, [session?.user?.id]);
+
+  // One audit row per real sign-in (keyed on the session's last_sign_in_at so
+  // tab refocus / token refresh doesn't log again). Staff only — candidates
+  // browsing anonymously would just be noise.
+  useEffect(() => {
+    const stamp = session?.user?.last_sign_in_at;
+    if (!profile || !stamp || !STAFF_ROLES.includes(profile.role)) return;
+    const key = `ccx_login_logged_${profile.id}`;
+    try {
+      if (localStorage.getItem(key) === stamp) return;
+      localStorage.setItem(key, stamp);
+    } catch { /* storage blocked — logging twice is harmless */ }
+    // The JWT's newest "amr" entry says how THIS session was established
+    // (app_metadata.provider only records the account's first provider).
+    let method = 'password';
+    try {
+      const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      if (payload.amr?.[0]?.method === 'oauth') method = 'google';
+    } catch { /* fall back to password */ }
+    recordLogin(method);
+  }, [profile, session]);
+
+  // Signed in with the emailed temporary password: the server already treats
+  // this session as role-less; this flag makes the app show only the
+  // "choose your own password" screen. Google sessions are never affected.
+  const mustChangePassword = useMemo(() => {
+    if (!profile?.must_change_password || !session?.access_token) return false;
+    try {
+      const payload = JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+      return payload.amr?.[0]?.method === 'password';
+    } catch {
+      return false;
+    }
+  }, [profile, session]);
 
   const value = useMemo(
     () => ({
@@ -81,21 +143,33 @@ export function AuthProvider({ children }) {
       user: session?.user ?? null,
       profile,
       role: profile?.role ?? null,
+      mustChangePassword,
       loading,
-      // access_type/prompt=consent + these scopes let this app, later, send
-      // workflow emails through the signed-in person's own Gmail account
-      // (see store-google-token) and create real Google Meet links on their
-      // own calendar when they schedule an interview — instead of a shared
-      // mailbox and a fake meet.google.com link.
-      signInWithGoogle: (redirectTo = `${SITE_URL}/`) =>
-        supabase.auth.signInWithOAuth({
+      // Signing in only asks Google for basic identity (name + email), so there
+      // is no "unverified app" warning at login. Sending email and creating Meet
+      // links needs more, and is requested once, on purpose, from inside the
+      // portal via connectGoogle below.
+      signInWithGoogle: (redirectTo = `${SITE_URL}/`) => {
+        markAuthIntent('ta');
+        return supabase.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo, queryParams: { prompt: 'select_account' } },
+        });
+      },
+      // Staff-only, one time: lets this app send workflow emails through the
+      // signed-in person's own Gmail (see store-google-token) and create real
+      // Google Meet links on their own calendar.
+      connectGoogle: (redirectTo = `${SITE_URL}/ta`) => {
+        markAuthIntent('ta');
+        return supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo,
             scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events',
-            queryParams: { access_type: 'offline', prompt: 'consent' },
+            queryParams: { access_type: 'offline', prompt: 'consent', login_hint: session?.user?.email ?? '' },
           },
-        }),
+        });
+      },
       // Email/password — for staff (Talent Acquisition) accounts an admin has
       // provisioned; candidates only ever use Google.
       signInWithPassword: (email, password) =>
@@ -120,15 +194,17 @@ export function AuthProvider({ children }) {
       linkGoogle: (redirectTo = `${SITE_URL}/`) =>
         supabase.auth.linkIdentity({
           provider: 'google',
-          options: {
-            redirectTo,
-            scopes: 'https://www.googleapis.com/auth/gmail.send https://www.googleapis.com/auth/calendar.events',
-            queryParams: { access_type: 'offline', prompt: 'consent' },
-          },
+          options: { redirectTo },
         }),
+      // Supabase's own recovery email (single-use, expiring link); the reply
+      // is deliberately identical whether or not the address has an account.
+      requestPasswordReset: (email) => {
+        markAuthIntent('ta');
+        return supabase.auth.resetPasswordForEmail(email, { redirectTo: `${SITE_URL}/reset-password` });
+      },
       signOut: () => supabase.auth.signOut(),
     }),
-    [session, profile, loading]
+    [session, profile, loading, mustChangePassword]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

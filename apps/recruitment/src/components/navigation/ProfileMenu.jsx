@@ -1,19 +1,21 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../common/Icon.jsx';
-import { useApp } from '../../context/AppContext.jsx';
 
-const ROLE_TITLE = { candidate: 'Candidate', ta: 'Talent Acquisition', admin: 'Admin' };
-
-/* Top-right account button shared by both portals. */
-export default function ProfileMenu({ links = [] }) {
+/* Top-right account button — used on both the TA topbar and the candidate
+   header, each rendered under its OWN auth context. It never reads auth state
+   itself (that was the exact bug: a shared context meant this menu — and its
+   Sign out — silently acted on whichever identity happened to be signed in
+   anywhere in the app). The identity and sign-out action are passed in by
+   whichever layout renders it, so a TA's session can never leak into the
+   candidate header's menu or vice versa. */
+export default function ProfileMenu({ name, roleLabel, links = [], onSignOut, afterSignOut = '/' }) {
   const navigate = useNavigate();
-  const { profile, role, signOut } = useApp();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
-  const name = profile?.full_name || profile?.email || 'Account';
-  const initials = name
+  const display = name || 'Account';
+  const initials = display
     .split(/[\s@.]+/)
     .filter(Boolean)
     .slice(0, 2)
@@ -31,10 +33,8 @@ export default function ProfileMenu({ links = [] }) {
   const go = (to) => { setOpen(false); navigate(to); };
   const doSignOut = async () => {
     setOpen(false);
-    // Capture before signOut() clears the profile/role from context.
-    const wasStaff = role === 'ta' || role === 'admin' || role === 'admin_ta';
-    await signOut();
-    navigate(wasStaff ? '/ta/login' : '/', { replace: true });
+    await onSignOut();
+    navigate(afterSignOut, { replace: true });
   };
 
   return (
@@ -45,12 +45,12 @@ export default function ProfileMenu({ links = [] }) {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="menu"
         aria-expanded={open}
-        title={name}
+        title={display}
       >
         <span className="ta-avatar-sq">{initials}</span>
         <span className="profilemenu__who">
-          <span className="profilemenu__name">{name}</span>
-          <span className="profilemenu__role">{ROLE_TITLE[role]}</span>
+          <span className="profilemenu__name">{display}</span>
+          <span className="profilemenu__role">{roleLabel}</span>
         </span>
         <Icon name="ChevronDown" size={14} />
       </button>
@@ -60,8 +60,8 @@ export default function ProfileMenu({ links = [] }) {
           <div className="profilemenu__head">
             <span className="ta-avatar-sq">{initials}</span>
             <span className="profilemenu__id">
-              <strong>{name}</strong>
-              <span>{ROLE_TITLE[role]}</span>
+              <strong>{display}</strong>
+              <span>{roleLabel}</span>
             </span>
           </div>
 

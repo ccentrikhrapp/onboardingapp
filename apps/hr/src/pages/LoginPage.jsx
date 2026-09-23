@@ -26,13 +26,29 @@ const JOURNEY = [
    too (for accounts an admin has provisioned), on top of Google — same
    pattern as the recruitment app's TA login. */
 export default function LoginPage() {
-  const { configured, role, loading: authLoading, signOut, signInWithPassword } = useAuth();
-  const { error: googleError, signing, trigger } = useGoogleSignIn();
+  const { configured, role, loading: authLoading, signOut, signInWithPassword, requestPasswordReset } = useAuth();
+  const { error: googleError, signing, trigger } = useGoogleSignIn('/');
 
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => { try { return new URLSearchParams(window.location.search).get('email') || ''; } catch { return ''; } });
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState(() => {
+    // Set by AuthContext when a disabled account was just signed out; or by
+    // Supabase when the Google account isn't on the HR allow-list (the
+    // database refuses to create an account for it and the browser comes
+    // back with an error in the URL).
+    try {
+      const n = sessionStorage.getItem('ccx_auth_notice');
+      if (n) sessionStorage.removeItem('ccx_auth_notice');
+      if (n) return n;
+    } catch { /* private mode */ }
+    const qs = `${window.location.search} ${window.location.hash}`;
+    if (/error_description|error=/.test(qs)) {
+      return 'This Google account is not associated with an authorized user account. Please sign in using the invited email address or contact your administrator.';
+    }
+    return '';
+  });
+  const [formInfo, setFormInfo] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   // Match the recruitment app's login pages, which render at a global 90%
@@ -61,6 +77,15 @@ export default function LoginPage() {
     return <Navigate to={homeForRole(role)} replace />;
   }
 
+  const forgot = async () => {
+    setFormInfo('');
+    const trimmed = email.trim();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) { setFormError('Enter your email above, then choose Forgot password.'); return; }
+    setFormError('');
+    await requestPasswordReset(trimmed);
+    setFormInfo(`If an account exists for ${trimmed}, we've emailed a password reset link.`);
+  };
+
   const submitPassword = async (e) => {
     e.preventDefault();
     if (submitting || !configured) return;
@@ -72,7 +97,11 @@ export default function LoginPage() {
     setSubmitting(true);
     const { error } = await signInWithPassword(email.trim(), password);
     if (error) {
-      setFormError(error.message === 'Invalid login credentials' ? 'Incorrect email or password.' : error.message);
+      setFormError(
+        error.message === 'Invalid login credentials' ? 'Incorrect email or password.'
+          : /banned/i.test(error.message) ? 'Your account has been disabled. Please contact your administrator.'
+            : error.message,
+      );
       setSubmitting(false);
     }
   };
@@ -96,6 +125,11 @@ export default function LoginPage() {
       footer="Access is granted by your HR administrator. Candidate/TA accounts belong to the separate recruitment application."
     >
       <form onSubmit={submitPassword} noValidate>
+        {formInfo && (
+          <div className="wsauth__alert" role="status">
+            <Icon name="Check" size={15} /> {formInfo}
+          </div>
+        )}
         {formError && (
           <div className="wsauth__alert" role="alert">
             <Icon name="AlertCircle" size={15} /> {formError}
@@ -125,7 +159,7 @@ export default function LoginPage() {
         </label>
         <button
           type="button" className="wsauth__forgot"
-          onClick={() => setFormError('Password resets are handled by your workspace administrator.')}
+          onClick={forgot}
         >
           Forgot password?
         </button>

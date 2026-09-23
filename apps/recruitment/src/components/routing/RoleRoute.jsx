@@ -14,10 +14,10 @@ export default function RoleRoute({ allow, children }) {
   // logging out, must land on /ta/login — never the candidate screen).
   if (!role) return <Navigate to={allow === 'ta' ? '/ta/login' : '/'} replace />;
   // admin/admin_ta are supersets of ta ("Super TA" tier) — same workspace,
-  // plus cross-team oversight; TA-account management stays admin-only
-  // (gated separately, see TASidebar's Team link and TAManagementPage).
+  // plus cross-team oversight; Teams is open to Super Admin + Talent Acquisition
+  // Head (allow="team"), with finer limits enforced server-side (team-* functions).
   const isTaTier = (r) => r === 'ta' || r === 'admin' || r === 'admin_ta';
-  const permitted = allow === 'ta' ? isTaTier(role) : role === allow;
+  const permitted = allow === 'ta' ? isTaTier(role) : allow === 'team' ? (role === 'admin' || role === 'admin_ta') : role === allow;
   if (allow && !permitted) {
     const home = isTaTier(role) ? '/ta' : '/candidate';
     return <Navigate to={home} replace />;

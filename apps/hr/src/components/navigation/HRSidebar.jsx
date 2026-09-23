@@ -4,10 +4,12 @@ import Icon from '../common/Icon.jsx';
 import logo from '../../assets/ccentrik-logo.png';
 import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases } from '../../api/onboarding.js';
+import { useAuth } from '../../context/AuthContext.jsx';
 
 const ACTIVE_ONBOARDING = new Set(['onboarding_initiated', 'documents_pending', 'documents_submitted', 'verification_in_progress', 'formalities_pending']);
 
 export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
+  const { role } = useAuth();
   const [counts, setCounts] = useState({ verification: 0, onboarding: 0 });
 
   useEffect(() => {
@@ -27,6 +29,7 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
     { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
     { to: '/hr/activity', label: 'Activity', icon: 'History' },
+    ...(role === 'admin' ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
     { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
   ];
 

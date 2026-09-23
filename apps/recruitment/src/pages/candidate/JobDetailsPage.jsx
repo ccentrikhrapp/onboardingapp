@@ -4,7 +4,7 @@ import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
 import { useApp } from '../../context/AppContext.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn.js';
 import { formatDate } from '../../utils/format.js';
 
@@ -22,8 +22,8 @@ export default function JobDetailsPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const { getJob, jobsLoading } = useApp();
-  const { user } = useAuth();
-  const { signing, trigger } = useGoogleSignIn();
+  const { user } = useCandidateAuth();
+  const { signing, trigger } = useGoogleSignIn(undefined, useCandidateAuth);
   const job = getJob(jobId);
 
   if (jobsLoading) {

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { listMyApplications } from '../../api/applications.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { initialsOf, formatCurrencyINR } from '../../utils/format.js';
@@ -19,7 +19,7 @@ function Info({ label, value }) {
 
 export default function CandidateProfilePage() {
   const navigate = useNavigate();
-  const { configured } = useAuth();
+  const { configured } = useCandidateAuth();
   const [app, setApp] = useState(undefined); // undefined = loading, null = none
 
   useEffect(() => {

@@ -150,7 +150,10 @@ export default function WelcomePage() {
       </main>
 
       <footer className="lp-footer">
-        <span>© 2025 Ccentrik. All rights reserved.</span>
+        <span>© {new Date().getFullYear()} Ccentrik Recruitment App. All rights reserved.</span>
+        <span>
+          <Link to="/privacy">Privacy Policy</Link> · <Link to="/terms">Terms of Service</Link>
+        </span>
         <span className="lp-footer__brand">People · Process · Progress</span>
       </footer>
     </div>

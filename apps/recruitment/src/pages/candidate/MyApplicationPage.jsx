@@ -6,8 +6,9 @@ import Card from '../../components/ta/Card.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
 import { Field, FieldGrid, Input, Select } from '../../components/ta/Field.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import { candidateSupabase } from '../../lib/supabase.js';
 import { listMyApplications, getApplicationEvents, resubmitApplication, verifyTaCandidate } from '../../api/applications.js';
 import { listInterviewRounds } from '../../api/interviews.js';
 import { listApplicationDocuments, uploadDocumentFile, submitDocument } from '../../api/documents.js';
@@ -17,7 +18,8 @@ import { getOffer } from '../../api/offers.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { initialsOf, formatDate } from '../../utils/format.js';
 import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
-import { nameError, emailError, phoneError, locationError, urlError } from '../../utils/validation.js';
+import { nameError, emailError, phoneError, locationError, urlError, numberError } from '../../utils/validation.js';
+import { NOTICE_OPTIONS } from '../../utils/candidateForm.js';
 
 const NOT_APPLICABLE_REASON = 'Not applicable to your candidate type.';
 const REASON_CATEGORIES = [
@@ -109,6 +111,9 @@ function formFromApp(app) {
       : '',
     currentCompany: app.professional.currentCompany || '', currentJobTitle: app.professional.currentJobTitle || '',
     portfolio: app.additional.portfolio || '',
+    highestQualification: app.education?.[0]?.qualification || '',
+    noticePeriod: app.professional.noticePeriod || '',
+    expectedSalary: app.professional.expectedCTC || '',
   };
 }
 
@@ -182,7 +187,7 @@ function adaptRemote(a) {
 export default function MyApplicationPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { configured } = useAuth();
+  const { configured } = useCandidateAuth();
   const [remote, setRemote] = useState({ loading: true, app: null, events: [] });
   const [resubmitting, setResubmitting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -205,20 +210,20 @@ export default function MyApplicationPage() {
     listMyApplications()
       .then(async (apps) => {
         const latest = apps?.[0] ? applicationFromDb(apps[0]) : null;
-        const events = latest ? await getApplicationEvents(latest.id) : [];
+        const events = latest ? await getApplicationEvents(latest.id, candidateSupabase) : [];
         setRemote({ loading: false, app: latest, events });
         // A TA-created candidate lands straight on the verification form —
         // no "click Edit" step first, since the whole point is reviewing
         // what's already there.
         if (latest?.status === 'DRAFT') setForm(formFromApp(adaptRemote(latest)));
         if (latest && INTERVIEW_STAGES.includes(latest.status)) {
-          listInterviewRounds(latest.id).then(setRounds).catch(() => setRounds([]));
+          listInterviewRounds(latest.id, candidateSupabase).then(setRounds).catch(() => setRounds([]));
         }
         if (latest && DOC_STAGES.includes(latest.status)) {
-          listApplicationDocuments(latest.id).then(setDocs).catch(() => setDocs([]));
+          listApplicationDocuments(latest.id, candidateSupabase).then(setDocs).catch(() => setDocs([]));
         }
         if (latest && OFFER_STAGES.includes(latest.status)) {
-          getOffer(latest.id).then(setOffer).catch(() => setOffer(null));
+          getOffer(latest.id, candidateSupabase).then(setOffer).catch(() => setOffer(null));
         }
         // Onboarding documents only exist once HR has requested them (after
         // offer acceptance) — an empty list here just means none yet.
@@ -373,6 +378,15 @@ export default function MyApplicationPage() {
     return e;
   };
 
+  // The TA-created verification screen also shows notice period / qualification / salary,
+  // with the same rules as the Job Portal form (notice period is required once experienced).
+  const validateVerify = (f) => {
+    const e = validateForm(f);
+    if (Number(expToNumber(f.experience)) > 0 && !f.noticePeriod) e.noticePeriod = 'Notice period is required.';
+    const sal = numberError(f.expectedSalary, { required: false, label: 'expected salary', min: 0 }); if (sal) e.expectedSalary = sal;
+    return e;
+  };
+
   const saveEdit = async () => {
     const e = validateForm(form);
     setFormErrors(e);
@@ -398,7 +412,7 @@ export default function MyApplicationPage() {
   };
 
   const saveVerify = async () => {
-    const e = validateForm(form);
+    const e = validateVerify(form);
     setFormErrors(e);
     if (Object.keys(e).length) {
       toast.error('Please fix the highlighted fields.');
@@ -408,7 +422,8 @@ export default function MyApplicationPage() {
     try {
       await verifyTaCandidate(app.id, {
         personal: { ...app.personal, firstName: form.firstName, lastName: form.lastName, email: form.email, mobile: form.phone, currentLocation: form.currentLocation },
-        professional: { ...app.professional, totalExperience: expToNumber(form.experience), currentCompany: form.currentCompany, currentJobTitle: form.currentJobTitle },
+        professional: { ...app.professional, totalExperience: expToNumber(form.experience), currentCompany: form.currentCompany, currentJobTitle: form.currentJobTitle, noticePeriod: form.noticePeriod, expectedCTC: form.expectedSalary },
+        education: [{ ...(app.education?.[0] || {}), qualification: form.highestQualification }],
         additional: { ...app.additional, portfolio: form.portfolio },
       });
       toast.success('Application verified and submitted!');
@@ -460,6 +475,15 @@ export default function MyApplicationPage() {
             </Field>
             <Field label="Current job title">
               <Input value={form.currentJobTitle} onChange={(e) => setForm((f) => ({ ...f, currentJobTitle: e.target.value }))} />
+            </Field>
+            <Field label="Highest qualification">
+              <Input value={form.highestQualification} onChange={(e) => setForm((f) => ({ ...f, highestQualification: e.target.value }))} />
+            </Field>
+            <Field label="Notice period" required={Number(expToNumber(form.experience)) > 0} error={formErrors.noticePeriod}>
+              <Select value={form.noticePeriod} error={formErrors.noticePeriod} placeholder="Select" options={NOTICE_OPTIONS} onChange={(e) => setForm((f) => ({ ...f, noticePeriod: e.target.value }))} />
+            </Field>
+            <Field label="Expected salary (₹ / year)" hint="Optional" error={formErrors.expectedSalary} full>
+              <Input type="number" min="0" value={form.expectedSalary} error={formErrors.expectedSalary} onChange={(e) => setForm((f) => ({ ...f, expectedSalary: e.target.value }))} />
             </Field>
             <Field label="Portfolio / LinkedIn URL" hint="Optional" error={formErrors.portfolio} full>
               <Input value={form.portfolio} error={formErrors.portfolio} placeholder="https://" onChange={(e) => setForm((f) => ({ ...f, portfolio: e.target.value }))} />

@@ -1,6 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import ProfileMenu from './ProfileMenu.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useGoogleSignIn } from '../auth/useGoogleSignIn.js';
 import logo from '../../assets/ccentrik-logo.png';
 
@@ -18,8 +18,11 @@ function GoogleG() {
 const navClass = ({ isActive }) => (isActive ? 'active' : undefined);
 
 export default function CandidateHeader() {
-  const { configured, user } = useAuth();
-  const { signing, trigger } = useGoogleSignIn();
+  // This app's own, separate candidate session — a signed-in TA on /ta/* never
+  // shows up as "signed in" here, and this component never touches theirs
+  // (see lib/supabase.js / CandidateAuthContext.jsx).
+  const { configured, user, signOut } = useCandidateAuth();
+  const { signing, trigger } = useGoogleSignIn(undefined, useCandidateAuth);
 
   return (
     <header className="cx-header">
@@ -35,12 +38,16 @@ export default function CandidateHeader() {
         </nav>
 
         <div className="cx-header__right">
-          {user ? (
+          {user && !user.is_anonymous ? (
             <ProfileMenu
+              name={user.user_metadata?.full_name || user.email || 'Candidate'}
+              roleLabel="Candidate"
               links={[
                 { label: 'My Profile', icon: 'UserRound', to: '/candidate/profile' },
                 { label: 'My Application', icon: 'ClipboardList', to: '/candidate/application' },
               ]}
+              onSignOut={signOut}
+              afterSignOut="/candidate"
             />
           ) : (
             <button type="button" className="cx-header__signin" onClick={trigger} disabled={!configured || signing}>

@@ -3,7 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Card from '../../components/ta/Card.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
+import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 
 const NEXT_STEPS = [
@@ -18,7 +18,7 @@ const NEXT_STEPS = [
 export default function ApplicationSuccessPage() {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const { user, linkGoogle } = useAuth();
+  const { user, linkGoogle } = useCandidateAuth();
   const toast = useToast();
   const [linking, setLinking] = useState(false);
 

@@ -5,8 +5,8 @@ import { unwrap, callFn } from './client.js';
     (tagged entity_type='interview_round' at schedule time) — lets the
     Interview Process list show "Invitation sent to X" persistently, not just
     in the schedule-time toast. */
-export async function listInterviewRounds(applicationId) {
-  const rounds = await supabase
+export async function listInterviewRounds(applicationId, client = supabase) {
+  const rounds = await client
     .from('interview_rounds')
     .select('*, interview_assignments(interview_panelists(name, email, department, designation)), interview_feedback(*)')
     .eq('application_id', applicationId)
@@ -16,7 +16,7 @@ export async function listInterviewRounds(applicationId) {
   const ids = (rounds || []).map((r) => r.id);
   if (!ids.length) return rounds;
 
-  const emails = await supabase
+  const emails = await client
     .from('emails')
     .select('entity_id, status, recipient, created_at')
     .eq('entity_type', 'interview_round')

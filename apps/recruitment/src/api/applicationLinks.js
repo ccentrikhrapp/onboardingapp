@@ -1,9 +1,9 @@
-import { supabase } from '../lib/supabase.js';
+import { supabase, candidateSupabase } from '../lib/supabase.js';
 import { unwrap, callFn } from './client.js';
 
 /** Public: resolve a TA link token into the job + recruiter it points to. */
 export function resolveLink(token) {
-  return callFn('resolve-link', { method: 'GET', query: { token } });
+  return callFn('resolve-link', { method: 'GET', query: { token } }, candidateSupabase);
 }
 
 /** TA: one reusable PUBLIC link per (me, job). Returns the existing one if it already exists. */

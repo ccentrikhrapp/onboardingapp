@@ -12,7 +12,7 @@
 // }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
-import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
+import { audit, currentProfile, isStaffRole, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { extractResumeText } from "../_shared/resumeText.ts";
@@ -33,6 +33,11 @@ Deno.serve(async (req) => {
 
   const profile = await currentProfile(req);
   if (!profile) return fail("UNAUTHENTICATED", "Please sign in to apply.", 401);
+  // A Talent Acquisition / admin session is never a candidate — see isStaffRole.
+  // The frontend can no longer send a staff JWT here at all (separate sessions
+  // per portal), but a direct call still must not be able to turn a staff
+  // account into a candidate record.
+  if (isStaffRole(profile.role)) return fail("FORBIDDEN", "This account can't submit a candidate application.", 403);
 
   let body: Record<string, any>;
   try {

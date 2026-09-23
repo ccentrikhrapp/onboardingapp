@@ -1191,11 +1191,15 @@
 .hr-round__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 3px; }
 
 .hr-docrow {
-  display: flex; flex-direction: column; gap: 10px;
+  display: flex; align-items: center; gap: 11px;
   border: 1px solid var(--hr-line); border-radius: 12px; padding: 10px 12px;
   transition: border-color 0.14s ease, box-shadow 0.14s ease;
 }
 .hr-docrow:hover { border-color: #dbe4fb; box-shadow: var(--hr-shadow); }
+/* Modifier for rows that carry extra content below the head line (form-data
+   grid, a correction reason box) — plain .hr-docrow stays a single flex row
+   for simple lists like pre-offer verification, which have no such content. */
+.hr-docrow--stacked { flex-direction: column; align-items: stretch; gap: 10px; }
 .hr-docrow__head { display: flex; align-items: center; gap: 11px; flex-wrap: wrap; row-gap: 8px; }
 .hr-docrow__head > .grow { flex: 1 1 160px; }
 .hr-docrow__head > .hr-rowactions { margin-left: auto; flex: 0 0 auto; }
