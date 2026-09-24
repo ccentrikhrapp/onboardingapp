@@ -12,10 +12,24 @@ function fileKind(fileName) {
     upload on the recruitment side) — HR needs to actually look at one to
     verify it, not just trust a filename, so this renders it inline instead
     of a new-tab link. */
-export default function DocumentPreviewModal({ open, onClose, url, fileName, title }) {
+export default function DocumentPreviewModal({ open, onClose, url, fileName, title, parts = [], activePart = 0, onPart }) {
   const kind = fileKind(fileName);
   return (
     <Modal open={open} onClose={onClose} title={title || fileName || 'Document'} size="xl">
+      {/* A multi-file document (e.g. Aadhaar front + back) — one tab per part. */}
+      {parts.length > 1 && (
+        <div style={{ display: 'flex', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+          {parts.map((p, i) => (
+            <button
+              key={p.label || i} type="button"
+              className={`hr-btn hr-btn--sm${i === activePart ? '' : ' hr-btn--ghost'}`}
+              onClick={() => onPart?.(i)}
+            >
+              {p.label || `File ${i + 1}`}
+            </button>
+          ))}
+        </div>
+      )}
       {!url ? (
         <p className="hr-cell-mute">Loading…</p>
       ) : kind === 'pdf' ? (

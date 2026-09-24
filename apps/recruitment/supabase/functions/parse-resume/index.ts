@@ -21,14 +21,37 @@ const SKILL_DICT = [
 
 const DEGREE_RE =
   /\b(b\.?tech|b\.?e\.?|b\.?sc|bca|b\.?com|bba|m\.?tech|m\.?e\.?|m\.?sc|mca|mba|ph\.?d|bachelor|master|diploma)\b/i;
+// The same degree abbreviations as DEGREE_RE, but anchored to match one
+// already-split word as a WHOLE (not "somewhere in this sentence") — used to
+// test a single name-candidate word at a time.
+const DEGREE_WORD_RE = /^(b\.?tech|b\.?e\.?|b\.?sc|bca|b\.?com|bba|m\.?tech|m\.?e\.?|m\.?sc|mca|mba|ph\.?d|bachelor|master|diploma)\.?,?$/i;
 
 // Words that can follow a name in the header but are never PART of a name —
 // used to stop name/location matching from over-running onto the job title
 // when the extractor gives us no line breaks to rely on (some PDFs come
 // back from PDF.js as one unbroken line — confirmed in production; see
 // docs/BACKEND_SETUP.md's note on parse-resume for how this was diagnosed).
+// Includes education-adjacent words too (degree abbreviations plus the field
+// names that typically follow one, e.g. "B.Tech Computer Science") — without
+// these, a name capture that stops one word short of the length-4 truncation
+// below could keep a degree word as the "last name" (the exact bug reported:
+// education text ending up in Last Name).
 const TITLE_STOPWORDS =
-  /^(senior|junior|lead|staff|principal|chief|head|director|associate|assistant|software|full-?stack|backend|front-?end|frontend|cloud|stack|systems?|solutions|technologies|network|data|product|project|program|business|hr|human|resources?|engineer|developer|consultant|manager|analyst|designer|architect|specialist|executive|officer|intern|aspiring|group|labs?|inc|ltd|llp|pvt|company|corp)$/i;
+  /^(senior|junior|lead|staff|principal|chief|head|director|associate|assistant|software|full-?stack|backend|front-?end|frontend|cloud|stack|systems?|solutions|technologies|network|data|product|project|program|business|hr|human|resources?|engineer|developer|consultant|manager|analyst|designer|architect|specialist|executive|officer|intern|aspiring|group|labs?|inc|ltd|llp|pvt|company|corp|bachelor|master|diploma|computer|science|engineering|commerce|arts|technology|administration|information|mechanical|electrical|electronics|civil)$/i;
+
+// Final sanity check on a candidate first/last name word — this is the
+// explicit "does the parsed value match what this field actually means"
+// validation: even if the capture window above already stops at the right
+// place for most resumes, this is a second, independent guard so a
+// mis-captured word (a degree, a stray qualifier, a number) is dropped
+// rather than shown as someone's name.
+function isPlausibleNameWord(w: string): boolean {
+  if (!w || w.length < 2 || w.length > 24) return false;
+  if (/\d/.test(w)) return false;
+  if (DEGREE_WORD_RE.test(w)) return false;
+  if (TITLE_STOPWORDS.test(w)) return false;
+  return true;
+}
 
 function parse(text: string) {
   const flat = text.replace(/\r/g, "");
@@ -52,10 +75,41 @@ function parse(text: string) {
   const leading = flat.trimStart();
   const leadingOffset = flat.length - leading.length;
   const rawNameMatch = leading.match(/^([A-Z][A-Za-z.'-]{1,24}(?:[ \t]+[A-Z][A-Za-z.'-]{1,24}){0,3})/);
-  let nameWords = rawNameMatch ? rawNameMatch[1].split(/[ \t]+/) : [];
-  const stopIdx = nameWords.findIndex((w, i) => i > 0 && TITLE_STOPWORDS.test(w));
+  let rawName = rawNameMatch ? rawNameMatch[1] : "";
+  // Never let the captured name run into (or past) where the email/phone
+  // actually starts — when the extractor drops the line break after the
+  // name, the very next word is often the "Email"/"Phone" label itself
+  // (e.g. "Aarav Mehta Email: aarav@..."), which would otherwise look like
+  // an ordinary extra name word and land in lastName.
+  const nameCapAt = Math.min(email ? flat.indexOf(email) : Infinity, phone ? flat.indexOf(phone) : Infinity);
+  if (Number.isFinite(nameCapAt)) {
+    const maxLen = nameCapAt - leadingOffset;
+    if (maxLen >= 0 && maxLen < rawName.length) rawName = rawName.slice(0, maxLen).trim();
+  }
+  // Also stop at a bare "Word:" label (Email:, Phone:, Skills:, ...) — the cap
+  // above only protects against running into the VALUE (e.g. the address
+  // itself); the label word that introduces it sits before that and would
+  // otherwise pass every other check as an ordinary-looking name word.
+  // (Looked up in the original text, not rawName — the name regex above never
+  // captures the ":" itself, so it's only visible there.)
+  const labelInName = leading.match(/\b[A-Za-z]+:/);
+  if (labelInName && labelInName.index! > 0 && labelInName.index! < rawName.length) {
+    rawName = rawName.slice(0, labelInName.index).trim();
+  }
+  let nameWords = rawName ? rawName.split(/[ \t]+/) : [];
+  // Stop at the first word that can't plausibly be part of a person's name —
+  // isPlausibleNameWord covers both title words (senior/engineer/...) and
+  // education words (a degree abbreviation, or the field-of-study noun that
+  // typically follows one, e.g. "B.Tech Computer Science") — so a resume
+  // whose header runs the name straight into a degree, with no line break
+  // for the extractor to preserve, can't leave a degree word sitting in
+  // lastName (the exact bug this guards against).
+  const stopIdx = nameWords.findIndex((w, i) => i > 0 && !isPlausibleNameWord(w));
   if (stopIdx !== -1) nameWords = nameWords.slice(0, stopIdx);
   if (nameWords.length > 3) nameWords = nameWords.slice(0, 2);
+  // Cheap extra insurance: even the very first captured word must pass the
+  // same check (e.g. a resume that leads with a section heading, not a name).
+  if (nameWords.length && !isPlausibleNameWord(nameWords[0])) nameWords = [];
   const firstName = nameWords[0] ?? "";
   const lastName = nameWords.length > 1 ? nameWords[nameWords.length - 1] : "";
   const nameEndAbs = nameWords.length ? leadingOffset + nameWords.join(" ").length : 0;
@@ -92,6 +146,11 @@ function parse(text: string) {
     let windowText = flat.slice(degreeMatch.index, degreeMatch.index + 160);
     const cutAt = windowText.search(/[••]|\n{2,}/);
     if (cutAt > 20) windowText = windowText.slice(0, cutAt);
+    // Education text only: stop at the next "Label:" (Email:, Phone:, Skills:...)
+    // or at an email/phone value, so contact details can't end up inside the
+    // qualification when the extractor gave us no line break to stop at.
+    const labelCut = windowText.search(/\s[A-Za-z]+:|[\w.+-]+@[\w-]+\.|\+?\d[\d\s()-]{8,}\d/);
+    if (labelCut > 2) windowText = windowText.slice(0, labelCut);
     const qualification = windowText.replace(/\s+/g, " ").trim();
     const year = (qualification.match(/\b(19|20)\d{2}\b/) ?? [""])[0];
     education = [{ qualification: qualification.slice(0, 140), university: "", specialization: "", year, grade: "" }];
@@ -123,6 +182,27 @@ function parse(text: string) {
       lines.find((l) => /\b(engineer|developer|consultant|manager|analyst|designer|lead|architect)\b/i.test(l) && l.length < 60) ?? "";
   }
 
+  // Company: the header usually names it right alongside the job title
+  // ("Senior Backend Engineer at Acme Corp", "…, Acme Corp", "… | Acme Corp"),
+  // so split that off both to fill Company and to stop it leaking into the
+  // Job Title field. A labelled "Company:"/"Employer:" line elsewhere in the
+  // document is checked too, and wins if the header didn't have one.
+  let currentCompany = "";
+  const titleCompanySplit = currentJobTitle.match(/^(.{2,60}?)\s+(?:at|@|[|,\-–—])\s+([A-Z][\w&.,'()\- ]{1,60})$/);
+  if (titleCompanySplit) {
+    currentJobTitle = titleCompanySplit[1].trim();
+    currentCompany = titleCompanySplit[2].trim();
+  }
+  if (!currentCompany) {
+    // Non-greedy, stopping as soon as the next "Label:" word or a line break
+    // is reached — without this, an unbroken line like "Company: Acme Corp
+    // Location: Pune" would swallow "Location" into the company name too.
+    const labelled = flat.match(
+      /\b(?:company|organi[sz]ation|employer)\s*[:\-]\s*([A-Z][\w&.,'()\- ]*?)(?=\s+[A-Z][a-zA-Z]*\s*[:\-]|\s*$|\n)/i
+    );
+    if (labelled) currentCompany = labelled[1].trim();
+  }
+
   return {
     firstName,
     lastName,
@@ -132,7 +212,7 @@ function parse(text: string) {
     portfolio,
     currentLocation,
     currentJobTitle,
-    currentCompany: "",
+    currentCompany,
     totalExperience,
     skills,
     education,

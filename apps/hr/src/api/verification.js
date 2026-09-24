@@ -22,8 +22,9 @@ export function listVerificationsForApplication(sourceApplicationId) {
 
 /** The file lives in the recruitment project's storage — this proxies a signed URL from there. */
 export async function getVerificationDocumentUrl(sourceDocumentId) {
-  const { url, fileName } = await callFn('get-document-url', { body: { sourceDocumentId } });
-  return { url, fileName };
+  // files: every current part of a multi-file document (e.g. Aadhaar front + back).
+  const { url, fileName, files } = await callFn('get-document-url', { body: { sourceDocumentId } });
+  return { url, fileName, files: files || [] };
 }
 
 export function getVerificationHistory(documentVerificationId) {

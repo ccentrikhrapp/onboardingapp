@@ -73,8 +73,9 @@ export default function VerificationWorkspacePage() {
   const viewDoc = async (doc) => {
     setPreview({ url: null, fileName: null, title: doc.requirement_name });
     try {
-      const { url, fileName } = await getVerificationDocumentUrl(doc.source_document_id);
-      setPreview({ url, fileName, title: doc.requirement_name });
+      const { url, fileName, files } = await getVerificationDocumentUrl(doc.source_document_id);
+      const parts = files?.length ? files : [{ url, fileName, label: null }];
+      setPreview({ url: parts[0].url, fileName: parts[0].fileName, title: doc.requirement_name, parts, active: 0 });
     } catch (e) {
       setPreview(null);
       toast.error(e.message || 'Could not open this document.');
@@ -149,6 +150,8 @@ export default function VerificationWorkspacePage() {
       <DocumentPreviewModal
         open={!!preview} onClose={() => setPreview(null)}
         url={preview?.url} fileName={preview?.fileName} title={preview?.title}
+        parts={preview?.parts || []} activePart={preview?.active || 0}
+        onPart={(i) => setPreview((p) => ({ ...p, active: i, url: p.parts[i].url, fileName: p.parts[i].fileName }))}
       />
     </>
   );

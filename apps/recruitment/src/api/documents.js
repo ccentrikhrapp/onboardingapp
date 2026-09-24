@@ -51,7 +51,7 @@ export async function uploadPendingDocument(file, requirement) {
 export function listApplicationDocuments(applicationId, client = supabase) {
   return client
     .from('application_documents')
-    .select('*, document_requirements(*), document_files(storage_path, file_name, is_current, uploaded_at)')
+    .select('*, document_requirements(*), document_files(storage_path, file_name, is_current, uploaded_at, slot)')
     .eq('application_id', applicationId)
     .then(unwrap);
 }

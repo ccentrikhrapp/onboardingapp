@@ -20,6 +20,18 @@ import { initialsOf, formatDate } from '../../utils/format.js';
 import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
 import { nameError, emailError, phoneError, locationError, urlError, numberError } from '../../utils/validation.js';
 import { NOTICE_OPTIONS } from '../../utils/candidateForm.js';
+import { isMandatory, requiredSlots, slotLabel, canSkip, currentFilesBySlot, fileProgress } from '../../utils/documentRules.js';
+
+/* Pre-offer document states as the candidate sees them. */
+const PRE_OFFER_STATUS = {
+  requested: { label: 'Missing', tone: 'grey' },
+  uploaded: { label: 'Uploaded — under review', tone: 'amber' },
+  under_verification: { label: 'Uploaded — under review', tone: 'amber' },
+  verified: { label: 'Verified', tone: 'green' },
+  rejected: { label: 'Rejected', tone: 'red' },
+  revision_required: { label: 'Correction needed', tone: 'red' },
+  cannot_provide: { label: "Can't provide", tone: 'amber' },
+};
 
 const NOT_APPLICABLE_REASON = 'Not applicable to your candidate type.';
 const REASON_CATEGORIES = [
@@ -283,14 +295,18 @@ export default function MyApplicationPage() {
 
   const setBusy = (id, v) => setDocBusy((s) => ({ ...s, [id]: v }));
 
-  const uploadDoc = async (doc, fileList) => {
+  const uploadDoc = async (doc, fileList, slot = null) => {
     const file = fileList?.[0];
     if (!file) return;
     setBusy(doc.id, true);
     try {
-      const uploaded = await uploadDocumentFile(app.id, doc.document_requirements, file);
-      await submitDocument({ applicationDocumentId: doc.id, ...uploaded });
-      toast.success(`${doc.document_requirements.name} uploaded — now under verification.`);
+      const req = doc.document_requirements;
+      const uploaded = await uploadDocumentFile(app.id, req, file);
+      const res = await submitDocument({ applicationDocumentId: doc.id, ...uploaded, slot });
+      const part = slot ? ` (${slotLabel(req, slot)})` : '';
+      toast.success(res?.status === 'uploaded'
+        ? `${req.name}${part} uploaded — now under verification.`
+        : `${req.name}${part} uploaded — please upload the remaining file(s) too.`);
       load();
     } catch (e) {
       toast.error(e.message || 'Upload failed.');
@@ -671,112 +687,165 @@ export default function MyApplicationPage() {
           </Card>
         )}
 
-        {activeTab === 'documents' && docs.length > 0 && (
-          <Card
-            title="Required documents"
-            action={<Tag tone={docs.every((d) => ['verified', 'cannot_provide'].includes(d.status)) ? 'green' : 'amber'}>
-              {docs.filter((d) => ['verified', 'cannot_provide'].includes(d.status)).length} of {docs.length} done
-            </Tag>}
-          >
-            <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
-              Upload each document below — HR verifies them manually. Where you genuinely can't provide one, mark it
-              and give a reason.
-            </p>
-            {app.additional.candidateType ? (
-              // Read-only: candidateType is set automatically from the
-              // experience the candidate already gave at application time
-              // (application-decision's request_documents action) — this
-              // page only ever displays it, never lets it be changed, so
-              // there's exactly one source of truth for which checklist
-              // applies, not a second one a candidate could drift out of
-              // sync with TA/HR's expectations.
-              <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
-                <span>
-                  Candidate type: <strong>{app.additional.candidateType === 'fresher' ? 'Fresher' : 'Experienced Professional'}</strong> — your checklist below reflects your application.
-                </span>
-              </div>
-            ) : (
-              <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
-                <span>Candidate type is being verified. Your document checklist will be available once your application details are confirmed.</span>
-              </div>
-            )}
-            <div className="ta-stack" style={{ gap: 8 }}>
-              {docs.map((d) => {
-                const req = d.document_requirements;
-                const meta = DOC_STATUS_META[d.status] || { label: d.status, tone: 'grey' };
-                const canAct = ['requested', 'revision_required', 'cannot_provide'].includes(d.status);
-                const busy = !!docBusy[d.id];
-                return (
-                  <div className="ta-docrow" key={d.id}>
-                    <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
-                    <div className="grow" style={{ minWidth: 0 }}>
-                      <div className="ta-cell-strong">{req.name}{req.requirement_class !== 'conditional' && <span className="cx-req" title="Required"> *</span>}</div>
-                      {d.status === 'revision_required' && d.hr_remarks && (
-                        <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
-                      )}
-                      {d.status === 'cannot_provide' && d.cannot_provide_reason && (
-                        d.cannot_provide_reason === NOT_APPLICABLE_REASON ? (
-                          <div className="ta-cell-sub">Not applicable to your candidate type.</div>
-                        ) : (
-                          <div className="ta-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Reason: {d.cannot_provide_reason}</div>
-                        )
-                      )}
-                      {reasonFor?.id === d.id && (
-                        <div className="cx-docreason">
-                          <Select
-                            value={reasonCategory} placeholder="Select a reason" options={REASON_CATEGORIES}
-                            onChange={(e) => setReasonCategory(e.target.value)}
-                          />
-                          <textarea
-                            className="cx-docreason__input" rows={2} style={{ marginTop: 8 }}
-                            placeholder="Additional explanation (optional)"
-                            value={reasonText} onChange={(e) => setReasonText(e.target.value)}
-                          />
-                          <div className="cx-docreason__btns">
-                            <button className="ta-btn ta-btn--sm" onClick={confirmCannotProvide} disabled={!reasonCategory || busy}>Submit reason</button>
-                            <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setReasonFor(null); setReasonCategory(''); setReasonText(''); }}>Cancel</button>
+        {activeTab === 'documents' && docs.length > 0 && (() => {
+          const mandatoryDocs = docs.filter((d) => isMandatory(d.document_requirements));
+          const optionalDocs = docs.filter((d) => !isMandatory(d.document_requirements));
+          const mandatoryDone = mandatoryDocs.filter((d) => d.status === 'verified').length;
+          const allMandatoryDone = mandatoryDone === mandatoryDocs.length;
+
+          const renderDoc = (d) => {
+            const req = d.document_requirements;
+            const meta = PRE_OFFER_STATUS[d.status] || { label: d.status, tone: 'grey' };
+            const canAct = ['requested', 'revision_required', 'cannot_provide'].includes(d.status);
+            const busy = !!docBusy[d.id];
+            const slots = requiredSlots(req);
+            const bySlot = currentFilesBySlot(req, d.document_files || []);
+            const progress = fileProgress(req, d.document_files || []);
+            const partial = slots.length > 0 && progress.done > 0 && progress.done < progress.total && canAct && d.status !== 'cannot_provide';
+            const accept = (req.allowed_file_types || []).map((t) => `.${t}`).join(',');
+            return (
+              <div className="ta-docrow" key={d.id} style={{ flexWrap: 'wrap' }}>
+                <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <div className="ta-cell-strong" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {req.name}
+                    <Tag tone={isMandatory(req) ? 'red' : 'grey'}>{isMandatory(req) ? 'Mandatory' : 'Optional'}</Tag>
+                  </div>
+                  {slots.length > 0 && (
+                    <div className="ta-cell-sub">
+                      {progress.done} of {progress.total} files uploaded{progress.done === progress.total ? ' — complete' : ''}
+                    </div>
+                  )}
+                  {d.status === 'revision_required' && d.hr_remarks && (
+                    <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
+                  )}
+                  {d.status === 'cannot_provide' && d.cannot_provide_reason && (
+                    d.cannot_provide_reason === NOT_APPLICABLE_REASON ? (
+                      <div className="ta-cell-sub">Not applicable to your candidate type.</div>
+                    ) : (
+                      <div className="ta-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Reason: {d.cannot_provide_reason}</div>
+                    )
+                  )}
+                  {slots.length > 0 && (
+                    <div className="ta-stack" style={{ gap: 6, marginTop: 8 }}>
+                      {slots.map((s) => {
+                        const f = bySlot[s];
+                        return (
+                          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '6px 10px', border: '1px dashed var(--line, #e5e7eb)', borderRadius: 8 }}>
+                            <strong style={{ fontSize: 13, minWidth: 130 }}>{slotLabel(req, s)}</strong>
+                            <span className="ta-cell-sub grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {f ? <><Icon name="CheckCircle2" size={12} /> {f.file_name || 'Uploaded'}</> : 'Not uploaded yet'}
+                            </span>
+                            {canAct && reasonFor?.id !== d.id && !busy && (
+                              <label className="ta-btn ta-btn--ghost ta-btn--sm" style={{ cursor: 'pointer' }}>
+                                <Icon name="Upload" size={13} /> {f ? 'Replace' : 'Upload'}
+                                <input type="file" hidden accept={accept} onChange={(e) => { uploadDoc(d, e.target.files, s); e.target.value = ''; }} />
+                              </label>
+                            )}
                           </div>
-                          {req.warning_message && (
-                            <div className="ta-note ta-note--warn" style={{ marginTop: 8 }}>
-                              <Icon name="AlertTriangle" size={14} /> <span>{req.warning_message}</span>
-                            </div>
-                          )}
+                        );
+                      })}
+                    </div>
+                  )}
+                  {reasonFor?.id === d.id && (
+                    <div className="cx-docreason">
+                      <Select
+                        value={reasonCategory} placeholder="Select a reason" options={REASON_CATEGORIES}
+                        onChange={(e) => setReasonCategory(e.target.value)}
+                      />
+                      <textarea
+                        className="cx-docreason__input" rows={2} style={{ marginTop: 8 }}
+                        placeholder="Additional explanation (optional)"
+                        value={reasonText} onChange={(e) => setReasonText(e.target.value)}
+                      />
+                      <div className="cx-docreason__btns">
+                        <button className="ta-btn ta-btn--sm" onClick={confirmCannotProvide} disabled={!reasonCategory || busy}>Submit reason</button>
+                        <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setReasonFor(null); setReasonCategory(''); setReasonText(''); }}>Cancel</button>
+                      </div>
+                      {req.warning_message && (
+                        <div className="ta-note ta-note--warn" style={{ marginTop: 8 }}>
+                          <Icon name="AlertTriangle" size={14} /> <span>{req.warning_message}</span>
                         </div>
                       )}
                     </div>
-                    <Tag tone={meta.tone}>{meta.label}</Tag>
-                    {canAct && reasonFor?.id !== d.id && (
-                      <span className="cx-docacts">
-                        {busy ? <span className="ta-spinner" /> : (
-                          <>
-                            <label className="ta-btn ta-btn--ghost" style={{ cursor: 'pointer' }}>
-                              <Icon name="Upload" size={14} /> Upload
-                              <input type="file" hidden accept={(req.allowed_file_types || []).map((t) => `.${t}`).join(',')} onChange={(e) => uploadDoc(d, e.target.files)} />
-                            </label>
-                            {req.can_mark_cannot_provide && (
-                              <button
-                                className="ta-btn ta-btn--ghost ta-btn--sm"
-                                onClick={() => {
-                                  setReasonFor(d);
-                                  setReasonText('');
-                                  // Fresher + an employment-specific doc -> the reason is almost
-                                  // always this; still editable, just a head start.
-                                  setReasonCategory(app.additional.candidateType === 'fresher' ? 'Fresher / No Previous Employment' : '');
-                                }}
-                              >
-                                Can't provide
-                              </button>
-                            )}
-                          </>
+                  )}
+                </div>
+                <Tag tone={partial ? 'amber' : meta.tone}>{partial ? `${progress.done} of ${progress.total} uploaded` : meta.label}</Tag>
+                {canAct && reasonFor?.id !== d.id && (
+                  <span className="cx-docacts">
+                    {busy ? <span className="ta-spinner" /> : (
+                      <>
+                        {slots.length === 0 && (
+                          <label className="ta-btn ta-btn--ghost" style={{ cursor: 'pointer' }}>
+                            <Icon name="Upload" size={14} /> Upload
+                            <input type="file" hidden accept={accept} onChange={(e) => { uploadDoc(d, e.target.files); e.target.value = ''; }} />
+                          </label>
                         )}
-                      </span>
+                        {canSkip(req) && d.status !== 'cannot_provide' && (
+                          <button
+                            className="ta-btn ta-btn--ghost ta-btn--sm"
+                            onClick={() => {
+                              setReasonFor(d);
+                              setReasonText('');
+                              // Fresher + an employment-specific doc -> the reason is almost
+                              // always this; still editable, just a head start.
+                              setReasonCategory(app.additional.candidateType === 'fresher' ? 'Fresher / No Previous Employment' : '');
+                            }}
+                          >
+                            Can't provide
+                          </button>
+                        )}
+                      </>
                     )}
-                  </div>
-                );
-              })}
-            </div>
-          </Card>
-        )}
+                  </span>
+                )}
+              </div>
+            );
+          };
+
+          return (
+            <Card
+              title="Pre-offer documents"
+              action={<Tag tone={allMandatoryDone ? 'green' : 'amber'}>{mandatoryDone} of {mandatoryDocs.length} mandatory verified</Tag>}
+            >
+              <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
+                Only the <strong>mandatory</strong> documents are needed to complete verification. Optional documents
+                help, but you can skip them or mark "Can't provide" with a reason.
+              </p>
+              {app.additional.candidateType ? (
+                // Read-only: candidateType is set automatically from the
+                // experience the candidate already gave at application time
+                // (application-decision's request_documents action).
+                <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
+                  <span>
+                    Candidate type: <strong>{app.additional.candidateType === 'fresher' ? 'Fresher' : 'Experienced Professional'}</strong> — your checklist below reflects your application.
+                  </span>
+                </div>
+              ) : (
+                <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
+                  <span>Candidate type is being verified. Your document checklist will be available once your application details are confirmed.</span>
+                </div>
+              )}
+              {allMandatoryDone && mandatoryDocs.length > 0 && (
+                <div className="ta-note ta-note--ok" style={{ marginBottom: 14 }}>
+                  <Icon name="CheckCircle2" size={15} /> <span>All mandatory documents are verified — your document verification is complete.</span>
+                </div>
+              )}
+              {mandatoryDocs.length > 0 && (
+                <>
+                  <h4 className="ta-card__title" style={{ margin: '4px 0 8px' }}>Mandatory documents</h4>
+                  <div className="ta-stack" style={{ gap: 8, marginBottom: 16 }}>{mandatoryDocs.map(renderDoc)}</div>
+                </>
+              )}
+              {optionalDocs.length > 0 && (
+                <>
+                  <h4 className="ta-card__title" style={{ margin: '4px 0 8px' }}>Optional documents</h4>
+                  <div className="ta-stack" style={{ gap: 8 }}>{optionalDocs.map(renderDoc)}</div>
+                </>
+              )}
+            </Card>
+          );
+        })()}
 
         {activeTab === 'offer' && offer && (
           <Card title="Your offer">

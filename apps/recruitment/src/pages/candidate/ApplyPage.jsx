@@ -119,7 +119,7 @@ export default function ApplyPage() {
     const e = validateFormFields(form);
     if (!form.resume) e.resume = 'Please upload your resume (PDF, DOC or DOCX under 5 MB).';
     requirements
-      .filter((r) => r.requirement_class !== 'conditional')
+      .filter((r) => r.requirement_class !== 'conditional' && r.requirement_class !== 'optional')
       .forEach((r) => {
         const d = docState[r.id];
         if (!d || (!d.path && !(d.cannotProvide && d.reason))) {
@@ -285,7 +285,7 @@ export default function ApplyPage() {
     }
   };
 
-  const requiredDocs = requirements.filter((r) => r.requirement_class !== 'conditional');
+  const requiredDocs = requirements.filter((r) => r.requirement_class !== 'conditional' && r.requirement_class !== 'optional');
   const filledDocs = requiredDocs.filter((r) => {
     const d = docState[r.id];
     return d && (d.path || (d.cannotProvide && d.reason));
@@ -498,7 +498,7 @@ export default function ApplyPage() {
                           <span className="cx-upload__icon"><Icon name="FileText" size={17} /></span>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div className="cx-upload__title">
-                              {r.name}{r.requirement_class !== 'conditional' && <span className="cx-req" title="Required"> *</span>}
+                              {r.name}{r.requirement_class !== 'conditional' && r.requirement_class !== 'optional' && <span className="cx-req" title="Required"> *</span>}
                             </div>
                             {d.fileName && !d.cannotProvide && (
                               <div className="cx-upload__sub" style={{ color: 'var(--tag-green-fg)', fontWeight: 600 }}>

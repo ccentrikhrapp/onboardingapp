@@ -13,12 +13,20 @@
 // Body: {
 //   applicationDocumentId,
 //   path?, fileName?, mimeType?, sizeBytes?,   // real upload
-//   cannotProvide?, reason?                     // Can't Provide
+//   slot?,                                      // "front"/"back"/"1"/"2"... for a multi-file document
+//   cannotProvide?, reason?                     // Can't Provide (optional documents only)
 // }
+//
+// A multi-file document (Aadhaar front + back, two photos, ...) is ONE
+// application_documents row holding several current files, one per slot. It
+// only becomes 'uploaded' (ready for the TA to review) once every slot has a
+// file; until then it stays 'requested' (or 'revision_required', so the
+// reviewer's remark stays visible) and the candidate sees "1 of 2 uploaded".
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify } from "../_shared/workflow.ts";
+import { canSkip, isComplete, isMandatory, requiredSlots, slotLabel } from "../_shared/documentRules.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -41,7 +49,7 @@ Deno.serve(async (req) => {
   const { data: doc } = await svc
     .from("application_documents")
     .select(
-      "id, application_id, status, requirement_id, document_requirements(key, name, stage, can_mark_cannot_provide, reason_required), " +
+      "id, application_id, status, requirement_id, document_requirements(key, name, stage, can_mark_cannot_provide, reason_required, requirement_class, requires_front_back, quantity_required, slot_labels), " +
         "applications(id, candidate_id, application_code, personal, jobs(title), candidates(profile_id, first_name, last_name, email))",
     )
     .eq("id", body.applicationDocumentId)
@@ -53,10 +61,23 @@ Deno.serve(async (req) => {
 
   const requirement = doc.document_requirements as any;
   const cannotProvide = !!body.cannotProvide;
+  // A document already passed on for review / verified can't be changed from here.
+  if (["uploaded", "under_verification", "verified"].includes(doc.status)) {
+    return fail("INVALID_STATE", "This document is already submitted for verification.", 409);
+  }
 
+  let newStatus: string;
+  let slotText = "";
   if (cannotProvide) {
-    if (!requirement.can_mark_cannot_provide) {
-      return fail("VALIDATION_ERROR", "This document cannot be skipped — please upload it.", 422, { reason: "Required" });
+    if (!canSkip(requirement)) {
+      return fail(
+        "VALIDATION_ERROR",
+        isMandatory(requirement)
+          ? "This is a mandatory document — please upload it."
+          : "This document cannot be skipped — please upload it.",
+        422,
+        { reason: "Required" },
+      );
     }
     const reason = String(body.reason ?? "").trim();
     if (requirement.reason_required && !reason) {
@@ -65,18 +86,37 @@ Deno.serve(async (req) => {
     await svc.from("application_documents").update({
       status: "cannot_provide", cannot_provide_reason: reason,
     }).eq("id", doc.id);
+    newStatus = "cannot_provide";
   } else {
     if (!body.path) return fail("VALIDATION_ERROR", "Missing uploaded file.", 422);
+
+    const slots = requiredSlots(requirement);
+    const slot: string | null = body.slot ? String(body.slot) : null;
+    if (slots.length && (!slot || !slots.includes(slot))) {
+      return fail("VALIDATION_ERROR", `Choose which part of the ${requirement.name} this file is.`, 422, { slot: "Required" });
+    }
+    if (!slots.length && slot) return fail("VALIDATION_ERROR", "This document takes a single file.", 422);
 
     const { count } = await svc
       .from("document_files")
       .select("id", { count: "exact", head: true })
       .eq("application_document_id", doc.id);
     const version = (count ?? 0) + 1;
-    if (version > 1) {
-      await svc.from("document_files").update({ is_current: false }).eq("application_document_id", doc.id);
+
+    // Retire only the file this upload replaces — the other side / slot stays.
+    // (A pre-slot upload, slot = null, counts as the first slot, so it's
+    // retired when the first slot is re-uploaded.)
+    let retire = svc.from("document_files").update({ is_current: false }).eq("application_document_id", doc.id).eq("is_current", true);
+    if (!slots.length) {
+      await retire;
+    } else {
+      await retire.eq("slot", slot);
+      if (slot === slots[0]) {
+        await svc.from("document_files").update({ is_current: false })
+          .eq("application_document_id", doc.id).eq("is_current", true).is("slot", null);
+      }
     }
-    await svc.from("document_files").insert({
+    const { error: insErr } = await svc.from("document_files").insert({
       application_document_id: doc.id,
       storage_path: body.path,
       file_name: body.fileName ?? null,
@@ -85,10 +125,21 @@ Deno.serve(async (req) => {
       version,
       is_current: true,
       uploaded_by: profile.id,
+      slot,
     });
+    if (insErr) return fail("DB_ERROR", "Could not save the upload. Please try again.", 500);
+
+    const { data: current } = await svc
+      .from("document_files")
+      .select("slot")
+      .eq("application_document_id", doc.id)
+      .eq("is_current", true);
+    const complete = isComplete(requirement, current ?? []);
+    newStatus = complete ? "uploaded" : doc.status === "revision_required" ? "revision_required" : "requested";
     await svc.from("application_documents").update({
-      status: "uploaded", cannot_provide_reason: null,
+      status: newStatus, cannot_provide_reason: null,
     }).eq("id", doc.id);
+    slotText = slot ? ` (${slotLabel(requirement, slot)})` : "";
   }
 
   const candidateName = `${app.candidates?.first_name ?? ""} ${app.candidates?.last_name ?? ""}`.trim() || "Candidate";
@@ -96,7 +147,9 @@ Deno.serve(async (req) => {
     application_id: app.id,
     type: "documents",
     title: cannotProvide ? "Document Not Provided" : "Document Uploaded",
-    description: `${requirement.name}${cannotProvide ? ` — reason: ${body.reason}` : " submitted for verification."}`,
+    description: cannotProvide
+      ? `${requirement.name} — reason: ${body.reason}`
+      : `${requirement.name}${slotText} ${newStatus === "uploaded" ? "submitted for verification." : "uploaded — waiting for the remaining file(s)."}`,
     actor_profile_id: profile.id,
     actor_label: candidateName,
   });
@@ -105,8 +158,8 @@ Deno.serve(async (req) => {
     action: cannotProvide ? "document.cannot_provide" : "document.upload",
     entity_type: "application_document",
     entity_id: doc.id,
-    new_state: cannotProvide ? { status: "cannot_provide" } : { status: "uploaded" },
+    new_state: { status: newStatus, slot: body.slot ?? null },
   });
 
-  return ok({ status: cannotProvide ? "cannot_provide" : "uploaded" });
+  return ok({ status: newStatus });
 });

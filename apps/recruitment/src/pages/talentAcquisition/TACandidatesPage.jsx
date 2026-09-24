@@ -44,15 +44,61 @@ function experienceLabel(n) {
   return n <= 0 ? 'Fresher' : `${n}+ Years`;
 }
 
+// How an application entered the pipeline — public Job Portal apply, a TA's
+// shareable job link, or a TA/bulk-CSV created candidate.
+const SOURCE_LABEL = {
+  careers: 'Job Portal',
+  ta_link: 'Job Portal (TA link)',
+  ta_sourced: 'TA-created',
+};
+function creationSourceLabel(row) {
+  if (row.rawSource === 'ta_sourced' && row.createdVia === 'csv') return 'TA bulk upload';
+  return SOURCE_LABEL[row.rawSource] || row.rawSource || '—';
+}
+
+/* A TA-created candidate must click the verification link before their
+   application is real (see verify-ta-candidate) — everyone else (public
+   apply) has nothing to verify. */
+function verificationStatus(row) {
+  if (row.rawSource !== 'ta_sourced') return { label: 'Not Required', tone: 'grey' };
+  return row.status === 'DRAFT' ? { label: 'Pending Verification', tone: 'amber' } : { label: 'Verified', tone: 'green' };
+}
+
+const DATE_PRESETS = [
+  { value: 'today', label: 'Today' },
+  { value: 'yesterday', label: 'Yesterday' },
+  { value: '7d', label: 'Last 7 days' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: 'custom', label: 'Custom range' },
+];
+
+// [dateFrom, dateTo) as ISO instants for the server-side created_at filter — local calendar days.
+function dateRangeFor(preset, customFrom, customTo) {
+  const startOfDay = (d) => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const today = startOfDay(new Date());
+  if (preset === 'today') return { from: today.toISOString(), to: addDays(today, 1).toISOString() };
+  if (preset === 'yesterday') return { from: addDays(today, -1).toISOString(), to: today.toISOString() };
+  if (preset === '7d') return { from: addDays(today, -6).toISOString(), to: addDays(today, 1).toISOString() };
+  if (preset === '30d') return { from: addDays(today, -29).toISOString(), to: addDays(today, 1).toISOString() };
+  if (preset === 'custom' && customFrom && customTo) {
+    return { from: startOfDay(customFrom).toISOString(), to: addDays(startOfDay(customTo), 1).toISOString() };
+  }
+  return { from: null, to: null };
+}
+
 const COLUMNS = [
   { key: 'name', label: 'Candidate', sortable: true },
+  { key: 'candidateCode', label: 'Candidate ID', sortable: true },
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
   { key: 'job', label: 'Job Applied', sortable: true },
-  { key: 'experience', label: 'Experience', sortable: true },
-  { key: 'status', label: 'Current Stage', sortable: true },
-  { key: 'atsScore', label: 'ATS Score', sortable: true },
-  { key: 'noticePeriod', label: 'Notice Period', sortable: true },
-  { key: 'submittedAt', label: 'Applied On', sortable: true },
-  { key: 'docs', label: 'Documents' },
+  { key: 'code', label: 'Application ID', sortable: true },
+  { key: 'creationSource', label: 'Creation Source' },
+  { key: 'createdAt', label: 'Created Date', sortable: true },
+  { key: 'status', label: 'Status', sortable: true },
+  { key: 'assignedToName', label: 'Assigned TA' },
+  { key: 'verification', label: 'Verification Status' },
   { key: 'actions', label: 'Actions' },
 ];
 
@@ -63,11 +109,16 @@ export default function TACandidatesPage() {
   const toast = useToast();
   const isSuperTa = role === 'admin' || role === 'admin_ta'; // admin-tier — master prompt §33-35, §74
 
+  const [datePreset, setDatePreset] = useState('all');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const { from: dateFrom, to: dateTo } = datePreset === 'all' ? { from: null, to: null } : dateRangeFor(datePreset, customFrom, customTo);
+
   const [remoteRows, setRemoteRows] = useState(null);
   useEffect(() => {
     let cancelled = false;
     const load = () =>
-      listApplications()
+      listApplications({ dateFrom, dateTo })
         .then((list) => {
           if (cancelled) return;
           setRemoteRows(
@@ -76,15 +127,22 @@ export default function TACandidatesPage() {
               candidateId: a.id, // navigate by application id in production
               name: a.candidateName || `${a.personal.firstName || ''} ${a.personal.lastName || ''}`.trim(),
               email: a.candidateEmail,
+              phone: a.candidatePhone,
+              candidateCode: a.candidateCode || '—',
+              code: a.code,
               job: a.jobTitle,
               department: a.professional?.preferredJobLocation || 'General',
               experience: Number(a.professional?.totalExperience) || 0,
+              rawSource: a.source,
+              createdVia: a.additional?.createdVia || null,
               source: a.source === 'ta_link' ? 'Referral' : 'Direct',
               noticePeriod: a.professional?.noticePeriod || 'Not specified',
               submittedAt: a.submittedAt,
+              createdAt: a.createdAt,
               status: a.status,
               atsScore: a.atsScore?.overall ?? null,
               assignedTo: a.assignedTo,
+              assignedToName: a.assignedToName || '—',
               docs: { tone: 'grey', text: '—' },
             }))
           );
@@ -95,7 +153,7 @@ export default function TACandidatesPage() {
     // without a manual reload (Phase 1 spec §49).
     const unsub = subscribeApplications(load);
     return () => { cancelled = true; unsub(); };
-  }, []);
+  }, [dateFrom, dateTo]);
 
   const rows = remoteRows || [];
 
@@ -156,7 +214,7 @@ export default function TACandidatesPage() {
   if (sourceParam) initialFilters.source = sourceParam;
 
   const view = useCollectionView(rows, {
-    searchFields: ['name', 'email', 'candidateId', 'job'],
+    searchFields: ['name', 'email', 'phone', 'candidateCode', 'code', 'job'],
     pageSize: 30,
     initialSort: { key: 'submittedAt', dir: 'desc' },
     initialFilters: Object.keys(initialFilters).length ? initialFilters : undefined,
@@ -187,13 +245,16 @@ export default function TACandidatesPage() {
   // The dropdowns / search box already show what's active — no chip row,
   // just a "Clear filters" affordance.
   const hasFilters = stage !== 'all' || experience !== 'all' || activeJob !== 'all'
-    || activeSource !== 'all' || activeNotice !== 'all' || assignment !== 'all' || !!view.query;
+    || activeSource !== 'all' || activeNotice !== 'all' || assignment !== 'all' || datePreset !== 'all' || !!view.query;
 
   const clearAll = () => {
     view.setQuery('');
     setStage('all');
     setExperience('all');
     setAssignment('all');
+    setDatePreset('all');
+    setCustomFrom('');
+    setCustomTo('');
     view.setFilter('job', 'all');
     view.setFilter('source', 'all');
     view.setFilter('noticePeriod', 'all');
@@ -223,12 +284,25 @@ export default function TACandidatesPage() {
           { label: 'Experience', value: experience, onChange: setExperience, options: Object.entries(EXPERIENCE).map(([value, g]) => ({ value, label: g.label })) },
           { label: 'Source', value: activeSource, onChange: (v) => view.setFilter('source', v), options: SOURCES.map((s) => ({ value: s, label: s })) },
           { label: 'Notice Period', value: activeNotice, onChange: (v) => view.setFilter('noticePeriod', v), options: NOTICE_PERIODS.map((n) => ({ value: n, label: n })) },
+          { label: 'Date', value: datePreset, onChange: setDatePreset, options: DATE_PRESETS },
           ...(isSuperTa ? [{ label: 'Assignment', value: assignment, onChange: setAssignment, options: [{ value: 'unassigned', label: 'Unassigned' }] }] : []),
         ]}
         onClearAll={hasFilters ? clearAll : undefined}
-        action={<Button icon="UserPlus" onClick={() => navigate('/ta/candidates/new')}>Add Candidate</Button>}
+        action={(
+          <span style={{ display: 'flex', gap: 8 }}>
+            <Button variant="ghost" icon="UploadCloud" onClick={() => navigate('/ta/candidates/bulk-upload')}>Bulk Upload</Button>
+            <Button icon="UserPlus" onClick={() => navigate('/ta/candidates/new')}>Add Candidate</Button>
+          </span>
+        )}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
+
+      {datePreset === 'custom' && (
+        <div className="ta-toolbar" style={{ marginTop: -6, marginBottom: 12 }}>
+          <label className="ta-cell-sub">From <input type="date" className="ta-select" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)} /></label>
+          <label className="ta-cell-sub">To <input type="date" className="ta-select" value={customTo} onChange={(e) => setCustomTo(e.target.value)} /></label>
+        </div>
+      )}
 
       {isSuperTa && selected.size > 0 && (
         <div className="ta-note ta-note--info" style={{ justifyContent: 'space-between', marginBottom: 12 }}>
@@ -254,6 +328,7 @@ export default function TACandidatesPage() {
           const badge = r.status === 'DRAFT'
             ? { label: 'Verification Pending', tone: 'amber' }
             : stageBadgeForStatus(r.status);
+          const verification = verificationStatus(r);
           return (
             <tr key={r.id} onClick={() => navigate(`/ta/candidates/${r.candidateId}`)} style={{ cursor: 'pointer' }}>
               {isSuperTa && (
@@ -263,24 +338,21 @@ export default function TACandidatesPage() {
               )}
               <td>
                 <span className="ta-cell-cand__name">{r.name}</span><br />
-                <span className="ta-cell-cand__sub">{r.email}</span>
+                <span className="ta-cell-cand__sub">{experienceLabel(r.experience)}</span>
               </td>
+              <td className="ta-cell-mute">{r.candidateCode}</td>
+              <td className="ta-cell-mute">{r.email}</td>
+              <td className="ta-cell-mute">{r.phone || '—'}</td>
               <td>
                 <span className="ta-cell-strong">{r.job}</span><br />
                 <span className="ta-cell-sub">{r.department}</span>
               </td>
-              <td className="ta-cell-mute">{experienceLabel(r.experience)}</td>
+              <td className="ta-cell-mute">{r.code}</td>
+              <td className="ta-cell-mute">{creationSourceLabel(r)}</td>
+              <td className="ta-cell-mute">{formatDate(r.createdAt)}</td>
               <td><Tag tone={badge.tone}>{badge.label}</Tag></td>
-              <td>
-                {r.atsScore == null ? (
-                  <span className="ta-cell-mute">—</span>
-                ) : (
-                  <Tag tone={r.atsScore >= 80 ? 'green' : r.atsScore >= 60 ? 'amber' : 'red'}>{r.atsScore}%</Tag>
-                )}
-              </td>
-              <td className="ta-cell-mute">{r.noticePeriod}</td>
-              <td className="ta-cell-mute">{formatDate(r.submittedAt)}</td>
-              <td>{r.docs.text === '—' ? <span className="ta-cell-mute">—</span> : <Tag tone={r.docs.tone}>{r.docs.text}</Tag>}</td>
+              <td className="ta-cell-mute">{r.assignedToName}</td>
+              <td><Tag tone={verification.tone}>{verification.label}</Tag></td>
               <td>
                 <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
                   <a className="ta-iconbtn" href={`mailto:${r.email}`} aria-label={`Email ${r.name}`}><Icon name="Mail" size={15} /></a>

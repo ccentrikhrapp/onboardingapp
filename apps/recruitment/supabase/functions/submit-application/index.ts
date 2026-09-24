@@ -192,7 +192,7 @@ Deno.serve(async (req) => {
 
   const docFields: Record<string, string> = {};
   for (const r of requirements ?? []) {
-    if (r.requirement_class === "conditional") continue; // opt-in only
+    if (r.requirement_class === "conditional" || r.requirement_class === "optional") continue; // opt-in only
     const entry = submittedDocs[r.id];
     const key = `doc_${r.key}`;
     if (!entry) {

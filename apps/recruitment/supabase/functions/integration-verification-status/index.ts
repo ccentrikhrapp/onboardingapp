@@ -85,15 +85,17 @@ Deno.serve(async (req) => {
     // status) was unreachable for every candidate no matter how complete
     // their documents were. Mirrors verify-onboarding-document's
     // allRequiredVerified check on the HR side of this same pattern.
+    // Complete = every MANDATORY pre-offer document verified — optional ones
+    // never block. offer_eligibility() is the one definition of that rule (the
+    // same one send-offer checks), so the two can't drift apart.
     if (mapped === "verified" && app?.status === "DOC_VERIFICATION") {
-      const { data: allDocs } = await svc
-        .from("application_documents")
-        .select("status, document_requirements!inner(stage)")
-        .eq("application_id", doc.application_id)
-        .eq("document_requirements.stage", "pre_offer");
-      const allDone = (allDocs ?? []).every((d: any) => ["verified", "cannot_provide"].includes(d.status));
-      if (allDone) {
+      const { data: eligibility } = await svc.rpc("offer_eligibility", { app_id: doc.application_id });
+      if (eligibility === "READY_FOR_OFFER") {
         await svc.from("applications").update({ status: "DOCS_VERIFIED" }).eq("id", doc.application_id);
+        await addEvent(svc, {
+          application_id: doc.application_id, type: "documents", title: "Document Verification Completed",
+          description: "All mandatory pre-offer documents are verified.", actor_label: "System",
+        });
       }
     }
 

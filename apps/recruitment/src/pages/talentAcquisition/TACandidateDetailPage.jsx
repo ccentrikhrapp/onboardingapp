@@ -17,6 +17,7 @@ import { getApplication, getApplicationEvents, decideApplication, startReview as
 import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation } from '../../api/interviews.js';
 import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offers.js';
 import { listApplicationDocuments, documentFileUrl, verifyApplicationDocument } from '../../api/documents.js';
+import { isMandatory, requiredSlots, slotLabel, currentFilesBySlot, fileProgress } from '../../utils/documentRules.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
@@ -251,14 +252,16 @@ export default function TACandidateDetailPage() {
   };
   useEffect(reloadDocs, [candidateId]);
 
-  const viewDoc = async (d) => {
+  // `file` picks one part of a multi-file document (e.g. Aadhaar back side).
+  const viewDoc = async (d, file = null, part = '') => {
     const files = d.document_files || [];
-    const current = files.find((f) => f.is_current) || files[files.length - 1];
+    const current = file || files.find((f) => f.is_current) || files[files.length - 1];
     if (!current) return;
-    setPreview({ url: null, fileName: current.file_name, title: d.document_requirements?.name });
+    const title = part ? `${d.document_requirements?.name} — ${part}` : d.document_requirements?.name;
+    setPreview({ url: null, fileName: current.file_name, title });
     try {
       const url = await documentFileUrl(current.storage_path);
-      setPreview({ url, fileName: current.file_name, title: d.document_requirements?.name });
+      setPreview({ url, fileName: current.file_name, title });
     } catch (e) {
       setPreview(null);
       toast.error(e.message || 'Could not open this document.');
@@ -743,9 +746,11 @@ export default function TACandidateDetailPage() {
           {activeStep === 3 && (
             <Card
               title="Step 3 · Documents"
-              action={docs.length > 0 && <Tag tone={docs.every((d) => ['verified', 'cannot_provide'].includes(d.status)) ? 'green' : 'amber'}>
-                {docs.filter((d) => ['verified', 'cannot_provide'].includes(d.status)).length} of {docs.length} done
-              </Tag>}
+              action={docs.length > 0 && (() => {
+                const mand = docs.filter((d) => isMandatory(d.document_requirements));
+                const done = mand.filter((d) => d.status === 'verified').length;
+                return <Tag tone={done === mand.length ? 'green' : 'amber'}>{done} of {mand.length} mandatory verified</Tag>;
+              })()}
             >
               {app.status === APP_STATUS.DOC_VERIFICATION && (
                 <p className="ta-note ta-note--info" style={{ marginBottom: 12 }}>
@@ -761,17 +766,37 @@ export default function TACandidateDetailPage() {
                     Open each upload to check it. Approve to pass it on to HR for final sign-off, or send it back to
                     the candidate for re-upload with a reason.
                   </p>
+                  <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
+                    Verification completes once every <strong>mandatory</strong> document is verified — optional ones never block it.
+                  </p>
                   <div className="ta-stack" style={{ gap: 6 }}>
-                    {docs.map((d) => {
+                    {[...docs].sort((a, b) => (isMandatory(b.document_requirements) ? 1 : 0) - (isMandatory(a.document_requirements) ? 1 : 0)).map((d) => {
+                      const req = d.document_requirements || {};
                       const meta = DOC_STATUS_META[d.status] || { label: d.status, tone: 'grey' };
-                      const hasFile = (d.document_files || []).length > 0;
+                      const slots = requiredSlots(req);
+                      const bySlot = currentFilesBySlot(req, d.document_files || []);
+                      const progress = fileProgress(req, d.document_files || []);
+                      const hasFile = (d.document_files || []).some((f) => f.is_current);
                       const awaitingReview = d.status === 'uploaded'; // 'under_verification' means the TA already passed it on to HR
                       const busy = docActionBusy === d.id;
                       return (
                         <div key={d.id} className="ta-docrow" style={{ flexWrap: 'wrap' }}>
                           <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
                           <div className="grow" style={{ minWidth: 0 }}>
-                            <div className="ta-cell-strong">{d.document_requirements?.name}</div>
+                            <div className="ta-cell-strong" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                              {req.name}
+                              <Tag tone={isMandatory(req) ? 'red' : 'grey'}>{isMandatory(req) ? 'Mandatory' : 'Optional'}</Tag>
+                            </div>
+                            {slots.length > 0 && (
+                              <div className="ta-cell-sub" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                                {progress.done} of {progress.total} files uploaded
+                                {slots.map((s) => bySlot[s] && (
+                                  <button key={s} type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => viewDoc(d, bySlot[s], slotLabel(req, s))}>
+                                    <Icon name="Eye" size={12} /> {slotLabel(req, s)}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
                             {d.status === 'cannot_provide' && d.cannot_provide_reason && (
                               <div className="ta-cell-sub">Reason: {d.cannot_provide_reason}</div>
                             )}
@@ -781,7 +806,7 @@ export default function TACandidateDetailPage() {
                           </div>
                           <Tag tone={meta.tone}>{meta.label}</Tag>
                           <span style={{ display: 'flex', gap: 6 }}>
-                            {hasFile && (
+                            {hasFile && slots.length === 0 && (
                               <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => viewDoc(d)}>
                                 <Icon name="Eye" size={13} /> View
                               </button>

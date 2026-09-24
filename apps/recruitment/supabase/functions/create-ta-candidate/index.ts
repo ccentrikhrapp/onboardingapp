@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
   const totalExp = String(body.professional?.totalExperience ?? "").trim();
   if (totalExp === "") fields.experience = "Total experience is required.";
   else if (Number(totalExp) > 0 && !String(body.professional?.noticePeriod ?? "").trim()) fields.noticePeriod = "Notice period is required.";
-  if (!body.resumePath) fields.resume = "A resume is required.";
+  if (!body.resumePath && !body.skipResume) fields.resume = "A resume is required.";
   if (Object.keys(fields).length) return fail("VALIDATION_ERROR", "Please complete the required fields.", 422, fields);
 
   const email = String(personal.email).trim().toLowerCase();
@@ -187,7 +187,12 @@ Deno.serve(async (req) => {
     personal: { ...personal, email },
     professional: body.professional ?? {},
     education: body.education ?? [],
-    additional: { ...(body.additional ?? {}), candidateSource: body.candidateSource ?? "TA Sourced", createdByTa: profile.full_name ?? "Talent Acquisition" },
+    additional: {
+      ...(body.additional ?? {}),
+      candidateSource: body.candidateSource ?? "TA Sourced",
+      createdByTa: profile.full_name ?? "Talent Acquisition",
+      ...(body.createdVia ? { createdVia: body.createdVia } : {}),
+    },
     resume_path: resumePath,
     resume_meta: body.resumeMeta ?? null,
   };

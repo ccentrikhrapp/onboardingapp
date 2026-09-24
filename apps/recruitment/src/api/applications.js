@@ -91,10 +91,12 @@ export function getApplicationEvents(id, client = supabase) {
     400. Fetching everything and filtering in JS avoids that class of bug
     entirely, and the row count here is small enough that it's not a real
     cost. */
-export async function listApplications({ status, search } = {}) {
+export async function listApplications({ status, search, dateFrom, dateTo } = {}) {
   let q = supabase.from('applications').select(LIST_COLUMNS);
   if (status) q = q.eq('status', status);
   if (search) q = q.or(`application_code.ilike.%${search}%`);
+  if (dateFrom) q = q.gte('created_at', dateFrom);
+  if (dateTo) q = q.lt('created_at', dateTo);
   const rows = await q.order('submitted_at', { ascending: false, nullsFirst: false }).then(unwrap);
   const visible = rows.filter((r) => r.status !== 'DRAFT' || r.source === 'ta_sourced');
   return enrichAssignedToNames(visible);
@@ -134,6 +136,13 @@ export function assignApplications(applicationIds, taId) {
     picks how to proceed. */
 export function createTaCandidate(payload) {
   return callFn('create-ta-candidate', { body: payload });
+}
+
+/** TA: every existing candidate's identity fields, for client-side duplicate
+    detection (by name/phone/email, not email alone) before a CSV bulk
+    upload creates new candidates. */
+export function listCandidateIdentities() {
+  return supabase.from('candidates').select('id, first_name, last_name, email, phone, candidate_code').then(unwrap);
 }
 
 /** TA: re-send the verification link for a TA-sourced candidate who hasn't
