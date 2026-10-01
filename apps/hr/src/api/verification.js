@@ -4,7 +4,7 @@ import { unwrap, callFn } from './client.js';
 const COLUMNS =
   'id, source_application_id, source_document_id, candidate_name, candidate_email, ' +
   'job_title, application_code, requirement_name, requirement_key, version, status, ' +
-  'hr_remarks, reviewed_by, reviewed_at, created_at, updated_at';
+  'hr_remarks, reviewed_by, reviewed_at, created_at, updated_at, kind, reason, requirement_class';
 
 /** The verification queue — every pre-offer document HR can act on. */
 export function listVerifications() {
@@ -34,4 +34,10 @@ export function getVerificationHistory(documentVerificationId) {
     .eq('document_verification_id', documentVerificationId)
     .order('created_at', { ascending: true })
     .then(unwrap);
+}
+
+/** What applies to this candidate and how far along it is (employment type, previous employers, counts) — pushed from recruitment. */
+export async function getVerificationSummary(sourceApplicationId) {
+  const rows = await supabase.from('verification_summaries').select('*').eq('source_application_id', sourceApplicationId).limit(1).then(unwrap);
+  return rows?.[0] || null;
 }

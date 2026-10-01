@@ -1,16 +1,21 @@
 // POST /functions/v1/team-manage
 // Auth + rules (enforced here, not just hidden in the UI):
-//   Super Admin (admin)          set_role, set_active, set_department on any team member
+//   Super Admin (admin)          set_role, set_active, set_department, update_details (name / email / phone /
+//                                department / role in one validated call) on any team member
 //   Talent Acquisition Head      set_active on Talent Acquisition users only
 //   Talent Acquisition           no access
 // Nobody can act on their own account, and the last active Super Admin can
 // never be demoted or disabled.
-// Body: { profileId, action: 'set_role' | 'set_active' | 'set_department', value }
+// Body: { profileId, action: 'set_role' | 'set_active' | 'set_department' | 'delete' | 'update_details', value }
+//   update_details value: { fullName, email, phone?, department?, role? }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 
 const TEAM_ROLES = ["admin", "admin_ta", "ta"];
+const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const nameRe = /^[\p{L}][\p{L} .'-]*$/u;
+const likeEsc = (v: string) => v.replace(/[\\%_]/g, (c) => "\\" + c);
 const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", admin_ta: "Talent Acquisition Head", ta: "Talent Acquisition" };
 
 Deno.serve(async (req) => {
@@ -24,8 +29,9 @@ Deno.serve(async (req) => {
   let body: Record<string, any>;
   try { body = await req.json(); } catch { return fail("INVALID_JSON", "Malformed body.", 400); }
   const { profileId, action, value } = body;
-  if (!profileId || !["set_role", "set_active", "set_department", "delete"].includes(action)) return fail("VALIDATION_ERROR", "Invalid request.", 422);
-  if (profileId === me.id) return fail("FORBIDDEN", "You can't change your own account.", 403);
+  if (!profileId || !["set_role", "set_active", "set_department", "delete", "update_details"].includes(action)) return fail("VALIDATION_ERROR", "Invalid request.", 422);
+  // Everything except correcting your own name/phone/department is off-limits on your own account.
+  if (profileId === me.id && action !== "update_details") return fail("FORBIDDEN", "You can't change your own account.", 403);
 
   const svc = serviceClient();
   const { data: target } = await svc.from("profiles").select("id, email, full_name, role, active").eq("id", profileId).maybeSingle();
@@ -40,6 +46,80 @@ Deno.serve(async (req) => {
     const { count } = await svc.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin").eq("active", true).neq("id", target.id);
     return count ?? 0;
   };
+
+  if (action === "update_details") {
+    const v = (value ?? {}) as Record<string, any>;
+    const fields: Record<string, string> = {};
+    const fullName = String(v.fullName ?? "").trim();
+    if (!fullName) fields.fullName = "Enter a name.";
+    else if (fullName.length > 100 || !nameRe.test(fullName)) fields.fullName = "Enter a valid name.";
+    const email = String(v.email ?? "").trim().toLowerCase();
+    if (!email) fields.email = "Enter an email address.";
+    else if (!emailRe.test(email)) fields.email = "Enter a valid email address.";
+    const phone = String(v.phone ?? "").trim();
+    if (phone) {
+      const digits = phone.replace(/\D/g, "").length;
+      if (!/^\+?[0-9 ()-]+$/.test(phone) || digits < 7 || digits > 15) fields.phone = "Enter a valid phone number.";
+    }
+    const department = String(v.department ?? "").trim();
+    if (department.length > 100) fields.department = "That department name is too long.";
+    const newRole = v.role === undefined || v.role === "" ? target.role : v.role;
+    if (!TEAM_ROLES.includes(newRole)) fields.role = "Choose a valid role.";
+    if (Object.keys(fields).length) return fail("VALIDATION_ERROR", "Please fix the highlighted fields.", 422, fields);
+
+    const oldEmail = target.email.toLowerCase();
+    const emailChanged = email !== oldEmail;
+    const roleChanged = newRole !== target.role;
+    if (emailChanged && target.id === me.id) return fail("FORBIDDEN", "You can't change your own email address.", 403, { email: "You can't change your own email address." });
+    if (roleChanged && target.id === me.id) return fail("FORBIDDEN", "You can't change your own role.", 403, { role: "You can't change your own role." });
+    if (roleChanged && target.role === "admin" && (await otherActiveAdmins()) === 0) {
+      return fail("LAST_SUPER_ADMIN", "There must always be at least one active Super Admin.", 409, { role: "There must always be at least one active Super Admin." });
+    }
+
+    if (emailChanged) {
+      const taken = "Another account already uses this email address.";
+      const { data: sameProfile } = await svc.from("profiles").select("id").ilike("email", likeEsc(email)).neq("id", target.id).limit(1);
+      if (sameProfile?.length) return fail("EMAIL_TAKEN", taken, 409, { email: taken });
+      const { data: blocked } = await svc.from("blocked_emails").select("email").eq("email", email).maybeSingle();
+      if (blocked) return fail("EMAIL_BLOCKED", "This address belongs to a removed member and is blocked.", 409, { email: "This address belongs to a removed member and is blocked." });
+      const { data: otherInvite } = await svc.from("staff_invites").select("email").ilike("email", likeEsc(email)).limit(1);
+      if (otherInvite?.length) return fail("EMAIL_TAKEN", "This address already has a pending invitation.", 409, { email: "This address already has a pending invitation." });
+    }
+
+    // The sign-in account first (the step that can refuse); the profile follows the same id.
+    const { data: authUser } = await svc.auth.admin.getUserById(target.id);
+    const authPatch: Record<string, unknown> = { user_metadata: { ...(authUser?.user?.user_metadata ?? {}), full_name: fullName } };
+    if (emailChanged) { authPatch.email = email; authPatch.email_confirm = true; }
+    const { error: authErr } = await svc.auth.admin.updateUserById(target.id, authPatch);
+    if (authErr) {
+      const dup = /already|registered|exists|duplicate/i.test(authErr.message ?? "");
+      return dup
+        ? fail("EMAIL_TAKEN", "Another account already uses this email address.", 409, { email: "Another account already uses this email address." })
+        : fail("UPDATE_FAILED", "Could not update this account. Please try again.", 500);
+    }
+
+    const { error: profErr } = await svc.from("profiles").update({
+      full_name: fullName, email, phone: phone || null, department: department || null, role: newRole,
+    }).eq("id", target.id);
+    if (profErr) {
+      if (emailChanged) await svc.auth.admin.updateUserById(target.id, { email: oldEmail, email_confirm: true });
+      return fail("UPDATE_FAILED", "Could not update this member. Please try again.", 500);
+    }
+
+    // The sign-in allow-list and invitation status are keyed by email — keep them attached to the same person.
+    const oldLike = likeEsc(oldEmail);
+    await svc.from("staff_invites").update({ ...(emailChanged ? { email } : {}), full_name: fullName, ...(roleChanged ? { role: newRole } : {}) }).ilike("email", oldLike);
+    if (emailChanged) await svc.from("staff_invitation_tokens").update({ email }).ilike("email", oldLike);
+
+    await audit(svc, {
+      actor_profile_id: me.id, actor_label: me.full_name ?? me.email, action: "team.update_details",
+      entity_type: "profile", entity_id: target.id,
+      previous_state: { name: target.full_name, email: target.email, role: target.role },
+      new_state: { name: fullName, email, role: newRole, phone: phone || null, department: department || null, app: "recruitment" },
+      remarks: [emailChanged && "email changed", target.full_name !== fullName && "name changed", roleChanged && "role changed"].filter(Boolean).join(", ") || "details updated",
+    });
+    return ok({ id: target.id, fullName, email, phone: phone || null, department: department || null, role: newRole });
+  }
 
   if (action === "delete") {
     // Permanent removal — Super Admin only (a TA Head was already stopped above).

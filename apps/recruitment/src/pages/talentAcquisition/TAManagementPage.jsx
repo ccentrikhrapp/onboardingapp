@@ -9,7 +9,7 @@ import { Modal } from '../../components/common/Modal.jsx';
 import CommonButton from '../../components/common/Button.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { taWorkloadCounts } from '../../api/staff.js';
-import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember } from '../../api/team.js';
+import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember, updateMemberDetails } from '../../api/team.js';
 import { emailError, nameError } from '../../utils/validation.js';
 import { formatDate } from '../../utils/format.js';
 
@@ -54,6 +54,10 @@ export default function TAManagementPage() {
   const [form, setForm] = useState({ fullName: '', email: '', phone: '', role: 'ta' });
   const [formErrors, setFormErrors] = useState({});
   const [busyId, setBusyId] = useState(null);
+  const [editing, setEditing] = useState(null); // member being edited
+  const [editForm, setEditForm] = useState({ fullName: '', email: '', phone: '', department: '', role: 'ta' });
+  const [editErrors, setEditErrors] = useState({});
+  const [saving, setSaving] = useState(false);
 
   const actorRole = team?.actorRole;
   const inviteRoles = actorRole === 'admin'
@@ -97,6 +101,41 @@ export default function TAManagementPage() {
       toast.error(err.message || 'Could not send the invitation.');
     } finally {
       setInviting(false);
+    }
+  };
+
+  const openEdit = (m) => {
+    setEditing(m);
+    setEditForm({ fullName: m.fullName || '', email: m.email || '', phone: m.phone || '', department: m.department || '', role: m.role });
+    setEditErrors({});
+  };
+
+  const saveEdit = async () => {
+    const e = {};
+    const n = nameError(editForm.fullName, { required: true, label: 'full name' });
+    if (n) e.fullName = n;
+    const em = emailError(editForm.email, { required: true });
+    if (em) e.email = em;
+    const ph = phoneProblem(editForm.phone);
+    if (ph) e.phone = ph;
+    setEditErrors(e);
+    if (Object.keys(e).length) return;
+
+    setSaving(true);
+    try {
+      await updateMemberDetails(editing.id, {
+        fullName: editForm.fullName.trim(), email: editForm.email.trim(),
+        phone: editForm.phone.trim(), department: editForm.department.trim(), role: editForm.role,
+      });
+      toast.success(`${editForm.fullName.trim()}'s details were updated.`);
+      setEditing(null);
+      load();
+    } catch (err) {
+      // The server re-validates everything (e.g. an email another account already uses) and names the field.
+      if (err.fields && Object.keys(err.fields).length) setEditErrors(err.fields);
+      toast.error(err.message || 'Could not save these changes.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -191,6 +230,11 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
             <td className="ta-cell-mute">{m.role === 'ta' ? (workload[m.id] || 0) : '—'}</td>
             <td>
               <span className="ta-rowactions">
+                {actorRole === 'admin' && (
+                  <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => openEdit(m)} aria-label={`Edit ${m.fullName || m.email}`} title="Edit details">
+                    <Icon name="Pencil" size={16} />
+                  </button>
+                )}
                 {canManageRow(m) && (m.invitationStatus === 'pending' || m.invitationStatus === 'expired') && (
                   <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => resend(m)} aria-label="Resend invitation" title="Resend invitation">
                     <Icon name="Send" size={16} />
@@ -228,6 +272,50 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
           </tr>
         )}
       />
+
+      <Modal
+        open={!!editing}
+        onClose={() => !saving && setEditing(null)}
+        title="Edit Details"
+        footer={
+          <>
+            <CommonButton variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</CommonButton>
+            <CommonButton onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</CommonButton>
+          </>
+        }
+      >
+        {editing && (
+          <>
+            <FieldGrid>
+              <Field label="Full name" required full error={editErrors.fullName}>
+                <Input value={editForm.fullName} error={editErrors.fullName} onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))} />
+              </Field>
+              <Field
+                label="Email (login)" required full error={editErrors.email}
+                hint={editing.id === team?.actorId ? "You can't change your own email." : 'Same account and history — only the address changes.'}
+              >
+                <Input type="email" value={editForm.email} error={editErrors.email} disabled={editing.id === team?.actorId} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
+              </Field>
+              <Field label="Phone" error={editErrors.phone}>
+                <Input type="tel" value={editForm.phone} error={editErrors.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+              </Field>
+              <Field label="Department" error={editErrors.department}>
+                <Input value={editForm.department} error={editErrors.department} onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))} />
+              </Field>
+              <Field label="Role" full error={editErrors.role}>
+                <Select
+                  value={editForm.role} disabled={editing.id === team?.actorId}
+                  options={Object.entries(ROLE_LABEL).map(([value, label]) => ({ value, label }))}
+                  onChange={(e) => setEditForm((f) => ({ ...f, role: e.target.value }))}
+                />
+              </Field>
+            </FieldGrid>
+            <p className="ta-cell-sub" style={{ marginTop: 4 }}>
+              Their assignments, applications and history stay attached to the same person. If the new email is a different Google account, they will need to reconnect Google in Settings to send email from it.
+            </p>
+          </>
+        )}
+      </Modal>
 
       <Modal
         open={inviteOpen}

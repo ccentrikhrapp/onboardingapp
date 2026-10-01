@@ -66,6 +66,9 @@ Deno.serve(async (req) => {
           application_code: body.applicationCode ?? null,
           requirement_key: body.requirement?.key ?? null,
           requirement_name: body.requirement?.name ?? null,
+          requirement_class: body.requirement?.requirementClass ?? null,
+          kind: ["document", "reason", "na"].includes(body.kind) ? body.kind : "document",
+          reason: body.reason ?? null,
           version: body.version ?? 1,
           status: "pending",
           hr_remarks: null,
@@ -88,7 +91,9 @@ Deno.serve(async (req) => {
     await svc.from("notifications").insert({
       recipient_role: "hr",
       title: "New document to verify",
-      message: `${body.candidate?.name ?? "A candidate"} submitted "${body.requirement?.name}" for ${body.job?.title ?? "a role"}.`,
+      message: body.kind === "reason" || body.kind === "na"
+        ? `${body.candidate?.name ?? "A candidate"} gave a reason for "${body.requirement?.name}" (${body.job?.title ?? "a role"}) — please review it.`
+        : `${body.candidate?.name ?? "A candidate"} submitted "${body.requirement?.name}" for ${body.job?.title ?? "a role"}.`,
       type: "document_submitted",
       entity_type: "document_verification",
       entity_id: verification.id,

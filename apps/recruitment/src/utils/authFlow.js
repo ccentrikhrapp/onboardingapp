@@ -2,7 +2,7 @@
 // (or the main screen) while a Google sign-in is still being completed.
 // TA-only (used by TALoginPage/RootGate) — checks the TA session's own storage
 // key (see lib/supabase.js); the candidate session is intentionally separate.
-import { TA_STORAGE_KEY } from '../lib/supabase.js';
+import { TA_STORAGE_KEY, CANDIDATE_STORAGE_KEY } from '../lib/supabase.js';
 
 /** True while the browser is returning from Google with a session/code/error in the URL. */
 export function isAuthReturn() {
@@ -21,6 +21,21 @@ export function hasStoredSession() {
     return false;
   }
 }
+
+/** Same as hasStoredSession, for the separate candidate session (see lib/supabase.js). */
+export function hasStoredCandidateSession() {
+  try {
+    return localStorage.getItem(CANDIDATE_STORAGE_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+// Survives the full-page reload a Google redirect causes — set right before
+// a candidate signs up/in with Google from the post-submit offer, so the
+// application they just submitted anonymously can be reattached to their
+// now-real account once they land back (see claim-application, MyApplicationPage).
+export const CLAIM_APPLICATION_KEY = 'ccx-claim-application';
 
 export const SIGN_IN_FAILED = "We couldn't complete your sign-in. Please try again.";
 export const NOT_AUTHORIZED = 'This Google account is not authorized for this workspace. Please use the email address you were invited with, or contact your administrator.';

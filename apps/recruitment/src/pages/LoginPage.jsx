@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import Icon from '../components/common/Icon.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
@@ -7,6 +7,7 @@ import { ROLE_META } from '../constants/roles.js';
 import AuthHeroLayout from '../components/auth/AuthHeroLayout.jsx';
 import { useGoogleSignIn } from '../components/auth/useGoogleSignIn.js';
 import { emailError } from '../utils/validation.js';
+import { isAuthReturn, hasStoredCandidateSession, returnErrorMessage, cleanAuthUrl } from '../utils/authFlow.js';
 
 function homeForRole(role) {
   return ROLE_META[role]?.home || '/candidate';
@@ -25,10 +26,11 @@ const JOURNEY = [
    Acquisition has its own separate page at /ta/login (different look, own copy) —
    the two are deliberately not the same screen.
 
-   Candidates are meant to be Google-only long-term, but Google OAuth isn't
-   wired up in this Supabase project yet, so a password form is included here
-   too (same as TALoginPage) purely so a manually-created test user can sign
-   in during setup. Remove this once Google sign-in is configured. */
+   Candidates are meant to be Google-only — the single "Continue with Google"
+   button below signs up a new candidate or signs in an existing one
+   transparently (Supabase resolves that by the verified email; see
+   CandidateAuthContext#signInWithGoogle). A password form is kept alongside
+   it (same as TALoginPage) only for a manually-created test account. */
 export default function LoginPage() {
   // Two separate identities are relevant on this one screen: if a TA/HR
   // account is ALREADY signed in on this device (their own, separate session —
@@ -37,14 +39,24 @@ export default function LoginPage() {
   // (Google sign-in, the password form) acts on the candidate session only,
   // and never assumes an existing TA session means this person is a candidate.
   const { role, loading: staffLoading } = useAuth();
-  const { configured, loading: authLoading, signInWithPassword } = useCandidateAuth();
+  const { configured, loading: authLoading, user, signInWithPassword } = useCandidateAuth();
   const { error: googleError, signing, trigger } = useGoogleSignIn('/candidate/login', useCandidateAuth);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
-  const [formError, setFormError] = useState('');
+  const [formError, setFormError] = useState(() => {
+    // Supabase sends the browser back with an error in the URL when the
+    // Google round-trip itself failed (declined, or a real auth error) —
+    // shown in plain language instead of silently doing nothing.
+    try { return returnErrorMessage(); } catch { return ''; }
+  });
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (authLoading) return;
+    cleanAuthUrl();
+  }, [authLoading]);
 
   // Already signed in — send them straight to their own portal instead of
   // trapping them on a dead-end "wrong account type" screen. The generic
@@ -54,6 +66,26 @@ export default function LoginPage() {
   // knows exactly where every role belongs.
   if (configured && !staffLoading && role) {
     return <Navigate to={homeForRole(role)} replace />;
+  }
+  // A candidate who just finished a real (non-anonymous) Google sign-in/up
+  // lands back here (this page's own landingPath) — without this, they'd
+  // just sit on the login form forever with no visible next step, since
+  // nothing else on this page reacts to a completed candidate sign-in.
+  if (configured && !authLoading && user && !user.is_anonymous) {
+    return <Navigate to="/candidate/application" replace />;
+  }
+  // Coming back from Google (or restoring a saved session): show one calm
+  // "signing you in" screen — never a flash of the login form, which is
+  // exactly what used to look like the sign-in silently failing.
+  if (configured && authLoading && (isAuthReturn() || hasStoredCandidateSession())) {
+    return (
+      <div className="wsauth" style={{ display: 'grid', placeItems: 'center', minHeight: '100vh', boxSizing: 'border-box' }}>
+        <div style={{ textAlign: 'center' }}>
+          <span className="wsauth__spinner" style={{ display: 'inline-block' }} />
+          <p className="wsauth__lede" style={{ marginTop: 12 }}>Signing you in…</p>
+        </div>
+      </div>
+    );
   }
 
   const submitPassword = async (e) => {
@@ -87,15 +119,23 @@ export default function LoginPage() {
       subtitle="Apply in minutes and track every step, from application to offer."
       journey={JOURNEY}
       tags="Careers at Ccentrik"
-      panelTitle="Welcome to Ccentrik Careers"
-      panelLede="Sign in with Google to apply for a role or pick up an application you've already started."
+      panelTitle="Join Ccentrik Careers"
+      panelLede="Sign up with Google to apply for a role and track every step — or sign in if you already have an account."
       error={googleError}
       notConfigured={!configured}
       configured={configured}
       signing={signing}
       authLoading={authLoading}
       onGoogleClick={trigger}
-      footer="New here? Signing in with Google creates your candidate account automatically — no separate sign-up needed."
+      googleFirst
+      googleLabel="Sign up with Google"
+      signingLabel="Opening Google…"
+      crossLink={(
+        <button type="button" className="wsauth__google" style={{ marginTop: 10 }} onClick={trigger} disabled={!configured || signing || authLoading}>
+          Already have an account? Sign in with Google
+        </button>
+      )}
+      footer="New here? Sign up with Google and your candidate account is created automatically. Returning candidates are signed in to the account they already have."
     >
       <form onSubmit={submitPassword} noValidate>
         {formError && (

@@ -31,7 +31,7 @@ export function Modal({ open, onClose, title, children, footer, size }) {
   );
 }
 
-export function Drawer({ open, onClose, title, children, footer }) {
+export function Drawer({ open, onClose, title, children, footer, wide }) {
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e) => e.key === 'Escape' && onClose?.();
@@ -42,7 +42,7 @@ export function Drawer({ open, onClose, title, children, footer }) {
   if (!open) return null;
   return (
     <div className="overlay overlay--right" onMouseDown={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className="drawer" role="dialog" aria-modal="true" aria-label={title}>
+      <div className={`drawer${wide ? ' drawer--wide' : ''}`} role="dialog" aria-modal="true" aria-label={title}>
         <div className="drawer__header">
           <h3 className="drawer__title">{title}</h3>
           <button className="icon-btn" onClick={onClose} aria-label="Close">

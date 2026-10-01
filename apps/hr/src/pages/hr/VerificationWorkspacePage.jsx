@@ -7,7 +7,7 @@ import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listVerificationsForApplication, getVerificationDocumentUrl } from '../../api/verification.js';
+import { listVerificationsForApplication, getVerificationDocumentUrl, getVerificationSummary } from '../../api/verification.js';
 import { verifyDocument } from '../../api/verify.js';
 
 const STATUS_META = {
@@ -45,6 +45,7 @@ export default function VerificationWorkspacePage() {
   const [error, setError] = useState('');
   const [reasonFor, setReasonFor] = useState(null); // { docId, action }
   const [busy, setBusy] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
 
   const load = () => {
@@ -53,6 +54,7 @@ export default function VerificationWorkspacePage() {
       .catch((e) => setError(e.message || 'Could not load these documents.'));
   };
   useEffect(load, [applicationId]);
+  useEffect(() => { getVerificationSummary(applicationId).then(setSummary).catch(() => setSummary(null)); }, [applicationId, docs]);
 
   const act = async (doc, action, remarks) => {
     setBusy(doc.id);
@@ -98,6 +100,23 @@ export default function VerificationWorkspacePage() {
       {error && <Card><p className="text-secondary">{error}</p></Card>}
       {docs === null && !error && <div className="hr-loading">Loading…</div>}
 
+      {summary && (
+        <Card title="Documentation summary">
+          <p className="hr-cell-sub" style={{ marginBottom: 8 }}>
+            Employee: <strong>{first?.candidate_name}</strong> · Employment type: <strong>{summary.employment_type === 'fresher' ? 'Fresher' : summary.employment_type === 'experienced' ? 'Experienced' : '—'}</strong> · Previous employers: <strong>{summary.previous_employers ?? 0}</strong>
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+            {[['Applicable requirements', summary.summary.applicable], ['Approved', summary.summary.approved], ['Approved with reason', summary.summary.approvedWithReason], ['Pending review', (summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0)], ['Not applicable', summary.summary.notApplicable], ['Rejected', summary.summary.rejected], ['Clarification required', summary.summary.clarification]].map(([l, n]) => (
+              <div key={l} style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 10, padding: '8px 10px' }}><div style={{ fontSize: 20, fontWeight: 700 }}>{n ?? 0}</div><div className="hr-cell-sub">{l}</div></div>
+            ))}
+          </div>
+          <p className="hr-cell-sub" style={{ marginTop: 8 }}>
+            {summary.summary.identityResolved ? <strong>Identity Proof – Satisfied. </strong> : null}
+            {summary.summary.ready ? 'Every applicable requirement is resolved.' : `Still to resolve: ${(summary.summary.unresolved || []).join(', ')}.`}
+          </p>
+        </Card>
+      )}
+
       {docs !== null && (
         <Card
           title="Pre-offer documents"
@@ -112,7 +131,8 @@ export default function VerificationWorkspacePage() {
                   <span className="hr-docrow__icon"><Icon name="FileText" size={16} /></span>
                   <div className="grow">
                     <div className="hr-cell-strong">{doc.requirement_name}</div>
-                    <div className="hr-cell-sub">Version {doc.version}</div>
+                    <div className="hr-cell-sub">{doc.kind === 'document' ? `Version ${doc.version}` : doc.kind === 'na' ? 'Candidate says: not applicable' : 'Candidate cannot provide this'}</div>
+                    {doc.kind !== 'document' && doc.reason && <div className="hr-cell-sub"><strong>Reason:</strong> {doc.reason}</div>}
                     {doc.hr_remarks && doc.status !== 'approved' && (
                       <div className="hr-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Your note: {doc.hr_remarks}</div>
                     )}
@@ -127,10 +147,10 @@ export default function VerificationWorkspacePage() {
                   <Tag tone={meta.tone}>{meta.label}</Tag>
                   {reasonFor?.docId !== doc.id && (
                     <span className="hr-rowactions" style={{ opacity: 1 }}>
-                      <Button variant="ghost" icon="Eye" onClick={() => viewDoc(doc)}>View</Button>
+                      {doc.kind === 'document' && <Button variant="ghost" icon="Eye" onClick={() => viewDoc(doc)}>View</Button>}
                       {canAct && (
                         <>
-                          <Button variant="ghost" icon="Check" disabled={busy === doc.id} onClick={() => act(doc, 'approve')}>Approve</Button>
+                          <Button variant="ghost" icon="Check" disabled={busy === doc.id} onClick={() => act(doc, 'approve')}>{doc.kind === 'document' ? 'Approve' : 'Approve reason'}</Button>
                           <Button variant="ghost" icon="RotateCcw" disabled={busy === doc.id} onClick={() => setReasonFor({ docId: doc.id, action: 'reupload_required' })}>
                             Request correction
                           </Button>

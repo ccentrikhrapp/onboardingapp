@@ -50,10 +50,16 @@ export default function CandidateHeader() {
               afterSignOut="/candidate"
             />
           ) : (
-            <button type="button" className="cx-header__signin" onClick={trigger} disabled={!configured || signing}>
-              {signing ? <span className="cx-header__signin-spinner" /> : <GoogleG />}
-              <span>{signing ? 'Signing in…' : 'Sign in with Google'}</span>
-            </button>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button type="button" className="cx-header__signin" onClick={trigger} disabled={!configured || signing}>
+                {signing ? <span className="cx-header__signin-spinner" /> : <GoogleG />}
+                <span>{signing ? 'Opening Google…' : 'Sign up with Google'}</span>
+              </button>
+              <button type="button" className="cx-header__signin" onClick={trigger} disabled={!configured || signing}>
+                <GoogleG />
+                <span>Sign in with Google</span>
+              </button>
+            </div>
           )}
         </div>
       </div>

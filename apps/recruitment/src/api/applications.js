@@ -30,6 +30,13 @@ export function submitApplication(payload) {
   return callFn('submit-application', { body: payload }, candidateSupabase);
 }
 
+/** Candidate: reattach an application that was submitted anonymously (before
+    signing up/in with Google) to the now-real, signed-in account — see
+    ApplicationSuccessPage's post-submit Google offer. */
+export function claimApplication(applicationId) {
+  return callFn('claim-application', { body: { applicationId } }, candidateSupabase);
+}
+
 /** Candidate: my applications (RLS already limits this to me). No DRAFT
     filter here — the self-apply flow never creates a DB-level draft row (it
     inserts straight to SUBMITTED), so the only DRAFT a candidate will ever

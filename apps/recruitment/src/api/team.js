@@ -15,6 +15,10 @@ export const setMemberRole = (profileId, role) =>
 export const setMemberActive = (profileId, active) =>
   callFn('team-manage', { body: { profileId, action: 'set_active', value: active } });
 
+/** Super Admin: edit a member in place (same account/id — name, email, phone, department, role). */
+export const updateMemberDetails = (profileId, { fullName, email, phone, department, role }) =>
+  callFn('team-manage', { body: { profileId, action: 'update_details', value: { fullName, email, phone, department, role } } });
+
 /** Public (token is the credential): who an invitation link is for. */
 export const inspectInvitation = (token) => callFn('accept-invite', { body: { action: 'inspect', token } });
 

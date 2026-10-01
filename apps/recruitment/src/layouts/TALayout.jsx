@@ -7,7 +7,8 @@ import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
 
 const BOTTOM_NAV = [
   { to: '/ta', label: 'Dashboard', icon: 'Home', end: true },
-  { to: '/ta/candidates', label: 'Candidates', icon: 'Users' },
+  { to: '/ta/pipeline', label: 'Pipeline', icon: 'UsersRound' },
+  { to: '/ta/candidates', label: 'Job Candidates', icon: 'Users' },
   { to: '/ta/jobs', label: 'Jobs', icon: 'Briefcase' },
 ];
 

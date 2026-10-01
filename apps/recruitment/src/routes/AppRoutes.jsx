@@ -23,6 +23,7 @@ import JobDetailsPage from '../pages/candidate/JobDetailsPage.jsx';
 import ApplyPage from '../pages/candidate/ApplyPage.jsx';
 import ApplicationSuccessPage from '../pages/candidate/ApplicationSuccessPage.jsx';
 import MyApplicationPage from '../pages/candidate/MyApplicationPage.jsx';
+import JoiningFormPage from '../pages/candidate/JoiningFormPage.jsx';
 import CandidateProfilePage from '../pages/candidate/CandidateProfilePage.jsx';
 
 import TADashboard from '../pages/talentAcquisition/TADashboard.jsx';
@@ -33,6 +34,9 @@ import TAJobDetailPage from '../pages/talentAcquisition/TAJobDetailPage.jsx';
 import TAManagementPage from '../pages/talentAcquisition/TAManagementPage.jsx';
 import CreateCandidatePage from '../pages/talentAcquisition/CreateCandidatePage.jsx';
 import BulkUploadCandidatesPage from '../pages/talentAcquisition/BulkUploadCandidatesPage.jsx';
+import DocumentRulesPage from '../pages/talentAcquisition/DocumentRulesPage.jsx';
+import PipelineCandidatesPage from '../pages/talentAcquisition/PipelineCandidatesPage.jsx';
+import PipelineBulkUploadPage from '../pages/talentAcquisition/PipelineBulkUploadPage.jsx';
 
 import SettingsPage from '../pages/shared/SettingsPage.jsx';
 import ProfilePage from '../pages/shared/ProfilePage.jsx';
@@ -69,6 +73,7 @@ export default function AppRoutes() {
         <Route path="/candidate/apply" element={<ApplyPage />} />
         <Route path="/candidate/apply/:jobId" element={<ApplyPage />} />
         <Route path="/candidate/application" element={<MyApplicationPage />} />
+        <Route path="/candidate/joining" element={<JoiningFormPage />} />
         <Route path="/candidate/application/success" element={<ApplicationSuccessPage />} />
         <Route path="/candidate/profile" element={<CandidateProfilePage />} />
 
@@ -91,12 +96,15 @@ export default function AppRoutes() {
       >
         <Route path="/ta" element={<TADashboard />} />
         <Route path="/ta/applications" element={<Navigate to="/ta/candidates" replace />} />
+        <Route path="/ta/pipeline" element={<PipelineCandidatesPage />} />
+        <Route path="/ta/pipeline/bulk-upload" element={<PipelineBulkUploadPage />} />
         <Route path="/ta/candidates" element={<TACandidatesPage />} />
         <Route path="/ta/candidates/new" element={<CreateCandidatePage />} />
         <Route path="/ta/candidates/bulk-upload" element={<BulkUploadCandidatesPage />} />
         <Route path="/ta/candidates/:candidateId" element={<TACandidateDetailPage />} />
         <Route path="/ta/jobs" element={<TAJobsPage />} />
         <Route path="/ta/jobs/:jobId" element={<TAJobDetailPage />} />
+        <Route path="/ta/document-rules" element={<RoleRoute allow="admin"><DocumentRulesPage /></RoleRoute>} />
         <Route path="/ta/team" element={<RoleRoute allow="team"><TAManagementPage /></RoleRoute>} />
         <Route path="/ta/settings" element={<SettingsPage />} />
         <Route path="/ta/profile" element={<ProfilePage role="ta" />} />

@@ -104,7 +104,7 @@ Deno.serve(async (req) => {
       },
       { onConflict: "profile_id" },
     )
-    .select("id")
+    .select("id, candidate_code")
     .single();
   if (candErr || !candidate) {
     return fail("DB_ERROR", "Could not save your candidate profile.", 500);
@@ -368,6 +368,8 @@ Deno.serve(async (req) => {
   return ok({
     applicationId: application.id,
     applicationCode: application.application_code,
+    candidateId: candidate.id,
+    candidateCode: candidate.candidate_code,
     status: "SUBMITTED",
   });
 });

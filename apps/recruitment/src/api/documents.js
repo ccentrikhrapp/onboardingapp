@@ -87,3 +87,11 @@ export async function uploadDocumentFile(applicationId, requirement, file) {
 export function submitDocument(payload) {
   return callFn('submit-document', { body: payload }, candidateSupabase);
 }
+
+/** Candidate: the few answers that decide which documents apply (previous employers, other offer, same address, name change). */
+export function setDocumentAnswers(answers) {
+  return callFn('set-document-answers', { body: answers }, candidateSupabase);
+}
+
+/** TA: reviewer action on one requirement. action = approve | reject | reupload_required | mark_na. */
+export const reviewDocument = verifyApplicationDocument;

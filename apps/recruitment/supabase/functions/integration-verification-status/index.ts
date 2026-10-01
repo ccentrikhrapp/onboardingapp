@@ -11,6 +11,7 @@ import { serviceClient } from "../_shared/supabase.ts";
 import { verifyServiceRequest } from "../_shared/serviceAuth.ts";
 import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
+import { pushSummary } from "../_shared/preOffer.ts";
 
 // HR's document_verification_status -> this app's document_status.
 const STATUS_MAP: Record<string, string> = {
@@ -57,17 +58,21 @@ Deno.serve(async (req) => {
   try {
     const { data: doc } = await svc
       .from("application_documents")
-      .select("id, application_id, status, requirement_id, document_requirements(name)")
+      .select("id, application_id, status, requirement_id, cannot_provide_reason, na_reason, document_requirements(name)")
       .eq("id", body.sourceDocumentId)
       .maybeSingle();
     if (!doc) throw new Error("application_documents row not found");
 
+    // HR approving a REASON (no file) resolves the requirement as "approved with reason" (or "not applicable accepted").
+    const { count: fileCount } = await svc.from("document_files").select("id", { count: "exact", head: true }).eq("application_document_id", doc.id).eq("is_current", true);
+    const reasonOnly = !!(doc as any).cannot_provide_reason && (fileCount ?? 0) === 0;
+    const finalStatus = mapped === "verified" && reasonOnly ? ((doc as any).na_reason ? "na_accepted" : "reason_approved") : mapped;
     await svc
       .from("application_documents")
       .update({
-        status: mapped,
+        status: finalStatus,
         hr_remarks: body.remarks ?? null,
-        verified_at: mapped === "verified" ? new Date().toISOString() : null,
+        verified_at: ["verified", "reason_approved", "na_accepted"].includes(finalStatus) ? new Date().toISOString() : null,
       })
       .eq("id", doc.id);
 
@@ -88,13 +93,13 @@ Deno.serve(async (req) => {
     // Complete = every MANDATORY pre-offer document verified — optional ones
     // never block. offer_eligibility() is the one definition of that rule (the
     // same one send-offer checks), so the two can't drift apart.
-    if (mapped === "verified" && app?.status === "DOC_VERIFICATION") {
+    if (["verified", "reason_approved", "na_accepted"].includes(finalStatus) && app?.status === "DOC_VERIFICATION") {
       const { data: eligibility } = await svc.rpc("offer_eligibility", { app_id: doc.application_id });
       if (eligibility === "READY_FOR_OFFER") {
         await svc.from("applications").update({ status: "DOCS_VERIFIED" }).eq("id", doc.application_id);
         await addEvent(svc, {
           application_id: doc.application_id, type: "documents", title: "Document Verification Completed",
-          description: "All mandatory pre-offer documents are verified.", actor_label: "System",
+          description: "Every applicable pre-offer requirement is resolved.", actor_label: "System",
         });
       }
     }
@@ -102,8 +107,8 @@ Deno.serve(async (req) => {
     await addEvent(svc, {
       application_id: doc.application_id,
       type: "documents",
-      title: mapped === "verified" ? "Document Verified" : mapped === "rejected" ? "Document Rejected" : "Document Correction Required",
-      description: `${requirementName}: ${mapped}${body.remarks ? ` — ${body.remarks}` : ""} (HR: ${body.reviewedBy ?? "reviewer"})`,
+      title: mapped === "verified" ? (finalStatus === "verified" ? "Document Verified" : "Document Reason Accepted") : mapped === "rejected" ? "Document Rejected" : "Document Correction Required",
+      description: `${requirementName}: ${finalStatus}${body.remarks ? ` — ${body.remarks}` : ""} (HR: ${body.reviewedBy ?? "reviewer"})`,
       actor_label: body.reviewedBy ?? "HR",
     });
 
@@ -158,6 +163,9 @@ Deno.serve(async (req) => {
         entity_id: doc.id,
       });
     }
+
+    // HR's own decision changes what is resolved — refresh HR's per-candidate summary too.
+    try { await pushSummary(svc, doc.application_id); } catch { /* best effort */ }
 
     await svc
       .from("integration_events")

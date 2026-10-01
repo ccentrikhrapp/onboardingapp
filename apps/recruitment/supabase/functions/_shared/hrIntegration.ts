@@ -66,3 +66,30 @@ export async function callHr(
     return { ok: false, error: "HR call threw" };
   }
 }
+
+// Same service-to-service call as callHr, but the caller needs HR's answer
+// back (e.g. the joining-form profile), so the response body is returned.
+export async function callHrSync(
+  fn: string,
+  payload: Record<string, unknown>,
+): Promise<{ ok: boolean; status: number; json: any }> {
+  const baseUrl = Deno.env.get("HR_FUNCTIONS_URL");
+  const secret = Deno.env.get("INTEGRATION_SHARED_SECRET");
+  if (!baseUrl || !secret) return { ok: false, status: 503, json: { error: { code: "NOT_CONFIGURED", message: "The joining form isn't available right now." } } };
+  const anonKey = Deno.env.get("HR_ANON_KEY");
+  try {
+    const res = await fetch(`${baseUrl.replace(/\/$/, "")}/${fn}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Integration-Secret": secret,
+        ...(anonKey ? { Authorization: `Bearer ${anonKey}`, apikey: anonKey } : {}),
+      },
+      body: JSON.stringify(payload),
+    });
+    const json = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, json };
+  } catch {
+    return { ok: false, status: 502, json: { error: { code: "UNREACHABLE", message: "Could not reach HR. Please try again." } } };
+  }
+}

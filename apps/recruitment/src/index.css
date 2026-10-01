@@ -513,6 +513,7 @@ table.data-table { width: 100%; border-collapse: collapse; font-size: var(--fs-s
 .modal__body, .drawer__body { padding: var(--space-5); overflow-y: auto; }
 .modal__footer, .drawer__footer { padding: var(--space-4) var(--space-5); border-top: 1px solid var(--color-border-light); display: flex; justify-content: flex-end; gap: var(--space-2); }
 .drawer { background: #fff; width: 100%; max-width: 480px; height: 100%; display: flex; flex-direction: column; box-shadow: var(--shadow-lg); animation: slideLeft .18s ease; }
+.drawer--wide { max-width: min(760px, 94vw); }
 
 /* ---------- Toast ---------- */
 .toast-container { position: fixed; top: var(--space-4); right: var(--space-4); z-index: 200; display: flex; flex-direction: column; gap: var(--space-2); max-width: 360px; }
@@ -853,4 +854,21 @@ button.stat-tile { text-align: left; font: inherit; cursor: pointer; }
   /* tame only the looping/decorative motion; keep UI transitions responsive */
   .skeleton { animation: none; }
   .route-view, .tabpanel, .fade-up { animation-duration: 120ms; }
+}
+
+/* Employee Joining Form — step list + layout */
+.jf-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
+.jf-steps { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 2px; background: #fff; border: 1px solid var(--ta-line, #e5e7eb); border-radius: 12px; padding: 6px; max-height: calc(100vh - 100px); overflow-y: auto; }
+.jf-step { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 8px; cursor: pointer; font-size: 12.5px; color: var(--ta-text, #1f2937); }
+.jf-step:hover { background: var(--ta-blue-wash, #f3f6ff); }
+.jf-step.is-active { background: var(--ta-blue-wash, #eaf0ff); font-weight: 600; }
+.jf-step__num { width: 20px; height: 20px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; background: #eef0f3; color: #4b5563; flex-shrink: 0; }
+.jf-step__num.is-done { background: #16a34a; color: #fff; }
+.jf-step__num.is-flag { background: #dc2626; color: #fff; }
+.jf-step__label { flex: 1; min-width: 0; }
+.jf-step__pct { font-size: 11px; color: var(--ta-text-mute, #6b7280); }
+@media (max-width: 900px) {
+  .jf-layout { grid-template-columns: 1fr; }
+  .jf-steps { position: static; flex-direction: row; overflow-x: auto; max-height: none; }
+  .jf-step { width: auto; white-space: nowrap; }
 }

@@ -100,13 +100,14 @@ export default function JobDetailsPage() {
               View my application status
             </button>
           ) : (
-            <button
-              type="button" className="ta-link" disabled={signing}
-              style={{ marginTop: 14, width: '100%', justifyContent: 'center' }}
-              onClick={() => trigger()}
-            >
-              Already applied? {signing ? 'Signing in…' : 'Sign in with Google'}
-            </button>
+            <div style={{ marginTop: 14, display: 'flex', gap: 8 }}>
+              <Button variant="ghost" icon="CircleUserRound" disabled={signing} onClick={() => trigger()} style={{ flex: 1 }}>
+                {signing ? 'Opening Google…' : 'Sign up with Google'}
+              </Button>
+              <Button variant="ghost" icon="CircleUserRound" disabled={signing} onClick={() => trigger()} style={{ flex: 1 }}>
+                Sign in with Google
+              </Button>
+            </div>
           )}
         </Card>
       </div>

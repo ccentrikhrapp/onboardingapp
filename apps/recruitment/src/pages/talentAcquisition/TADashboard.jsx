@@ -17,6 +17,7 @@ import {
 } from '../../constants/statuses.js';
 import { countInWindow, trendPercent, groupCounts, noticePeriodDays } from '../../utils/metrics.js';
 import { timeAgo } from '../../utils/format.js';
+import PipelineReminderPopup from '../../components/ta/PipelineReminderPopup.jsx';
 
 /* Activity entries that come from the candidate's own actions — these are the
    "something changed, take a look" updates the TA shouldn't have to hunt for. */
@@ -221,6 +222,7 @@ export default function TADashboard() {
   return (
     <>
       <TAHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
+      <PipelineReminderPopup />
 
       <div className="ta-kpi-row">
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}

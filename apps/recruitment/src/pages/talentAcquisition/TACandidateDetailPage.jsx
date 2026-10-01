@@ -16,8 +16,9 @@ import { Field, Input } from '../../components/ta/Field.jsx';
 import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi, resendTaCandidateVerification, assignApplications, deleteApplication } from '../../api/applications.js';
 import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation } from '../../api/interviews.js';
 import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offers.js';
-import { listApplicationDocuments, documentFileUrl, verifyApplicationDocument } from '../../api/documents.js';
-import { isMandatory, requiredSlots, slotLabel, currentFilesBySlot, fileProgress } from '../../utils/documentRules.js';
+import { listApplicationDocuments, documentFileUrl } from '../../api/documents.js';
+import { summarizeDocuments } from '../../utils/documentRules.js';
+import TADocumentReview from '../../components/ta/TADocumentReview.jsx';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
@@ -42,18 +43,6 @@ const ROUND_DECISION_LABEL = { advance: 'Advance', further_review: 'Further Revi
 const ROUND_DECISION_TONE = { advance: 'green', further_review: 'amber', not_progressing: 'red' };
 const ATS_RECOMMENDATION_TONE = { 'Strong Match': 'green', 'Good Match': 'blue', 'Partial Match': 'amber', 'Low Match': 'red' };
 const PLATFORM_LABEL = { teams: 'Microsoft Teams', google_meet: 'Google Meet' };
-/* application_documents.status -> label/tone — same mapping the candidate
-   sees on their own checklist, so a TA's read-only view here matches it. */
-const DOC_STATUS_META = {
-  requested: { label: 'Pending upload', tone: 'grey' },
-  uploaded: { label: 'Under verification', tone: 'amber' },
-  under_verification: { label: 'Under verification', tone: 'amber' },
-  verified: { label: 'Verified', tone: 'green' },
-  rejected: { label: 'Rejected', tone: 'red' },
-  revision_required: { label: 'Correction needed', tone: 'red' },
-  cannot_provide: { label: "Can't provide — reason given", tone: 'amber' },
-};
-
 /* Server-computed match between this application and its job (see
    supabase/functions/_shared/ats.ts) — informational for TA, never gates
    the review actions below it. */
@@ -235,8 +224,6 @@ export default function TACandidateDetailPage() {
   const [offerStatus, setOfferStatus] = useState(null);
   const [offer, setOffer] = useState(null);
   const [docs, setDocs] = useState([]);
-  const [docActionBusy, setDocActionBusy] = useState(null); // application_document id currently being verified
-  const [docReasonFor, setDocReasonFor] = useState(null); // the doc a "request re-upload" reason is being written for
   const [acceptingOffer, setAcceptingOffer] = useState(false);
   const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
   const [assignedRole, setAssignedRole] = useState('');
@@ -265,34 +252,6 @@ export default function TACandidateDetailPage() {
     } catch (e) {
       setPreview(null);
       toast.error(e.message || 'Could not open this document.');
-    }
-  };
-
-  const approveDoc = async (d) => {
-    setDocActionBusy(d.id);
-    try {
-      await verifyApplicationDocument(d.id, 'approve');
-      toast.success(`${d.document_requirements?.name} approved — sent to HR for final sign-off.`);
-      reloadDocs();
-    } catch (e) {
-      toast.error(e.message || 'Could not approve this document.');
-    } finally {
-      setDocActionBusy(null);
-    }
-  };
-
-  const submitDocReupload = async (reason) => {
-    const d = docReasonFor;
-    setDocReasonFor(null);
-    setDocActionBusy(d.id);
-    try {
-      await verifyApplicationDocument(d.id, 'reupload_required', reason);
-      toast.success(`${d.document_requirements?.name} sent back to the candidate for re-upload.`);
-      reloadDocs();
-    } catch (e) {
-      toast.error(e.message || 'Could not submit this review.');
-    } finally {
-      setDocActionBusy(null);
     }
   };
 
@@ -747,89 +706,20 @@ export default function TACandidateDetailPage() {
             <Card
               title="Step 3 · Documents"
               action={docs.length > 0 && (() => {
-                const mand = docs.filter((d) => isMandatory(d.document_requirements));
-                const done = mand.filter((d) => d.status === 'verified').length;
-                return <Tag tone={done === mand.length ? 'green' : 'amber'}>{done} of {mand.length} mandatory verified</Tag>;
+                const sm = summarizeDocuments(docs, new Set(docs.map((d) => d.document_requirements?.key)).size);
+                return <Tag tone={sm.ready ? 'green' : 'amber'}>{sm.ready ? 'All applicable requirements resolved' : `${sm.unresolved.length} to resolve`}</Tag>;
               })()}
             >
               {app.status === APP_STATUS.DOC_VERIFICATION && (
                 <p className="ta-note ta-note--info" style={{ marginBottom: 12 }}>
-                  Pre-offer documents requested. Two-step verification: review each upload below and approve it to
-                  send it to HR, who gives the final sign-off — you'll be notified once every document has cleared.
+                  Pre-offer documents requested. Two-step verification: review each requirement below and approve it (or the candidate's reason for not providing it)
+                  to send it to HR for final sign-off. Only what applies to this candidate is listed.
                 </p>
               )}
               {docs.length === 0 ? (
                 <p className="ta-cell-sub">No documents requested yet.</p>
               ) : (
-                <>
-                  <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
-                    Open each upload to check it. Approve to pass it on to HR for final sign-off, or send it back to
-                    the candidate for re-upload with a reason.
-                  </p>
-                  <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
-                    Verification completes once every <strong>mandatory</strong> document is verified — optional ones never block it.
-                  </p>
-                  <div className="ta-stack" style={{ gap: 6 }}>
-                    {[...docs].sort((a, b) => (isMandatory(b.document_requirements) ? 1 : 0) - (isMandatory(a.document_requirements) ? 1 : 0)).map((d) => {
-                      const req = d.document_requirements || {};
-                      const meta = DOC_STATUS_META[d.status] || { label: d.status, tone: 'grey' };
-                      const slots = requiredSlots(req);
-                      const bySlot = currentFilesBySlot(req, d.document_files || []);
-                      const progress = fileProgress(req, d.document_files || []);
-                      const hasFile = (d.document_files || []).some((f) => f.is_current);
-                      const awaitingReview = d.status === 'uploaded'; // 'under_verification' means the TA already passed it on to HR
-                      const busy = docActionBusy === d.id;
-                      return (
-                        <div key={d.id} className="ta-docrow" style={{ flexWrap: 'wrap' }}>
-                          <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
-                          <div className="grow" style={{ minWidth: 0 }}>
-                            <div className="ta-cell-strong" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                              {req.name}
-                              <Tag tone={isMandatory(req) ? 'red' : 'grey'}>{isMandatory(req) ? 'Mandatory' : 'Optional'}</Tag>
-                            </div>
-                            {slots.length > 0 && (
-                              <div className="ta-cell-sub" style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                                {progress.done} of {progress.total} files uploaded
-                                {slots.map((s) => bySlot[s] && (
-                                  <button key={s} type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => viewDoc(d, bySlot[s], slotLabel(req, s))}>
-                                    <Icon name="Eye" size={12} /> {slotLabel(req, s)}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                            {d.status === 'cannot_provide' && d.cannot_provide_reason && (
-                              <div className="ta-cell-sub">Reason: {d.cannot_provide_reason}</div>
-                            )}
-                            {d.status === 'revision_required' && d.hr_remarks && (
-                              <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
-                            )}
-                          </div>
-                          <Tag tone={meta.tone}>{meta.label}</Tag>
-                          <span style={{ display: 'flex', gap: 6 }}>
-                            {hasFile && slots.length === 0 && (
-                              <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => viewDoc(d)}>
-                                <Icon name="Eye" size={13} /> View
-                              </button>
-                            )}
-                            {awaitingReview && (
-                              <>
-                                <button type="button" className="ta-btn ta-btn--sm" disabled={busy} onClick={() => approveDoc(d)}>
-                                  <Icon name="CheckCircle2" size={13} /> Approve
-                                </button>
-                                <button
-                                  type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={busy}
-                                  onClick={() => setDocReasonFor(d)}
-                                >
-                                  <Icon name="RotateCcw" size={13} /> Re-upload
-                                </button>
-                              </>
-                            )}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
+                <TADocumentReview docs={docs} onReload={reloadDocs} onView={viewDoc} />
               )}
             </Card>
           )}
@@ -932,12 +822,6 @@ export default function TACandidateDetailPage() {
         open={modal === 'reject'} onClose={() => setModal(null)}
         title="Close application" label="Reason (internal)" confirmLabel="Close application" tone="danger"
         onSubmit={(reason) => { setModal(null); decide('close', reason, 'Application closed.'); }}
-      />
-      <ReasonModal
-        open={!!docReasonFor} onClose={() => setDocReasonFor(null)}
-        title={`Request re-upload — ${docReasonFor?.document_requirements?.name || 'Document'}`}
-        label="What's wrong with it? The candidate sees this exact text." confirmLabel="Send to candidate" tone="secondary"
-        onSubmit={submitDocReupload}
       />
       <ScheduleInterviewModal
         open={modal === 'schedule'} onClose={() => setModal(null)}

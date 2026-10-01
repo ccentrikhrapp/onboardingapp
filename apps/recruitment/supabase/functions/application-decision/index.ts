@@ -10,6 +10,7 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
+import { syncPreOfferRows } from "../_shared/preOffer.ts";
 
 type Action = "start_review" | "advance" | "close" | "request_update" | "request_documents";
 
@@ -118,23 +119,10 @@ Deno.serve(async (req) => {
     const totalExp = Number(app.professional?.totalExperience ?? 0);
     const candidateType: "fresher" | "experienced" = totalExp > 0 ? "experienced" : "fresher";
 
-    const { data: requirements } = await svc
-      .from("document_requirements")
-      .select("id, applicable_for")
-      .eq("stage", "pre_offer")
-      .eq("active", true);
-    // Employment-specific documents a fresher can't reasonably provide are
-    // never instantiated for them at all — not shown as "N/A", just absent
-    // (master prompt Part 2: "prefer hiding" over a placeholder row).
-    const applicable = (requirements ?? []).filter((r) => (r.applicable_for ?? ["fresher", "experienced"]).includes(candidateType));
-    for (const r of applicable) {
-      await svc.from("application_documents").insert({
-        application_id: app.id,
-        requirement_id: r.id,
-        status: "requested",
-      });
-    }
+    // The reference checklist is not "everything for everyone": only what applies to THIS candidate is requested
+    // (fresher vs experienced, one set per previous employer, other offer, same address…); the rest is "not applicable".
     await svc.from("applications").update({ additional: { ...(app.additional ?? {}), candidateType } }).eq("id", app.id);
+    await syncPreOfferRows(svc, app.id);
 
     await addEvent(svc, {
       application_id: app.id, type: "documents", title: "Pre-Offer Documents Requested",

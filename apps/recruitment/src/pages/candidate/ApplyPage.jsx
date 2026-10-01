@@ -6,6 +6,7 @@ import Card from '../../components/ta/Card.jsx';
 import { Field, FieldGrid, Input, Select, Textarea } from '../../components/ta/Field.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
+import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { loadJSON, saveJSON } from '../../hooks/useLocalStorage.js';
 import { candidateSupabase } from '../../lib/supabase.js';
@@ -20,6 +21,7 @@ import {
   EXP_OPTIONS, NOTICE_OPTIONS, REQUIRED, expToNumber, isFieldRequired, fieldError, validateFormFields,
   RESET_ON_NEW_RESUME, parsedToFormPatch, formToApplicationBlocks,
 } from '../../utils/candidateForm.js';
+import { returnErrorMessage, cleanAuthUrl } from '../../utils/authFlow.js';
 
 const DRAFT_KEY = 'talentflow.apply.draft.v2';
 const SOURCE_OPTIONS = ['Job Board', 'Referral', 'Social', 'Direct'];
@@ -49,8 +51,19 @@ export default function ApplyPage() {
 
   const navigate = useNavigate();
   const { getJob } = useApp();
-  const { configured, ensureSession } = useCandidateAuth();
+  const { configured, user, loading: authLoading, ensureSession } = useCandidateAuth();
   const toast = useToast();
+  const isRealUser = !!user && !user.is_anonymous;
+  // Lands back on this exact apply URL (job id + ?ref= token, if any) so a
+  // TA-link application isn't lost by bouncing through a generic page.
+  const applyLandingPath = typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : undefined;
+  const { error: googleError, signing: googleSigning, trigger: triggerGoogle } = useGoogleSignIn(applyLandingPath, useCandidateAuth);
+  // Supabase sends the browser back with an error in the URL when the Google
+  // round-trip itself failed (declined, or a real auth error) — shown in
+  // plain language instead of silently doing nothing and leaving the
+  // "Sign up with Google" card looking like it never responded.
+  const [returnUrlError, setReturnUrlError] = useState(() => { try { return returnErrorMessage(); } catch { return ''; } });
+  useEffect(() => { cleanAuthUrl(); }, []);
 
   // A TA link (?ref=token) is resolved server-side into the job + recruiter.
   const [link, setLink] = useState(null);
@@ -96,6 +109,23 @@ export default function ApplyPage() {
   useEffect(() => {
     listRequirements('application').then(setRequirements).catch(() => setRequirements([]));
   }, []);
+
+  // The Google account IS the candidate's identity: its email fills the form
+  // (a resume that names another address must not split the account from the
+  // application), and its name pre-fills first/last name when they're empty.
+  const googleEmail = isRealUser ? (user.email || '').toLowerCase() : '';
+  useEffect(() => {
+    if (!googleEmail) return;
+    setForm((f) => {
+      const full = String(user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim().split(/s+/);
+      const patch = {};
+      if (f.email !== googleEmail) patch.email = googleEmail;
+      if (!f.firstName && full[0]) patch.firstName = full[0];
+      if (!f.lastName && full.length > 1) patch.lastName = full.slice(1).join(' ');
+      return Object.keys(patch).length ? { ...f, ...patch } : f;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [googleEmail, form.email]);
 
   const parsing = analyzeIdx > -1 && analyzeIdx < ANALYZE_STEPS.length;
   const parsed = form.autofilled.length > 0;
@@ -227,6 +257,15 @@ export default function ApplyPage() {
     toast.success('Draft saved on this device.');
   };
 
+  // Google is a full-page redirect (and back), which wipes normal React
+  // state — save what's on the form first so it's exactly as the candidate
+  // left it once they land back on this same URL (ApplyPage already reloads
+  // an unfinished draft from here on mount, whoever ends up signed in).
+  const signUpWithGoogle = () => {
+    saveJSON(DRAFT_KEY, form);
+    triggerGoogle();
+  };
+
   const buildPayload = () => ({
     jobId: link ? link.job.id : job ? job.id : null,
     linkToken: refToken || undefined,
@@ -251,15 +290,16 @@ export default function ApplyPage() {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
     }
-    // Submission never waits on Google — it silently gets (or creates) a
-    // real row owner behind the scenes (see CandidateAuthContext.ensureSession).
-    // Google sign-in, if the candidate wants it, is offered only after a
-    // successful submission, on the success page.
+    // Applying needs a Google account — the gate below normally makes this
+    // unreachable without one; this is the belt-and-braces check.
+    if (!isRealUser) {
+      setServerError('Please sign up or sign in with Google to apply.');
+      return;
+    }
     if (submitting) return; // guards a fast double-click/double-tap
     setSubmitting(true);
 
     try {
-      await ensureSession();
       const result = await submitApplicationApi(buildPayload());
       saveJSON(DRAFT_KEY, null);
       setSubmitting(false);
@@ -267,6 +307,7 @@ export default function ApplyPage() {
         state: {
           applicationId: result.applicationId,
           applicationCode: result.applicationCode,
+          candidateCode: result.candidateCode,
           jobTitle: job ? job.title : 'General Application',
         },
       });
@@ -316,6 +357,47 @@ export default function ApplyPage() {
   }
 
   const confidential = link?.inviteType === 'confidential';
+
+  // Applying requires a Google account: new candidates sign up, returning ones
+  // sign in (same Google button — Google/Supabase decide which). Whatever was
+  // typed before is saved first and restored when they land back on this page.
+  if (authLoading) {
+    return <div className="cx-page"><div className="cx-loading">Loading…</div></div>;
+  }
+  if (!isRealUser) {
+    return (
+      <div className="cx-page cx-page--narrow">
+        <button className="ta-link" onClick={() => navigate(job ? `/candidate/jobs/${job.id}` : '/candidate/jobs')} style={{ marginBottom: 14 }}>
+          <Icon name="ArrowLeft" size={14} /> {job ? 'Back to job' : 'Back to jobs'}
+        </button>
+        <div className="cx-page__head">
+          <h1 className="cx-page__title">{job ? `Apply for ${job.title}` : 'Submit your application'}</h1>
+          <p className="cx-page__sub">Sign up with your Google account to start your application. It takes one click, and you can track every step afterwards.</p>
+        </div>
+        <Card>
+          {job && (
+            <div className="ta-cell-sub" style={{ marginBottom: 14 }}>
+              {job.department} · {job.location} · {job.employmentType}
+            </div>
+          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Button icon="CircleUserRound" onClick={signUpWithGoogle} disabled={googleSigning}>
+              {googleSigning ? 'Opening Google…' : 'Sign up with Google'}
+            </Button>
+            <Button variant="ghost" icon="CircleUserRound" onClick={signUpWithGoogle} disabled={googleSigning}>
+              Sign in with Google
+            </Button>
+          </div>
+          <p className="ta-cell-sub" style={{ marginTop: 10 }}>New here? Sign up. Already have an account? Sign in — both use your Google account.</p>
+          {(googleError || returnUrlError) && (
+            <div className="ta-field__error" style={{ marginTop: 12 }}>
+              <Icon name="AlertCircle" size={12} /> {googleError || returnUrlError}
+            </div>
+          )}
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="cx-page cx-page--form">
@@ -411,8 +493,8 @@ export default function ApplyPage() {
                 <Field label="Last name" required error={errors.lastName} extracted={isAuto('lastName')}>
                   <Input value={form.lastName} error={errors.lastName} onChange={(e) => setAndValidate('lastName', e.target.value)} onBlur={(e) => validateField('lastName', e.target.value)} />
                 </Field>
-                <Field label="Email" required error={errors.email} extracted={isAuto('email')}>
-                  <Input type="email" value={form.email} error={errors.email} onChange={(e) => setAndValidate('email', e.target.value)} onBlur={(e) => validateField('email', e.target.value)} />
+                <Field label="Email" required error={errors.email} extracted={isAuto('email')} hint={googleEmail ? 'This is your Google account email.' : undefined}>
+                  <Input type="email" value={form.email} error={errors.email} readOnly={!!googleEmail} onChange={(e) => setAndValidate('email', e.target.value)} onBlur={(e) => validateField('email', e.target.value)} />
                 </Field>
                 <Field label="Phone number" required error={errors.phone} extracted={isAuto('phone')}>
                   <Input value={form.phone} error={errors.phone} onChange={(e) => setAndValidate('phone', e.target.value)} onBlur={(e) => validateField('phone', e.target.value)} />

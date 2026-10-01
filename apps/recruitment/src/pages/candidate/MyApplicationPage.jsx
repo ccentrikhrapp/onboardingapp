@@ -9,7 +9,8 @@ import { Field, FieldGrid, Input, Select } from '../../components/ta/Field.jsx';
 import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { candidateSupabase } from '../../lib/supabase.js';
-import { listMyApplications, getApplicationEvents, resubmitApplication, verifyTaCandidate } from '../../api/applications.js';
+import { listMyApplications, getApplicationEvents, resubmitApplication, verifyTaCandidate, claimApplication } from '../../api/applications.js';
+import { CLAIM_APPLICATION_KEY, isAuthReturn, returnErrorMessage, cleanAuthUrl } from '../../utils/authFlow.js';
 import { listInterviewRounds } from '../../api/interviews.js';
 import { listApplicationDocuments, uploadDocumentFile, submitDocument } from '../../api/documents.js';
 import { listOnboardingDocuments, uploadOnboardingDocument, submitOnboardingForm } from '../../api/onboarding.js';
@@ -20,24 +21,8 @@ import { initialsOf, formatDate } from '../../utils/format.js';
 import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
 import { nameError, emailError, phoneError, locationError, urlError, numberError } from '../../utils/validation.js';
 import { NOTICE_OPTIONS } from '../../utils/candidateForm.js';
-import { isMandatory, requiredSlots, slotLabel, canSkip, currentFilesBySlot, fileProgress } from '../../utils/documentRules.js';
-
-/* Pre-offer document states as the candidate sees them. */
-const PRE_OFFER_STATUS = {
-  requested: { label: 'Missing', tone: 'grey' },
-  uploaded: { label: 'Uploaded — under review', tone: 'amber' },
-  under_verification: { label: 'Uploaded — under review', tone: 'amber' },
-  verified: { label: 'Verified', tone: 'green' },
-  rejected: { label: 'Rejected', tone: 'red' },
-  revision_required: { label: 'Correction needed', tone: 'red' },
-  cannot_provide: { label: "Can't provide", tone: 'amber' },
-};
-
-const NOT_APPLICABLE_REASON = 'Not applicable to your candidate type.';
-const REASON_CATEGORIES = [
-  'Not Applicable', 'Fresher / No Previous Employment', 'Document Not Issued', 'Document Not Available',
-  'Employer Did Not Provide', 'Lost / Unavailable', 'Currently Employed', 'Confidential / Restricted', 'Other',
-];
+import { summarizeDocuments } from '../../utils/documentRules.js';
+import PreOfferDocuments from '../../components/candidate/PreOfferDocuments.jsx';
 
 // The backend logs one application_events row per internal action (per TA
 // click, per document review, per reassignment) — useful for TA/HR's own
@@ -49,13 +34,16 @@ const MILESTONE_TITLES = new Set([
   'Application Submitted', 'Application Advanced', 'Application Closed',
   'Pre-Offer Documents Requested', 'All Required Rounds Cleared',
   'Offer Sent', 'Offer Accepted', 'Onboarding Documents Requested', 'Employee ID Created',
+  'Joining Form Verified', 'Joining Formalities Completed', 'Joining Documentation Approved',
 ]);
 // Interview round events are dynamically named ("Technical round Scheduled",
 // "Technical round — Advance") so they're matched by shape, not exact text.
 const MILESTONE_PATTERNS = [/Scheduled$/, / — /];
 // The candidate needs to act on these — never collapse or hide them, even
 // though they're per-document like the uploads below.
-const ACTIONABLE_PATTERNS = [/Correction Requested/, /Document Rejected/, /Correction Required/];
+// Once the offer is accepted and HR has opened onboarding, the employee joining form is available.
+const JOINING_STATUSES = ['OFFER_ACCEPTED', 'ONBOARDING_PENDING', 'HR_VERIFICATION', 'HR_VERIFICATION_REJECTED', 'JOINING_PENDING', 'EMPLOYEE'];
+const ACTIONABLE_PATTERNS = [/Correction Requested/, /Document Rejected/, /Correction Required/, /Clarification Required/];
 // The candidate's own upload actions — real, but one per file is noise once
 // there are 16 of them; collapse to a single "submitted" milestone per
 // batch (pre-offer vs onboarding), keeping the most recent upload's time.
@@ -199,7 +187,7 @@ function adaptRemote(a) {
 export default function MyApplicationPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { configured } = useCandidateAuth();
+  const { configured, user, loading: authLoading } = useCandidateAuth();
   const [remote, setRemote] = useState({ loading: true, app: null, events: [] });
   const [resubmitting, setResubmitting] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -207,10 +195,6 @@ export default function MyApplicationPage() {
   const [formErrors, setFormErrors] = useState({});
   const [rounds, setRounds] = useState([]);
   const [docs, setDocs] = useState([]);
-  const [docBusy, setDocBusy] = useState({}); // application_document id -> true while acting
-  const [reasonFor, setReasonFor] = useState(null);
-  const [reasonCategory, setReasonCategory] = useState('');
-  const [reasonText, setReasonText] = useState('');
   const [offer, setOffer] = useState(null);
   const [onboardingDocs, setOnboardingDocs] = useState([]);
   const [onboardingBusy, setOnboardingBusy] = useState({}); // onboarding_document id -> true while uploading
@@ -251,6 +235,33 @@ export default function MyApplicationPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [configured]);
 
+  // Landing here from Google (either the post-submit offer or the login
+  // page) — clear any error/token debris Supabase left in the URL, surface
+  // a real auth error in plain language, and finish reattaching an
+  // application that was submitted anonymously before signing up/in (see
+  // ApplicationSuccessPage). Best-effort: a failed/duplicate claim never
+  // blocks the page from loading whatever the candidate can already see.
+  useEffect(() => {
+    if (!configured || authLoading) return;
+    cleanAuthUrl();
+    const authError = returnErrorMessage();
+    if (authError) toast.error(authError);
+    let pending = null;
+    try { pending = localStorage.getItem(CLAIM_APPLICATION_KEY); } catch { /* ignore */ }
+    if (!pending) return;
+    if (!user || user.is_anonymous) {
+      try { localStorage.removeItem(CLAIM_APPLICATION_KEY); } catch { /* ignore */ }
+      return;
+    }
+    claimApplication(pending)
+      .catch(() => {})
+      .finally(() => {
+        try { localStorage.removeItem(CLAIM_APPLICATION_KEY); } catch { /* ignore */ }
+        load();
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [configured, authLoading, user?.id]);
+
   if (!configured) {
     return (
       <div className="cx-page">
@@ -261,7 +272,12 @@ export default function MyApplicationPage() {
     );
   }
 
-  if (remote.loading) {
+  // Still resolving the Google round-trip (and possibly reattaching an
+  // anonymously-submitted application) — show the same loading state rather
+  // than a flash of "No application yet" that would correct itself a moment
+  // later and look like the application had gone missing.
+  const claimPending = (() => { try { return !!localStorage.getItem(CLAIM_APPLICATION_KEY); } catch { return false; } })();
+  if (remote.loading || (isAuthReturn() && (authLoading || claimPending))) {
     return <div className="cx-page"><div className="cx-loading">Loading your application…</div></div>;
   }
 
@@ -292,85 +308,6 @@ export default function MyApplicationPage() {
 
   const candIdx = rejected ? 0 : (PIPELINE_TO_CANDIDATE[Math.max(0, stageIdx)] ?? 0);
   const progress = rejected ? 0 : Math.round(((candIdx + 1) / CANDIDATE_STEPS.length) * 100);
-
-  const setBusy = (id, v) => setDocBusy((s) => ({ ...s, [id]: v }));
-
-  const uploadDoc = async (doc, fileList, slot = null) => {
-    const file = fileList?.[0];
-    if (!file) return;
-    setBusy(doc.id, true);
-    try {
-      const req = doc.document_requirements;
-      const uploaded = await uploadDocumentFile(app.id, req, file);
-      const res = await submitDocument({ applicationDocumentId: doc.id, ...uploaded, slot });
-      const part = slot ? ` (${slotLabel(req, slot)})` : '';
-      toast.success(res?.status === 'uploaded'
-        ? `${req.name}${part} uploaded — now under verification.`
-        : `${req.name}${part} uploaded — please upload the remaining file(s) too.`);
-      load();
-    } catch (e) {
-      toast.error(e.message || 'Upload failed.');
-    } finally {
-      setBusy(doc.id, false);
-    }
-  };
-
-  const uploadOnboardingDoc = async (doc, fileList) => {
-    const file = fileList?.[0];
-    if (!file) return;
-    setOnboardingBusy((s) => ({ ...s, [doc.id]: true }));
-    try {
-      await uploadOnboardingDocument(app.id, doc, file);
-      toast.success(`${doc.requirement_name} uploaded — now under review.`);
-      load();
-    } catch (e) {
-      toast.error(e.message || 'Upload failed.');
-    } finally {
-      setOnboardingBusy((s) => ({ ...s, [doc.id]: false }));
-    }
-  };
-
-  const onboardingFormValuesFor = (doc) => onboardingFormValues[doc.id] ?? doc.form_data ?? {};
-
-  const setOnboardingFormValue = (doc, key, value) => {
-    setOnboardingFormValues((s) => ({ ...s, [doc.id]: { ...onboardingFormValuesFor(doc), [key]: value } }));
-  };
-
-  const submitOnboardingFormFor = async (doc) => {
-    const values = onboardingFormValuesFor(doc);
-    const errors = validateOnboardingForm(doc.field_schema || [], values);
-    setOnboardingFormErrors((s) => ({ ...s, [doc.id]: errors }));
-    if (Object.keys(errors).length) return;
-
-    setOnboardingBusy((s) => ({ ...s, [doc.id]: true }));
-    try {
-      await submitOnboardingForm(app.id, doc, name, values);
-      toast.success(`${doc.requirement_name} submitted — now under review.`);
-      load();
-    } catch (e) {
-      toast.error(e.message || 'Could not submit this form.');
-    } finally {
-      setOnboardingBusy((s) => ({ ...s, [doc.id]: false }));
-    }
-  };
-
-  const confirmCannotProvide = async () => {
-    if (!reasonCategory) return;
-    setBusy(reasonFor.id, true);
-    try {
-      const reason = reasonText.trim() ? `${reasonCategory}: ${reasonText.trim()}` : reasonCategory;
-      await submitDocument({ applicationDocumentId: reasonFor.id, cannotProvide: true, reason });
-      toast.success('Reason submitted — our team will review it.');
-      setReasonFor(null);
-      setReasonCategory('');
-      setReasonText('');
-      load();
-    } catch (e) {
-      toast.error(e.message || 'Could not submit the reason.');
-    } finally {
-      setBusy(reasonFor.id, false);
-    }
-  };
 
   // "Resubmit" used to just re-send the exact same data — nothing to fix
   // what the TA actually flagged. Now it opens an editable form pre-filled
@@ -604,7 +541,7 @@ export default function MyApplicationPage() {
           rounds.length > 0 && { key: 'interviews', label: 'Interviews', icon: 'CalendarClock' },
           docs.length > 0 && { key: 'documents', label: 'Documents', icon: 'FileText' },
           offer && { key: 'offer', label: 'Offer', icon: 'FileCheck' },
-          onboardingDocs.length > 0 && { key: 'onboarding', label: 'Onboarding', icon: 'ClipboardCheck' },
+          (onboardingDocs.length > 0 || JOINING_STATUSES.includes(app.status)) && { key: 'onboarding', label: 'Onboarding', icon: 'ClipboardCheck' },
         ].filter(Boolean);
         return tabs.length > 1 ? (
           <div className="ta-btnrow" style={{ marginBottom: 4 }}>
@@ -687,165 +624,16 @@ export default function MyApplicationPage() {
           </Card>
         )}
 
-        {activeTab === 'documents' && docs.length > 0 && (() => {
-          const mandatoryDocs = docs.filter((d) => isMandatory(d.document_requirements));
-          const optionalDocs = docs.filter((d) => !isMandatory(d.document_requirements));
-          const mandatoryDone = mandatoryDocs.filter((d) => d.status === 'verified').length;
-          const allMandatoryDone = mandatoryDone === mandatoryDocs.length;
-
-          const renderDoc = (d) => {
-            const req = d.document_requirements;
-            const meta = PRE_OFFER_STATUS[d.status] || { label: d.status, tone: 'grey' };
-            const canAct = ['requested', 'revision_required', 'cannot_provide'].includes(d.status);
-            const busy = !!docBusy[d.id];
-            const slots = requiredSlots(req);
-            const bySlot = currentFilesBySlot(req, d.document_files || []);
-            const progress = fileProgress(req, d.document_files || []);
-            const partial = slots.length > 0 && progress.done > 0 && progress.done < progress.total && canAct && d.status !== 'cannot_provide';
-            const accept = (req.allowed_file_types || []).map((t) => `.${t}`).join(',');
-            return (
-              <div className="ta-docrow" key={d.id} style={{ flexWrap: 'wrap' }}>
-                <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
-                <div className="grow" style={{ minWidth: 0 }}>
-                  <div className="ta-cell-strong" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                    {req.name}
-                    <Tag tone={isMandatory(req) ? 'red' : 'grey'}>{isMandatory(req) ? 'Mandatory' : 'Optional'}</Tag>
-                  </div>
-                  {slots.length > 0 && (
-                    <div className="ta-cell-sub">
-                      {progress.done} of {progress.total} files uploaded{progress.done === progress.total ? ' — complete' : ''}
-                    </div>
-                  )}
-                  {d.status === 'revision_required' && d.hr_remarks && (
-                    <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
-                  )}
-                  {d.status === 'cannot_provide' && d.cannot_provide_reason && (
-                    d.cannot_provide_reason === NOT_APPLICABLE_REASON ? (
-                      <div className="ta-cell-sub">Not applicable to your candidate type.</div>
-                    ) : (
-                      <div className="ta-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Reason: {d.cannot_provide_reason}</div>
-                    )
-                  )}
-                  {slots.length > 0 && (
-                    <div className="ta-stack" style={{ gap: 6, marginTop: 8 }}>
-                      {slots.map((s) => {
-                        const f = bySlot[s];
-                        return (
-                          <div key={s} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', padding: '6px 10px', border: '1px dashed var(--line, #e5e7eb)', borderRadius: 8 }}>
-                            <strong style={{ fontSize: 13, minWidth: 130 }}>{slotLabel(req, s)}</strong>
-                            <span className="ta-cell-sub grow" style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {f ? <><Icon name="CheckCircle2" size={12} /> {f.file_name || 'Uploaded'}</> : 'Not uploaded yet'}
-                            </span>
-                            {canAct && reasonFor?.id !== d.id && !busy && (
-                              <label className="ta-btn ta-btn--ghost ta-btn--sm" style={{ cursor: 'pointer' }}>
-                                <Icon name="Upload" size={13} /> {f ? 'Replace' : 'Upload'}
-                                <input type="file" hidden accept={accept} onChange={(e) => { uploadDoc(d, e.target.files, s); e.target.value = ''; }} />
-                              </label>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  {reasonFor?.id === d.id && (
-                    <div className="cx-docreason">
-                      <Select
-                        value={reasonCategory} placeholder="Select a reason" options={REASON_CATEGORIES}
-                        onChange={(e) => setReasonCategory(e.target.value)}
-                      />
-                      <textarea
-                        className="cx-docreason__input" rows={2} style={{ marginTop: 8 }}
-                        placeholder="Additional explanation (optional)"
-                        value={reasonText} onChange={(e) => setReasonText(e.target.value)}
-                      />
-                      <div className="cx-docreason__btns">
-                        <button className="ta-btn ta-btn--sm" onClick={confirmCannotProvide} disabled={!reasonCategory || busy}>Submit reason</button>
-                        <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setReasonFor(null); setReasonCategory(''); setReasonText(''); }}>Cancel</button>
-                      </div>
-                      {req.warning_message && (
-                        <div className="ta-note ta-note--warn" style={{ marginTop: 8 }}>
-                          <Icon name="AlertTriangle" size={14} /> <span>{req.warning_message}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-                <Tag tone={partial ? 'amber' : meta.tone}>{partial ? `${progress.done} of ${progress.total} uploaded` : meta.label}</Tag>
-                {canAct && reasonFor?.id !== d.id && (
-                  <span className="cx-docacts">
-                    {busy ? <span className="ta-spinner" /> : (
-                      <>
-                        {slots.length === 0 && (
-                          <label className="ta-btn ta-btn--ghost" style={{ cursor: 'pointer' }}>
-                            <Icon name="Upload" size={14} /> Upload
-                            <input type="file" hidden accept={accept} onChange={(e) => { uploadDoc(d, e.target.files); e.target.value = ''; }} />
-                          </label>
-                        )}
-                        {canSkip(req) && d.status !== 'cannot_provide' && (
-                          <button
-                            className="ta-btn ta-btn--ghost ta-btn--sm"
-                            onClick={() => {
-                              setReasonFor(d);
-                              setReasonText('');
-                              // Fresher + an employment-specific doc -> the reason is almost
-                              // always this; still editable, just a head start.
-                              setReasonCategory(app.additional.candidateType === 'fresher' ? 'Fresher / No Previous Employment' : '');
-                            }}
-                          >
-                            Can't provide
-                          </button>
-                        )}
-                      </>
-                    )}
-                  </span>
-                )}
-              </div>
-            );
-          };
-
-          return (
-            <Card
-              title="Pre-offer documents"
-              action={<Tag tone={allMandatoryDone ? 'green' : 'amber'}>{mandatoryDone} of {mandatoryDocs.length} mandatory verified</Tag>}
-            >
-              <p className="ta-cell-sub" style={{ marginBottom: 10 }}>
-                Only the <strong>mandatory</strong> documents are needed to complete verification. Optional documents
-                help, but you can skip them or mark "Can't provide" with a reason.
-              </p>
-              {app.additional.candidateType ? (
-                // Read-only: candidateType is set automatically from the
-                // experience the candidate already gave at application time
-                // (application-decision's request_documents action).
-                <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
-                  <span>
-                    Candidate type: <strong>{app.additional.candidateType === 'fresher' ? 'Fresher' : 'Experienced Professional'}</strong> — your checklist below reflects your application.
-                  </span>
-                </div>
-              ) : (
-                <div className="ta-note ta-note--info" style={{ marginBottom: 14 }}>
-                  <span>Candidate type is being verified. Your document checklist will be available once your application details are confirmed.</span>
-                </div>
-              )}
-              {allMandatoryDone && mandatoryDocs.length > 0 && (
-                <div className="ta-note ta-note--ok" style={{ marginBottom: 14 }}>
-                  <Icon name="CheckCircle2" size={15} /> <span>All mandatory documents are verified — your document verification is complete.</span>
-                </div>
-              )}
-              {mandatoryDocs.length > 0 && (
-                <>
-                  <h4 className="ta-card__title" style={{ margin: '4px 0 8px' }}>Mandatory documents</h4>
-                  <div className="ta-stack" style={{ gap: 8, marginBottom: 16 }}>{mandatoryDocs.map(renderDoc)}</div>
-                </>
-              )}
-              {optionalDocs.length > 0 && (
-                <>
-                  <h4 className="ta-card__title" style={{ margin: '4px 0 8px' }}>Optional documents</h4>
-                  <div className="ta-stack" style={{ gap: 8 }}>{optionalDocs.map(renderDoc)}</div>
-                </>
-              )}
-            </Card>
-          );
-        })()}
+        {activeTab === 'documents' && docs.length > 0 && (
+          <Card
+            title="Pre-offer documents"
+            action={<Tag tone={summarizeDocuments(docs, new Set(docs.map((d) => d.document_requirements?.key)).size).ready ? 'green' : 'amber'}>
+              {summarizeDocuments(docs, new Set(docs.map((d) => d.document_requirements?.key)).size).ready ? 'All applicable items approved' : 'In progress'}
+            </Tag>}
+          >
+            <PreOfferDocuments app={app} docs={docs} onReload={load} />
+          </Card>
+        )}
 
         {activeTab === 'offer' && offer && (
           <Card title="Your offer">
@@ -866,6 +654,12 @@ export default function MyApplicationPage() {
             ) : offer.status === 'accepted' ? (
               <div className="ta-note ta-note--ok"><Icon name="CheckCircle2" size={15} /> Your acceptance is confirmed. HR will reach out with next steps.</div>
             ) : null}
+          </Card>
+        )}
+
+        {activeTab === 'onboarding' && JOINING_STATUSES.includes(app.status) && (
+          <Card title="Employee joining form" action={<Button iconRight="ArrowRight" onClick={() => navigate('/candidate/joining')}>Open joining form</Button>}>
+            <p className="ta-cell-sub">One form for your personal details, PF and gratuity nominations, background verification and consents. Enter each detail once — your progress saves automatically, and details from your application are already filled in.</p>
           </Card>
         )}
 

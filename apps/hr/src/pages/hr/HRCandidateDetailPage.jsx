@@ -197,6 +197,16 @@ export default function HRCandidateDetailPage() {
             </div>
           </Card>
 
+          <Card
+            title="Employee joining form"
+            action={<Button icon="FileText" onClick={() => navigate(`/hr/candidates/${candidateId}/joining`)}>Open joining form</Button>}
+          >
+            <p className="hr-cell-sub">
+              The employee's single joining form — personal details, PF and gratuity nominations, background verification and consents — plus a document list worked out from their own answers.
+              Review each requirement here; joining can proceed once every <strong>applicable</strong> requirement is resolved.
+            </p>
+          </Card>
+
           <Card title="Onboarding workflow" action={<span className="hr-cell-sub">Step {activeStep} of {maxStep}</span>}>
             <div className="hr-wizard__tabs">
               {STEP_LABELS.slice(0, maxStep).map((label, i) => {

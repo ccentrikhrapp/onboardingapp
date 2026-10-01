@@ -3,7 +3,7 @@ import Icon from '../common/Icon.jsx';
 /* Premium form controls — same visual language as the TA screens.
    Used across the candidate application flow. */
 
-export function Field({ label, required, error, hint, extracted, full, children }) {
+export function Field({ label, required, error, hint, extracted, extractedLabel = 'From resume', full, children }) {
   return (
     <div className={`ta-field${full ? ' ta-field--full' : ''}${extracted ? ' ta-field--extracted' : ''}`}>
       {label && (
@@ -12,7 +12,7 @@ export function Field({ label, required, error, hint, extracted, full, children 
             {label}
             {required && <span className="req">*</span>}
           </label>
-          {extracted && <span className="ta-field__tag">From resume</span>}
+          {extracted && <span className="ta-field__tag">{extractedLabel}</span>}
         </div>
       )}
       {children}

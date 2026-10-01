@@ -5,16 +5,19 @@ import { useApp } from '../../context/AppContext.jsx';
 
 const NAV = [
   { to: '/ta', label: 'Dashboard', icon: 'Home', end: true },
-  { to: '/ta/candidates', label: 'Candidates', icon: 'Users' },
+  { to: '/ta/pipeline', label: 'Pipeline Candidates', icon: 'UsersRound' },
+  { to: '/ta/candidates', label: 'Job Candidates', icon: 'Users' },
   { to: '/ta/jobs', label: 'Jobs', icon: 'Briefcase' },
 ];
 // TA user management (invite/role/activate) is Super Admin only — an Admin
 // TA has full pipeline oversight but not TA-account authority (§33-35, §74).
 const TEAMS_NAV = { to: '/ta/team', label: 'Teams', icon: 'ShieldCheck' };
+// Super Admin only — the database enforces it too (RLS on document_requirements).
+const RULES_NAV = { to: '/ta/document-rules', label: 'Document rules', icon: 'ClipboardCheck' };
 
 export default function TASidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
   const { role } = useApp();
-  const nav = role === 'admin' || role === 'admin_ta' ? [...NAV, TEAMS_NAV] : NAV;
+  const nav = role === 'admin' ? [...NAV, TEAMS_NAV, RULES_NAV] : role === 'admin_ta' ? [...NAV, TEAMS_NAV] : NAV;
   return (
     <aside className={`ta-sidebar${open ? ' ta-sidebar--open' : ''}`}>
       <button

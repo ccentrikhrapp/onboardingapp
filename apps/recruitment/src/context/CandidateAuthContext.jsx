@@ -63,13 +63,6 @@ export function CandidateAuthProvider({ children }) {
         if (error) throw error;
         return anon.session;
       },
-      // Upgrades the CURRENT (candidate) session to a real Google identity
-      // instead of starting a fresh one — same auth.users id, so the same
-      // profile/candidate/application rows stay attached.
-      linkGoogle: (redirectTo = `${SITE_URL}/`) => {
-        markAuthIntent('candidate');
-        return candidateSupabase.auth.linkIdentity({ provider: 'google', options: { redirectTo } });
-      },
       signOut: () => candidateSupabase.auth.signOut(),
     }),
     [session, loading]

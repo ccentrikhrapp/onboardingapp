@@ -48,7 +48,9 @@ export default function NotificationBell({ variant }) {
   // to click through to.
   const openNotification = (n) => {
     setOpen(false);
-    if (n.entityType === 'application' && n.entityId) {
+    if (n.entityType === 'pipeline_candidate' && n.entityId) {
+      navigate(`/ta/pipeline?open=${n.entityId}`);
+    } else if (n.entityType === 'application' && n.entityId) {
       navigate(variant === 'ta' ? `/ta/candidates/${n.entityId}` : '/candidate/application');
     }
   };

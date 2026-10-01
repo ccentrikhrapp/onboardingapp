@@ -53,6 +53,7 @@ const SOURCE_LABEL = {
 };
 function creationSourceLabel(row) {
   if (row.rawSource === 'ta_sourced' && row.createdVia === 'csv') return 'TA bulk upload';
+  if (row.rawSource === 'ta_sourced' && row.createdVia === 'pipeline') return 'From Pipeline';
   return SOURCE_LABEL[row.rawSource] || row.rawSource || '—';
 }
 
@@ -275,7 +276,7 @@ export default function TACandidatesPage() {
 
   return (
     <>
-      <TAHeader title="Candidates" subtitle="Manage and track candidates through the recruitment process." />
+      <TAHeader title="Job Candidates" subtitle="Manage and track candidates through the recruitment process for open jobs." />
 
       <Toolbar
         filters={[

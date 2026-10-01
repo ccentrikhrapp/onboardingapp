@@ -20,16 +20,19 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify } from "../_shared/workflow.ts";
 import { callHr } from "../_shared/hrIntegration.ts";
+import { pushSummary } from "../_shared/preOffer.ts";
 
 const STATUS_BY_ACTION: Record<string, string> = {
   approve: "under_verification",
   reject: "rejected",
   reupload_required: "revision_required",
+  mark_na: "na_accepted",
 };
 const EVENT_TITLE: Record<string, string> = {
   approve: "Document Approved by TA",
   reject: "Document Rejected",
   reupload_required: "Document Correction Requested",
+  mark_na: "Marked Not Applicable",
 };
 
 Deno.serve(async (req) => {
@@ -54,15 +57,15 @@ Deno.serve(async (req) => {
   const fields: Record<string, string> = {};
   if (!body.applicationDocumentId) fields.applicationDocumentId = "Missing document.";
   if (!STATUS_BY_ACTION[action]) fields.action = "Unknown action.";
-  if (action !== "approve" && !remarks) fields.remarks = "Please explain what needs to change.";
+  if (!["approve", "mark_na"].includes(action) && !remarks) fields.remarks = "Please explain what needs to change.";
   if (Object.keys(fields).length) return fail("VALIDATION_ERROR", "Please complete the review.", 422, fields);
 
   const svc = serviceClient();
   const { data: doc } = await svc
     .from("application_documents")
     .select(
-      "id, status, application_id, " +
-        "document_requirements(key, name), " +
+      "id, status, application_id, cannot_provide_reason, na_reason, " +
+        "document_requirements(key, name, requirement_class), " +
         "applications(id, assigned_ta_id, personal, application_code, jobs(title), candidates(profile_id, first_name, last_name, email))"
     )
     .eq("id", body.applicationDocumentId)
@@ -73,7 +76,12 @@ Deno.serve(async (req) => {
   if (!["admin", "admin_ta"].includes(profile.role) && app.assigned_ta_id !== profile.id) {
     return fail("FORBIDDEN", "This application is assigned to another recruiter.", 403);
   }
-  if (doc.status !== "uploaded") {
+  // TA's first pass covers an uploaded document AND a "cannot provide / not applicable" reason. "Mark not applicable"
+  // may also be used before anything was submitted. A system-determined "not applicable" can be confirmed with 'approve'.
+  const reviewable = ["uploaded", "cannot_provide"];
+  const naOk = ["requested", "uploaded", "cannot_provide", "revision_required", "rejected"];
+  const allowed = action === "mark_na" ? naOk.includes(doc.status) : action === "approve" && doc.status === "not_applicable" ? true : reviewable.includes(doc.status);
+  if (!allowed) {
     return fail(
       "INVALID_STATE",
       doc.status === "under_verification"
@@ -83,12 +91,13 @@ Deno.serve(async (req) => {
     );
   }
 
-  const status = STATUS_BY_ACTION[action];
+  // Confirming a system "not applicable" (e.g. a fresher's employment history) records the acceptance; nothing goes to HR.
+  const status = action === "approve" && doc.status === "not_applicable" ? "na_accepted" : STATUS_BY_ACTION[action];
   const { error: upErr } = await svc
     .from("application_documents")
     .update({
       status,
-      hr_remarks: action === "approve" ? null : remarks,
+      hr_remarks: ["approve", "mark_na"].includes(action) ? null : remarks,
       // verified_by/verified_at are reserved for HR's final sign-off
       // (set by integration-verification-status) so they always reflect
       // who actually cleared the document, not the TA's first pass.
@@ -99,7 +108,7 @@ Deno.serve(async (req) => {
   const requirement = doc.document_requirements as any;
   const docName = requirement?.name ?? "Document";
 
-  if (action === "approve") {
+  if (action === "approve" && status === "under_verification") {
     const { count } = await svc
       .from("document_files")
       .select("id", { count: "exact", head: true })
@@ -118,7 +127,10 @@ Deno.serve(async (req) => {
         candidate: { name: candidateName, email: app.candidates?.email ?? null },
         job: { title: (app.jobs as any)?.title ?? null },
         applicationCode: app.application_code,
-        requirement: { key: requirement?.key, name: requirement?.name },
+        requirement: { key: requirement?.key, name: requirement?.name, requirementClass: requirement?.requirement_class },
+        // A reason (cannot provide / not applicable) goes to HR for the same final review a file does.
+        kind: doc.cannot_provide_reason ? (doc.na_reason ? "na" : "reason") : "document",
+        reason: doc.cannot_provide_reason ?? null,
       },
       { entity_type: "application_document", entity_id: doc.id },
     );
@@ -154,5 +166,6 @@ Deno.serve(async (req) => {
     });
   }
 
+  try { await pushSummary(svc, app.id); } catch { /* best effort */ }
   return ok({ status });
 });

@@ -29,7 +29,7 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
     { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
     { to: '/hr/activity', label: 'Activity', icon: 'History' },
-    ...(role === 'admin' ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
+    ...(role === 'admin' ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }, { to: '/hr/document-rules', label: 'Document rules', icon: 'Settings' }] : []),
     { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
   ];
 

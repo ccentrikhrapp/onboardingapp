@@ -1906,3 +1906,9 @@
   .hr-page > *, .hr-kpi, .hr-sidebar, .hr-main { animation: none; transition: none; }
   .hr-sk { animation: none; }
 }
+
+/* inline notices (joining review) */
+.hr-note { display: flex; align-items: flex-start; gap: 8px; padding: 9px 12px; border-radius: 10px; font-size: 12.5px; background: #eef3ff; color: #1e3a8a; }
+.hr-note--ok { background: #e9f8ef; color: #14532d; }
+.hr-note--warn { background: #fff6e5; color: #7a4b00; flex-direction: column; }
+.hr-note--info { background: #eef3ff; color: #1e3a8a; }
