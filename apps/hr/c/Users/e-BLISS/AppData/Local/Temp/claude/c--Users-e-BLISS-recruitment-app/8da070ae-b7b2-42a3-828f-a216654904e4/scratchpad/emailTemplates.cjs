@@ -1,21 +1,33 @@
-// Email templates. Each returns { subject, html, text }. Keep them plain and
-// professional — the master prompt's wording. Variables are interpolated by the
-// caller, not with a templating engine.
-
-type Vars = Record<string, string>;
-
-// Ccentrik brand system (matches the app's primary colour).
+var __defProp = Object.defineProperty;
+var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
+var __getOwnPropNames = Object.getOwnPropertyNames;
+var __hasOwnProp = Object.prototype.hasOwnProperty;
+var __export = (target, all) => {
+  for (var name in all)
+    __defProp(target, name, { get: all[name], enumerable: true });
+};
+var __copyProps = (to, from, except, desc) => {
+  if (from && typeof from === "object" || typeof from === "function") {
+    for (let key of __getOwnPropNames(from))
+      if (!__hasOwnProp.call(to, key) && key !== except)
+        __defProp(to, key, { get: () => from[key], enumerable: !(desc = __getOwnPropDesc(from, key)) || desc.enumerable });
+  }
+  return to;
+};
+var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
+var emailTemplates_exports = {};
+__export(emailTemplates_exports, {
+  render: () => render,
+  templates: () => templates
+});
+module.exports = __toCommonJS(emailTemplates_exports);
 const BRAND = "#3157D5";
 const FONT = "Inter,'Segoe UI',Arial,Helvetica,sans-serif";
-
-// Hosted copy of the official logo (public/ccentrik-logo.png), so it renders in
-// every mail client and on every send path, not only the inline-attachment one.
-function logoUrl(): string {
+function logoUrl() {
   const site = (Deno.env.get("PUBLIC_SITE_URL") ?? "https://ccentrik-recruitment.vercel.app").replace(/\/$/, "");
   return `${site}/ccentrik-logo.png`;
 }
-
-function shell(title: string, bodyHtml: string): string {
+function shell(title, bodyHtml) {
   return `<!doctype html><html><body style="margin:0;padding:0;background:#F5F7FA;font-family:${FONT};color:#1F2937">
   <table role="presentation" width="100%" style="background:#F5F7FA;border-collapse:collapse"><tr><td align="center" style="padding:24px 12px">
     <table role="presentation" width="100%" style="max-width:620px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;border-collapse:separate">
@@ -33,12 +45,10 @@ function shell(title: string, bodyHtml: string): string {
   </td></tr></table>
 </body></html>`;
 }
-
-function button(label: string, href: string): string {
+function button(label, href) {
   return `<a href="${href}" style="display:inline-block;margin:16px 0;padding:12px 22px;background:${BRAND};color:#FFFFFF;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px">${label}</a>`;
 }
-
-export const templates: Record<string, (v: Vars) => { subject: string; html: string; text: string }> = {
+const templates = {
   // TA-created candidate — the resume-derived application already exists;
   // this link signs the candidate in (Supabase magic link) straight to it.
   ta_candidate_verification: (v) => ({
@@ -59,114 +69,152 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
          <li>Submit your verified application</li>
        </ul>
        <p style="font-size:13px;color:#6b7280">You do not need to enter your application details from scratch.</p>
-       <p style="font-size:12px;color:#9aa3b2">This link is time-limited. If it has expired, just sign in with Google on our careers site using this same email address and your application will be waiting for you.</p>`,
+       <p style="font-size:12px;color:#9aa3b2">This link is time-limited. If it has expired, just sign in with Google on our careers site using this same email address and your application will be waiting for you.</p>`
     ),
-    text:
-      `Hi ${v.candidate_name},\n\nOur Talent Acquisition team has created your application based on the resume provided to us. ` +
-      `Please review and verify your information using the secure link below.\n\n${v.verify_link}\n\n` +
-      `You will be able to review, correct, add missing information, confirm your professional details, review your resume, ` +
-      `and submit your verified application. You do not need to enter your application details from scratch.\n\n` +
-      `This link is time-limited. If it has expired, just sign in with Google on our careers site using this same email address and your application will be waiting for you.\n\n` +
-      `Regards,\nTalent Acquisition Team\nCcentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Our Talent Acquisition team has created your application based on the resume provided to us. Please review and verify your information using the secure link below.
+
+${v.verify_link}
+
+You will be able to review, correct, add missing information, confirm your professional details, review your resume, and submit your verified application. You do not need to enter your application details from scratch.
+
+This link is time-limited. If it has expired, just sign in with Google on our careers site using this same email address and your application will be waiting for you.
+
+Regards,
+Talent Acquisition Team
+Ccentrik`
+  }),
   application_submitted: (v) => ({
-    subject: `Application received — ${v.job_title}`,
+    subject: `Application received \u2014 ${v.job_title}`,
     html: shell(
       "We've received your application",
       `<p>Hi ${v.candidate_name},</p>
        <p>Thanks for applying for <strong>${v.job_title}</strong>. Your application reference is <strong>${v.application_code}</strong>.</p>
        <p>Our Talent Acquisition team will review it and get back to you. You can track the status any time.</p>
-       ${button("Track your application", v.application_link)}`,
+       ${button("Track your application", v.application_link)}`
     ),
-    text:
-      `Hi ${v.candidate_name},\n\nThanks for applying for ${v.job_title}. ` +
-      `Your reference is ${v.application_code}.\n\nTrack it: ${v.application_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Thanks for applying for ${v.job_title}. Your reference is ${v.application_code}.
+
+Track it: ${v.application_link}
+
+\u2014 Ccentrik`
+  }),
   application_approved: (v) => ({
-    subject: `Application update — ${v.job_title}`,
+    subject: `Application update \u2014 ${v.job_title}`,
     html: shell(
       "Your application has progressed",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Good news — your application for <strong>${v.job_title}</strong> has progressed to the next stage. We'll be in touch with the next steps shortly.</p>
-       ${button("View your application", v.application_link)}`,
+       <p>Good news \u2014 your application for <strong>${v.job_title}</strong> has progressed to the next stage. We'll be in touch with the next steps shortly.</p>
+       ${button("View your application", v.application_link)}`
     ),
-    text: `Hi ${v.candidate_name},\n\nYour application for ${v.job_title} has progressed to the next stage.\n\n${v.application_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Your application for ${v.job_title} has progressed to the next stage.
+
+${v.application_link}
+
+\u2014 Ccentrik`
+  }),
   application_rejected: (v) => ({
-    subject: `Application update — ${v.job_title}`,
+    subject: `Application update \u2014 ${v.job_title}`,
     html: shell(
       "Application update",
       `<p>Hi ${v.candidate_name},</p>
        <p>Thank you for your interest in <strong>${v.job_title}</strong> and for the time you invested in your application. After careful consideration, we won't be taking your application forward on this occasion.</p>
-       <p>We'd be glad to consider you for future roles that match your experience.</p>`,
+       <p>We'd be glad to consider you for future roles that match your experience.</p>`
     ),
-    text: `Hi ${v.candidate_name},\n\nThank you for applying for ${v.job_title}. We won't be taking your application forward on this occasion.\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Thank you for applying for ${v.job_title}. We won't be taking your application forward on this occasion.
+
+\u2014 Ccentrik`
+  }),
   application_update_required: (v) => ({
-    subject: `Action required — ${v.job_title} application`,
+    subject: `Action required \u2014 ${v.job_title} application`,
     html: shell(
       "Your application needs an update",
       `<p>Hi ${v.candidate_name},</p>
        <p>Before we can continue reviewing your application for <strong>${v.job_title}</strong>, we need you to update the following:</p>
        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
        ${button("Update your application", v.application_link)}
-       <p style="font-size:13px;color:#6b7280">Your previous submission is kept — updating creates a new version for review.</p>`,
+       <p style="font-size:13px;color:#6b7280">Your previous submission is kept \u2014 updating creates a new version for review.</p>`
     ),
-    text:
-      `Hi ${v.candidate_name},\n\nYour application for ${v.job_title} needs an update:\n\n${v.reason}\n\n` +
-      `Update it here: ${v.application_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Your application for ${v.job_title} needs an update:
+
+${v.reason}
+
+Update it here: ${v.application_link}
+
+\u2014 Ccentrik`
+  }),
   documents_requested: (v) => ({
-    subject: `Documents requested — ${v.job_title}`,
+    subject: `Documents requested \u2014 ${v.job_title}`,
     html: shell(
       "Please submit your pre-offer documents",
       `<p>Hi ${v.candidate_name},</p>
        <p>Congratulations on clearing the interview process for <strong>${v.job_title}</strong>. The next step is document verification.</p>
        <p>Open your document centre to see the checklist and upload each item. Where a document genuinely doesn't apply to you, you can mark it and give a reason.</p>
-       ${button("Open document centre", v.document_link)}`,
+       ${button("Open document centre", v.document_link)}`
     ),
-    text: `Hi ${v.candidate_name},\n\nPlease submit your pre-offer documents for ${v.job_title}:\n${v.document_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Please submit your pre-offer documents for ${v.job_title}:
+${v.document_link}
+
+\u2014 Ccentrik`
+  }),
   document_correction_required: (v) => ({
-    subject: `Document correction needed — ${v.job_title}`,
+    subject: `Document correction needed \u2014 ${v.job_title}`,
     html: shell(
       "One or more documents need a correction",
       `<p>Hi ${v.candidate_name},</p>
        <p>Our HR team reviewed your documents and needs a correction on:</p>
        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
-       ${button("Re-upload document", v.document_link)}`,
+       ${button("Re-upload document", v.document_link)}`
     ),
-    text: `Hi ${v.candidate_name},\n\nA document needs correction:\n${v.reason}\n\n${v.document_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+A document needs correction:
+${v.reason}
+
+${v.document_link}
+
+\u2014 Ccentrik`
+  }),
   documents_verified: (v) => ({
-    subject: `Documents verified — ${v.job_title}`,
+    subject: `Documents verified \u2014 ${v.job_title}`,
     html: shell(
       "Your documents are verified",
       `<p>Hi ${v.candidate_name},</p>
-       <p>All required documents for <strong>${v.job_title}</strong> have been verified. We'll be in touch with your offer shortly.</p>`,
+       <p>All required documents for <strong>${v.job_title}</strong> have been verified. We'll be in touch with your offer shortly.</p>`
     ),
-    text: `Hi ${v.candidate_name},\n\nAll required documents for ${v.job_title} have been verified.\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+All required documents for ${v.job_title} have been verified.
+
+\u2014 Ccentrik`
+  }),
   onboarding_documents_requested: (v) => ({
-    subject: `Welcome aboard — please submit your onboarding documents`,
+    subject: `Welcome aboard \u2014 please submit your onboarding documents`,
     html: shell(
       "A few documents to complete your onboarding",
       `<p>Hi ${v.candidate_name},</p>
        <p>Congratulations again on joining as <strong>${v.job_title}</strong>! HR needs a few documents to complete your onboarding.</p>
        <p>Open your onboarding checklist below to see what's required and upload each item.</p>
-       ${button("Open onboarding checklist", v.onboarding_link)}`,
+       ${button("Open onboarding checklist", v.onboarding_link)}`
     ),
-    text: `Hi ${v.candidate_name},\n\nPlease submit your onboarding documents for ${v.job_title}:\n${v.onboarding_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+Please submit your onboarding documents for ${v.job_title}:
+${v.onboarding_link}
+
+\u2014 Ccentrik`
+  }),
   onboarding_document_correction_required: (v) => ({
     subject: `Onboarding document needs a correction`,
     html: shell(
@@ -174,32 +222,39 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
       `<p>Hi ${v.candidate_name},</p>
        <p>HR reviewed your onboarding documents and needs a correction on:</p>
        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
-       ${button("Re-upload document", v.onboarding_link)}`,
+       ${button("Re-upload document", v.onboarding_link)}`
     ),
-    text: `Hi ${v.candidate_name},\n\nAn onboarding document needs correction:\n${v.reason}\n\n${v.onboarding_link}\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+An onboarding document needs correction:
+${v.reason}
+
+${v.onboarding_link}
+
+\u2014 Ccentrik`
+  }),
   onboarding_documents_completed: (v) => ({
     subject: `Onboarding documents verified`,
     html: shell(
       "Your onboarding documents are verified",
       `<p>Hi ${v.candidate_name},</p>
-       <p>All your onboarding documents have been verified. HR will be in touch with next steps ahead of your joining date.</p>`,
+       <p>All your onboarding documents have been verified. HR will be in touch with next steps ahead of your joining date.</p>`
     ),
-    text: `Hi ${v.candidate_name},\n\nAll your onboarding documents have been verified. HR will be in touch with next steps.\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+All your onboarding documents have been verified. HR will be in touch with next steps.
+
+\u2014 Ccentrik`
+  }),
   // v.meeting_type: 'Virtual' | 'In-Person'. Virtual carries platform_label +
   // meeting_link; In-Person carries location + location_details.
   interview_scheduled: (v) => {
     const isVirtual = v.meeting_type === "Virtual";
     const modeLabel = isVirtual ? v.platform_label : "In-Person";
-    const meetingRow = isVirtual
-      ? `<tr><td style="padding:5px 0;color:#6b7280;width:110px;vertical-align:top">Meeting Link</td><td style="padding:5px 0;font-weight:600"><a href="${v.meeting_link}" style="color:#3157D5">${v.meeting_link}</a></td></tr>`
-      : `<tr><td style="padding:5px 0;color:#6b7280;width:110px;vertical-align:top">Location</td><td style="padding:5px 0;font-weight:600">${v.location}${v.location_details ? `<br/><span style="font-weight:400;color:#6b7280">${v.location_details}</span>` : ""}</td></tr>`;
+    const meetingRow = isVirtual ? `<tr><td style="padding:5px 0;color:#6b7280;width:110px;vertical-align:top">Meeting Link</td><td style="padding:5px 0;font-weight:600"><a href="${v.meeting_link}" style="color:#3157D5">${v.meeting_link}</a></td></tr>` : `<tr><td style="padding:5px 0;color:#6b7280;width:110px;vertical-align:top">Location</td><td style="padding:5px 0;font-weight:600">${v.location}${v.location_details ? `<br/><span style="font-weight:400;color:#6b7280">${v.location_details}</span>` : ""}</td></tr>`;
     const joinButton = isVirtual ? button("Join Meeting", v.meeting_link) : "";
     return {
-      subject: `Interview Scheduled – ${v.round_name} | Ccentrik`,
+      subject: `Interview Scheduled \u2013 ${v.round_name} | Ccentrik`,
       html: shell(
         "Interview Invitation",
         `<p>Hi ${v.candidate_name},</p>
@@ -215,7 +270,7 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
              </td>
              <td style="vertical-align:top">
                <div style="font-size:12px;color:#6b7280;text-transform:uppercase;letter-spacing:.03em">${v.round_name}</div>
-               <div style="font-weight:700;font-size:16px;color:#0f1729;margin:2px 0 6px">${v.time} · ${v.duration}</div>
+               <div style="font-weight:700;font-size:16px;color:#0f1729;margin:2px 0 6px">${v.time} \xB7 ${v.duration}</div>
                <span style="background:#DCE4FB;color:#2A4BBF;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700">${modeLabel}</span>
              </td>
            </tr>
@@ -234,86 +289,119 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
              <td style="text-align:center"><a href="${v.decline_link}" style="display:block;padding:11px 0;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Decline</a></td>
            </tr>
          </table>
-         <p style="margin-top:18px"><a href="${v.application_link}" style="color:#3157D5;font-size:13px">View your application →</a></p>`,
+         <p style="margin-top:18px"><a href="${v.application_link}" style="color:#3157D5;font-size:13px">View your application \u2192</a></p>`
       ),
-      text:
-        `Hi ${v.candidate_name},\n\nYou're invited to an interview for ${v.job_title}.\n\n` +
-        `Interview Round: ${v.round_name}\nDate: ${v.date}\nTime: ${v.time}\nDuration: ${v.duration}\nMeeting Type: ${v.meeting_type}\n` +
-        (isVirtual
-          ? `Platform: ${v.platform_label}\nMeeting Link: ${v.meeting_link}\n`
-          : `Location: ${v.location}\n${v.location_details ? `Location Details: ${v.location_details}\n` : ""}`) +
-        `\nAccept: ${v.accept_link}\nReschedule: ${v.reschedule_link}\nDecline: ${v.decline_link}\n\nRegards,\nTalent Acquisition Team\nCcentrik`,
+      text: `Hi ${v.candidate_name},
+
+You're invited to an interview for ${v.job_title}.
+
+Interview Round: ${v.round_name}
+Date: ${v.date}
+Time: ${v.time}
+Duration: ${v.duration}
+Meeting Type: ${v.meeting_type}
+` + (isVirtual ? `Platform: ${v.platform_label}
+Meeting Link: ${v.meeting_link}
+` : `Location: ${v.location}
+${v.location_details ? `Location Details: ${v.location_details}
+` : ""}`) + `
+Accept: ${v.accept_link}
+Reschedule: ${v.reschedule_link}
+Decline: ${v.decline_link}
+
+Regards,
+Talent Acquisition Team
+Ccentrik`
     };
   },
-
   interview_scheduled_panelist: (v) => ({
-    subject: `Interview panel — ${v.candidate_name} for ${v.job_title}`,
+    subject: `Interview panel \u2014 ${v.candidate_name} for ${v.job_title}`,
     html: shell(
       "You've been added to an interview panel",
       `<p>Hi ${v.panelist_name},</p>
-       <p>You've been added to the panel for <strong>${v.round_name}</strong> — ${v.candidate_name} for <strong>${v.job_title}</strong>.</p>
+       <p>You've been added to the panel for <strong>${v.round_name}</strong> \u2014 ${v.candidate_name} for <strong>${v.job_title}</strong>.</p>
        <div style="background:#EEF2FD;border:1px solid #DCE4FB;border-radius:8px;padding:12px 14px;font-size:14px">
          <div><strong>When:</strong> ${v.when}</div>
          ${v.meeting_info ? `<div><strong>Where:</strong> ${v.meeting_info}</div>` : ""}
-       </div>`,
+       </div>`
     ),
-    text: `Hi ${v.panelist_name},\n\nYou're on the panel for ${v.round_name} — ${v.candidate_name} (${v.job_title}) at ${v.when}.\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.panelist_name},
 
+You're on the panel for ${v.round_name} \u2014 ${v.candidate_name} (${v.job_title}) at ${v.when}.
+
+\u2014 Ccentrik`
+  }),
   interview_advance: (v) => ({
-    subject: `Interview update — ${v.job_title}`,
+    subject: `Interview update \u2014 ${v.job_title}`,
     html: shell(
       "You've moved forward",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Good news — you've cleared <strong>${v.round_name}</strong> for <strong>${v.job_title}</strong>. We'll follow up with next steps.</p>`,
+       <p>Good news \u2014 you've cleared <strong>${v.round_name}</strong> for <strong>${v.job_title}</strong>. We'll follow up with next steps.</p>`
     ),
-    text: `Hi ${v.candidate_name},\n\nYou've cleared ${v.round_name} for ${v.job_title}.\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+You've cleared ${v.round_name} for ${v.job_title}.
+
+\u2014 Ccentrik`
+  }),
   interview_not_progressing: (v) => ({
-    subject: `Interview update — ${v.job_title}`,
+    subject: `Interview update \u2014 ${v.job_title}`,
     html: shell(
       "Interview update",
       `<p>Hi ${v.candidate_name},</p>
        <p>Thank you for the time you invested in the interview process for <strong>${v.job_title}</strong>. We won't be moving forward on this occasion.</p>
-       <p>We'd be glad to consider you for future roles that match your experience.</p>`,
+       <p>We'd be glad to consider you for future roles that match your experience.</p>`
     ),
-    text: `Hi ${v.candidate_name},\n\nWe won't be moving forward with your application for ${v.job_title}.\n\n— Ccentrik`,
-  }),
+    text: `Hi ${v.candidate_name},
 
+We won't be moving forward with your application for ${v.job_title}.
+
+\u2014 Ccentrik`
+  }),
   offer_sent: (v) => ({
-    subject: `Your offer — ${v.job_title}`,
+    subject: `Your offer \u2014 ${v.job_title}`,
     html: shell(
       "We're pleased to offer you this role",
       `<p>Dear ${v.candidate_name},</p>
        <p>We are pleased to share your offer for the position of <strong>${v.job_title}</strong>.</p>
        ${v.note ? `<p style="white-space:pre-wrap">${v.note}</p>` : ""}
-       <p>Please review the full offer details and use the link below to review and respond.</p>
+       <p>Please review the attached offer letter and use the link below to review and respond.</p>
        ${button("Review your offer", v.offer_link)}
-       <p>Regards,<br/>Ccentrik Talent Acquisition Team</p>`,
+       <p>Regards,<br/>Ccentrik Talent Acquisition Team</p>`
     ),
-    text: `Dear ${v.candidate_name},\n\nYour offer for ${v.job_title} is ready: ${v.offer_link}\n\n— Ccentrik Talent Acquisition Team`,
-  }),
+    text: `Dear ${v.candidate_name},
 
+Your offer for ${v.job_title} is ready: ${v.offer_link}
+
+\u2014 Ccentrik Talent Acquisition Team`
+  }),
   offer_accepted_ack: (v) => ({
-    subject: `Offer accepted — ${v.job_title}`,
+    subject: `Offer accepted \u2014 ${v.job_title}`,
     html: shell(
       "Your acceptance is confirmed",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Thanks for accepting the offer for <strong>${v.job_title}</strong>. Our HR team will be in touch shortly to begin onboarding.</p>`,
+       <p>Thanks for accepting the offer for <strong>${v.job_title}</strong>. Our HR team will be in touch shortly to begin onboarding.</p>`
     ),
-    text: `Hi ${v.candidate_name},\n\nYour acceptance for ${v.job_title} is confirmed. HR will be in touch to begin onboarding.\n\n— Ccentrik`,
-  }),
-};
+    text: `Hi ${v.candidate_name},
 
-export function render(template: string, vars: Vars) {
+Your acceptance for ${v.job_title} is confirmed. HR will be in touch to begin onboarding.
+
+\u2014 Ccentrik`
+  })
+};
+function render(template, vars) {
   const t = templates[template];
   if (!t) {
     return {
       subject: vars.subject ?? "Ccentrik notification",
       html: shell(vars.subject ?? "Notification", `<p>${vars.message ?? ""}</p>`),
-      text: vars.message ?? "",
+      text: vars.message ?? ""
     };
   }
   return t(vars);
 }
+// Annotate the CommonJS export names for ESM import in node:
+0 && (module.exports = {
+  render,
+  templates
+});

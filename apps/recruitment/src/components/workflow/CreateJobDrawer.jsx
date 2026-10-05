@@ -12,10 +12,14 @@ const EMP_TYPES = ['Full-time', 'Contract', 'Internship'];
 
 const lines = (s) => s.split('\n').map((x) => x.trim()).filter(Boolean);
 
+// "Technical, Managerial" -> ['Technical', 'Managerial']; empty -> [] (no plan).
+const planRounds = (text) => String(text ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+
 export default function CreateJobDrawer({ open, onClose, onCreate }) {
   const [f, setF] = useState({
     title: '', department: DEPARTMENTS[0], location: '', workMode: 'Hybrid',
     employmentType: 'Full-time', experience: '', deadline: '', applicationLimit: '',
+    interviewPlan: '',
     description: '', responsibilities: '', qualifications: '',
     requiredSkills: [], preferredSkills: [], benefits: [],
   });
@@ -32,6 +36,8 @@ export default function CreateJobDrawer({ open, onClose, onCreate }) {
     if (deadlineMsg) e.deadline = deadlineMsg;
     const limitMsg = numberError(f.applicationLimit, { required: false, label: 'application limit', min: 1, integer: true });
     if (limitMsg) e.applicationLimit = limitMsg;
+    const plan = planRounds(f.interviewPlan);
+    if (plan.length > 8) e.interviewPlan = 'Use at most 8 rounds before HR.';
     setErrors(e);
     if (Object.keys(e).length) return;
 
@@ -44,6 +50,7 @@ export default function CreateJobDrawer({ open, onClose, onCreate }) {
       experience: f.experience.trim(),
       deadline: f.deadline || todayISO(),
       applicationLimit: f.applicationLimit ? Number(f.applicationLimit) : null,
+      interviewPlan: planRounds(f.interviewPlan),
       description: f.description.trim() || `We are hiring a ${f.title.trim()} to join the ${f.department} team.`,
       responsibilities: lines(f.responsibilities),
       qualifications: lines(f.qualifications),
@@ -90,6 +97,13 @@ export default function CreateJobDrawer({ open, onClose, onCreate }) {
         </Field>
         <Field label="Application Limit" hint="The job stops accepting applications once this many have been submitted. Leave blank for unlimited." error={errors.applicationLimit}>
           <Input type="number" min="1" value={f.applicationLimit} onChange={(e) => set({ applicationLimit: e.target.value })} error={errors.applicationLimit} />
+        </Field>
+        <Field
+          label="Interview rounds before HR" full
+          hint="Comma-separated, in order, e.g. Technical, Managerial. HR is always added automatically as the final round. Leave blank for no fixed plan."
+          error={errors.interviewPlan}
+        >
+          <Input value={f.interviewPlan} onChange={(e) => set({ interviewPlan: e.target.value })} error={errors.interviewPlan} placeholder="Technical, Managerial" />
         </Field>
       </div>
 

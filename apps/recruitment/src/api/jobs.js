@@ -2,7 +2,7 @@ import { supabase } from '../lib/supabase.js';
 import { unwrap } from './client.js';
 
 const COLUMNS =
-  'id, job_code, title, department, location, work_mode, employment_type, experience, description, responsibilities, required_skills, qualifications, preferred_skills, benefits, deadline, application_limit, status, created_at';
+  'id, job_code, title, department, location, work_mode, employment_type, experience, description, responsibilities, required_skills, qualifications, preferred_skills, benefits, deadline, application_limit, interview_plan, status, created_at';
 
 /** Excludes deadline-passed jobs even on the day they expire, ahead of the
     nightly cron job (close_expired_jobs) that formally closes their status. */
@@ -52,6 +52,7 @@ export function createJob(payload) {
     benefits: payload.benefits || [],
     deadline: payload.deadline || null,
     application_limit: payload.applicationLimit ? Number(payload.applicationLimit) : null,
+    interview_plan: payload.interviewPlan?.length ? payload.interviewPlan : null,
     status: payload.status || 'published',
   };
   return supabase.from('jobs').insert(row).select(COLUMNS).single().then(unwrap);

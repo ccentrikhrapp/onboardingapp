@@ -14,7 +14,7 @@ import { unwrap, callFn } from './client.js';
 const LIST_COLUMNS =
   'id, application_code, status, source, current_version, submitted_at, created_at, ' +
   'job_id, assigned_ta_id, personal, professional, education, additional, ats_score, ' +
-  'jobs!left(title, job_code, department), candidates(candidate_code, first_name, last_name, email, phone)';
+  'jobs!left(title, job_code, department, interview_plan), candidates(candidate_code, first_name, last_name, email, phone)';
 
 async function enrichAssignedToNames(rows) {
   const ids = [...new Set((rows || []).map((r) => r.assigned_ta_id).filter(Boolean))];

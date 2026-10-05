@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
 
   const { data: app } = await svc
     .from("applications")
-    .select("id, status, assigned_ta_id, personal, application_code, jobs(title), candidates(profile_id)")
+    .select("id, status, assigned_ta_id, personal, application_code, jobs(title, interview_plan), candidates(profile_id)")
     .eq("id", body.applicationId)
     .maybeSingle();
   if (!app) return fail("NOT_FOUND", "Application not found.", 404);
@@ -74,11 +74,38 @@ Deno.serve(async (req) => {
     return fail("INVALID_STATE", "This application isn't at the interview stage.", 409);
   }
 
-  const { count } = await svc
+  // Round order: HR is always the final round, and a round can't start while
+  // the previous one is still open (the database trigger backs this up).
+  const { data: existingRounds } = await svc
     .from("interview_rounds")
-    .select("id", { count: "exact", head: true })
+    .select("status, is_hr_final, round_number")
     .eq("application_id", app.id);
-  const roundNumber = (count ?? 0) + 1;
+  const rounds = existingRounds ?? [];
+  if (rounds.some((r) => r.is_hr_final)) {
+    return fail("INVALID_STATE", "HR is the final interview round. No round can be added after it.", 409);
+  }
+  const openRound = rounds.find((r) => r.status === "scheduled");
+  if (openRound) {
+    return fail("INVALID_STATE", `Round ${openRound.round_number} is still open. Record its outcome before scheduling the next round.`, 409);
+  }
+  const roundNumber = rounds.length + 1;
+  const isHrFinal = body.isHrRound === true;
+
+  // A job with an interview plan fixes the rounds: the planned names in
+  // order, then HR as the last slot. Jobs without a plan stay free-form.
+  const plan: string[] | null = (app.jobs as any)?.interview_plan ?? null;
+  if (plan) {
+    const hrSlot = plan.length + 1;
+    if (roundNumber === hrSlot && !isHrFinal) {
+      return fail("VALIDATION_ERROR", `Round ${roundNumber} is the HR final round for this job.`, 422, { isHrRound: "Mark this as the HR final round." });
+    }
+    if (roundNumber < hrSlot && isHrFinal) {
+      return fail("VALIDATION_ERROR", `HR is the final round (Round ${hrSlot}) for this job.`, 422, { isHrRound: "HR can only be the final round." });
+    }
+    if (roundNumber < hrSlot && body.name.trim() !== plan[roundNumber - 1]) {
+      return fail("VALIDATION_ERROR", `Round ${roundNumber} for this job is "${plan[roundNumber - 1]}".`, 422, { name: `Use "${plan[roundNumber - 1]}".` });
+    }
+  }
 
   // The modal generates the link up front (via generate-meeting-link) so the
   // TA sees it before scheduling — this is a safety net in case that step
@@ -108,6 +135,7 @@ Deno.serve(async (req) => {
       location: meetingType === "in_person" ? body.location?.trim() ?? null : null,
       location_details: meetingType === "in_person" ? body.locationDetails?.trim() ?? null : null,
       instructions: body.instructions ?? null,
+      is_hr_final: isHrFinal,
       created_by: profile.id,
     })
     .select("id, response_token")

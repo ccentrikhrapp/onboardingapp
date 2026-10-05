@@ -148,6 +148,7 @@ function adaptRemote(a, events) {
     status: a.status,
     jobId: a.jobId,
     jobTitle: a.jobTitle,
+    interviewPlan: a.interviewPlan,
     isGeneral: !a.jobId,
     source: a.source === 'ta_link' ? 'TA link' : a.source === 'ta_sourced' ? 'TA Sourced' : 'Careers',
     rawSource: a.source,
@@ -217,6 +218,18 @@ export default function TACandidateDetailPage() {
   const [showAllAct, setShowAllAct] = useState(false);
   const [tab, setTab] = useState('overview'); // overview | contact | experience | skills
   const [rounds, setRounds] = useState([]);
+  // HR is always the final round: once it exists nothing else can be scheduled,
+  // and no round can be added while the previous one is still open.
+  const hrFinalRound = rounds.find((r) => r.is_hr_final);
+  const openRound = rounds.find((r) => r.status === 'scheduled');
+  // With a job plan, the next round is fixed: its planned name, or HR as the last slot.
+  const plan = app?.interviewPlan ?? null;
+  const nextSlot = rounds.length + 1;
+  const plannedRound = plan
+    ? nextSlot <= plan.length
+      ? { name: plan[nextSlot - 1], isHr: false }
+      : { name: 'HR Final Interview', isHr: true }
+    : null;
   const [feedbackFor, setFeedbackFor] = useState(null); // round being scored
   const [busy, setBusy] = useState(false);
   const [resending, setResending] = useState(null); // round id currently resending its invitation
@@ -625,7 +638,15 @@ export default function TACandidateDetailPage() {
               title="Step 2 · Interview"
               action={
                 [APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS, APP_STATUS.INTERVIEW_PASSED].includes(app.status) && (
-                  <Button variant="ghost" icon="CalendarPlus" onClick={() => setModal('schedule')}>Schedule round</Button>
+                  hrFinalRound ? (
+                    <span className="ta-cell-sub">HR final round scheduled. No further rounds.</span>
+                  ) : (
+                    <Button
+                      variant="ghost" icon="CalendarPlus" disabled={!!openRound}
+                      title={openRound ? `Record Round ${openRound.round_number}'s outcome first.` : undefined}
+                      onClick={() => setModal('schedule')}
+                    >Schedule round</Button>
+                  )
                 )
               }
             >
@@ -639,7 +660,7 @@ export default function TACandidateDetailPage() {
                     return (
                       <div className="ta-round" key={r.id}>
                         <div className="ta-round__head">
-                          <span className="ta-cell-strong">Round {r.round_number} · {r.name}</span>
+                          <span className="ta-cell-strong">Round {r.round_number} · {r.name}{r.is_hr_final ? ' (HR final)' : ''}</span>
                           {feedback ? (
                             <Tag tone={ROUND_DECISION_TONE[feedback.decision]}>{ROUND_DECISION_LABEL[feedback.decision]}</Tag>
                           ) : (
@@ -825,7 +846,7 @@ export default function TACandidateDetailPage() {
       />
       <ScheduleInterviewModal
         open={modal === 'schedule'} onClose={() => setModal(null)}
-        roundNumber={rounds.length + 1} busy={busy} onSchedule={doSchedule}
+        roundNumber={rounds.length + 1} plannedRound={plannedRound} busy={busy} onSchedule={doSchedule}
         candidateEmail={p.email}
       />
       <InterviewFeedbackModal

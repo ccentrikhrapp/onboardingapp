@@ -70,7 +70,7 @@ export function invitationEmail(o: {
        <td style="padding:11px 14px;border-bottom:${last ? "0" : "1px solid #e6e9ef"};font-size:13px;color:#0f1729;font-weight:600">${value}</td>
      </tr>`;
   const html = `<!doctype html><html><body style="margin:0;background:#f1f3f7;padding:28px 12px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2430">
-  <table role="presentation" align="center" style="width:100%;max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e6e8ec;border-top:3px solid #2563eb;border-radius:14px;border-collapse:separate">
+  <table role="presentation" align="center" style="width:100%;max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e6e8ec;border-top:3px solid #3157D5;border-radius:14px;border-collapse:separate">
     <tr><td style="padding:18px 26px;border-bottom:1px solid #eef0f3">
       <table role="presentation" style="width:100%"><tr>
         <td><img src="cid:ccentrik-logo" width="92" alt="CCENTRIK" style="display:block;border:0;height:auto" /></td>
@@ -79,9 +79,9 @@ export function invitationEmail(o: {
     </td></tr>
     <tr><td style="padding:24px 26px 6px">
       <div style="background:#eef4ff;border:1px solid #cfe0ff;border-radius:12px;padding:22px 18px;text-align:center">
-        <div style="display:inline-block;width:44px;height:44px;line-height:44px;border-radius:12px;background:#2563eb;font-size:22px">&#127881;</div>
+        <div style="display:inline-block;width:44px;height:44px;line-height:44px;border-radius:12px;background:#3157D5;font-size:22px">&#127881;</div>
         <div style="margin-top:10px;font-size:19px;font-weight:800;color:#0f1729">Welcome, ${esc(o.name)}!</div>
-        <div style="margin-top:6px;font-size:12px;color:#2563eb">You've been added to the CCENTRIK ${esc(o.appName)} workspace by ${esc(o.inviterName)}.</div>
+        <div style="margin-top:6px;font-size:12px;color:#3157D5">You've been added to the CCENTRIK ${esc(o.appName)} workspace by ${esc(o.inviterName)}.</div>
       </div>
     </td></tr>
     <tr><td style="padding:14px 26px 4px;font-size:13px;color:#374151">
@@ -89,15 +89,15 @@ export function invitationEmail(o: {
     </td></tr>
     <tr><td style="padding:12px 26px 6px">
       <table role="presentation" style="width:100%;border:1px solid #e6e9ef;border-radius:10px;border-collapse:separate;overflow:hidden">
-        ${row("Login Email", `<a href="mailto:${esc(o.email)}" style="color:#2563eb;text-decoration:underline">${esc(o.email)}</a>`)}
+        ${row("Login Email", `<a href="mailto:${esc(o.email)}" style="color:#3157D5;text-decoration:underline">${esc(o.email)}</a>`)}
         ${row("Your Role", esc(o.roleLabel))}
-        ${row("Invited By", `<a href="mailto:${esc(o.inviterEmail)}" style="color:#2563eb;text-decoration:underline">${esc(o.inviterEmail)}</a>`)}
+        ${row("Invited By", `<a href="mailto:${esc(o.inviterEmail)}" style="color:#3157D5;text-decoration:underline">${esc(o.inviterEmail)}</a>`)}
         ${row("Temporary Password", `<span style="display:inline-block;padding:3px 10px;background:#f1f5f9;border:1px solid #e2e8f0;border-radius:6px;font-family:Consolas,Menlo,monospace;font-size:14px;letter-spacing:.04em;color:#0f1729">${esc(o.tempPassword)}</span>`)}
         ${row("Valid until", esc(expires), true)}
       </table>
     </td></tr>
     <tr><td style="padding:14px 26px 6px">
-      <a href="${o.loginUrl}" style="display:block;text-align:center;padding:14px 16px;background:#2563eb;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:800;font-size:14px">Login to CCENTRIK &rarr;</a>
+      <a href="${o.loginUrl}" style="display:block;text-align:center;padding:14px 16px;background:#3157D5;color:#ffffff;text-decoration:none;border-radius:10px;font-weight:800;font-size:14px">Login to CCENTRIK &rarr;</a>
     </td></tr>
     <tr><td style="padding:8px 26px 4px">
       <div style="background:#fffbeb;border:1px solid #fde68a;border-left:3px solid #f59e0b;border-radius:8px;padding:10px 14px;font-size:12px;color:#92400e">
@@ -105,7 +105,7 @@ export function invitationEmail(o: {
       </div>
     </td></tr>
     <tr><td style="padding:8px 26px 20px;font-size:12px;color:#6b7280">
-      Prefer a link? <a href="${o.link}" style="color:#2563eb">Activate with a one-time link</a> instead (single use). You can also sign in with <strong>Google</strong> using this same email address. If this expires, ask ${esc(o.inviterName)} to resend it. Wasn't expecting this? You can ignore this email.
+      Prefer a link? <a href="${o.link}" style="color:#3157D5">Activate with a one-time link</a> instead (single use). You can also sign in with <strong>Google</strong> using this same email address. If this expires, ask ${esc(o.inviterName)} to resend it. Wasn't expecting this? You can ignore this email.
     </td></tr>
     <tr><td style="padding:14px 26px;border-top:1px solid #eef0f3;font-size:11px;color:#9aa3b2">
       <table role="presentation" style="width:100%"><tr>

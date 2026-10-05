@@ -38,6 +38,7 @@ export function applicationFromDb(row) {
     createdAt: row.created_at,
     jobId: row.job_id,
     jobTitle: row.jobs?.title || 'General Application',
+    interviewPlan: row.jobs?.interview_plan ?? null,
     assignedTo: row.assigned_ta_id || null,
     assignedToName: row.assigned_ta?.full_name || row.assigned_ta?.email || null,
     personal: row.personal || {},

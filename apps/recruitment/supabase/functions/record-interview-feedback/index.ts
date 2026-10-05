@@ -41,7 +41,7 @@ Deno.serve(async (req) => {
 
   const { data: round } = await svc
     .from("interview_rounds")
-    .select("id, name, round_number, status, application_id, applications(id, status, assigned_ta_id, personal, jobs(title), candidates(profile_id))")
+    .select("id, name, round_number, status, is_hr_final, application_id, applications(id, status, assigned_ta_id, personal, jobs(title), candidates(profile_id))")
     .eq("id", body.roundId)
     .maybeSingle();
   if (!round) return fail("NOT_FOUND", "Interview round not found.", 404);
@@ -90,7 +90,9 @@ Deno.serve(async (req) => {
   let newAppStatus: string | null = null;
   if (decision === "not_progressing") {
     newAppStatus = "INTERVIEW_FAILED";
-  } else if (decision === "advance") {
+  } else if (decision === "advance" && round.is_hr_final) {
+    // Only the HR final round completes the interview stage. Earlier rounds
+    // keep the candidate in progress until HR has also been cleared.
     const { data: openRounds } = await svc
       .from("interview_rounds")
       .select("id")

@@ -54,8 +54,9 @@ function emptyPanelist() {
    a Teams/Google Meet link (see api/interviews.js#generateMeetingLink, a
    thin wrapper over a mock-or-real service layer — never something the TA
    types by hand), In-Person asks for a physical location instead. */
-export default function ScheduleInterviewModal({ open, onClose, roundNumber, onSchedule, busy, candidateEmail }) {
+export default function ScheduleInterviewModal({ open, onClose, roundNumber, plannedRound, onSchedule, busy, candidateEmail }) {
   const [name, setName] = useState('');
+  const [isHrRound, setIsHrRound] = useState(false);
   const [description, setDescription] = useState('');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -124,7 +125,7 @@ export default function ScheduleInterviewModal({ open, onClose, roundNumber, onS
 
   const submit = () => {
     const fe = {};
-    if (!name.trim()) fe.name = 'Round name is required.';
+    if (!(plannedRound ? plannedRound.name : name).trim()) fe.name = 'Round name is required.';
     const dateMsg = notPastDateError(date, { required: true, label: 'interview date' });
     if (dateMsg) fe.date = dateMsg;
     if (!time) fe.time = 'Please select a time.';
@@ -147,7 +148,8 @@ export default function ScheduleInterviewModal({ open, onClose, roundNumber, onS
     if (Object.keys(fe).length) return;
 
     onSchedule({
-      name: name.trim(),
+      name: (plannedRound ? plannedRound.name : name).trim(),
+      isHrRound: plannedRound ? plannedRound.isHr : isHrRound,
       description: description.trim() || undefined,
       scheduledAt: new Date(`${date}T${time}`).toISOString(),
       durationMinutes: duration ? Number(duration) : undefined,
@@ -181,7 +183,22 @@ export default function ScheduleInterviewModal({ open, onClose, roundNumber, onS
       <div className="ta-modalsection">INTERVIEW DETAILS</div>
       <FieldGrid>
         <Field label="Round name" required full error={fieldErrors.name}>
-          <Input value={name} error={fieldErrors.name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Technical Evaluation" />
+          <Input
+            value={plannedRound ? plannedRound.name : name} error={fieldErrors.name} disabled={!!plannedRound}
+            onChange={(e) => setName(e.target.value)} placeholder="e.g. Technical Evaluation"
+          />
+          {plannedRound && <span className="ta-cell-sub">Set by this job's interview plan.</span>}
+        </Field>
+        <Field label="Round type" full>
+          <label className="ta-check">
+            <input
+              type="checkbox" checked={plannedRound ? plannedRound.isHr : isHrRound} disabled={!!plannedRound}
+              onChange={(e) => setIsHrRound(e.target.checked)}
+            />
+            <span>
+              <b>This is the HR final round.</b> HR is always the last interview. No round can be added after it.
+            </span>
+          </label>
         </Field>
         <Field label="Date" required error={fieldErrors.date}>
           <Input
