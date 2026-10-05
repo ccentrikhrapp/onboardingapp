@@ -28,6 +28,7 @@ import CandidateProfilePage from '../pages/candidate/CandidateProfilePage.jsx';
 
 import TADashboard from '../pages/talentAcquisition/TADashboard.jsx';
 import TACandidatesPage from '../pages/talentAcquisition/TACandidatesPage.jsx';
+import TADocumentVerifyPage from '../pages/talentAcquisition/TADocumentVerifyPage.jsx';
 import TACandidateDetailPage from '../pages/talentAcquisition/TACandidateDetailPage.jsx';
 import TAJobsPage from '../pages/talentAcquisition/TAJobsPage.jsx';
 import TAJobDetailPage from '../pages/talentAcquisition/TAJobDetailPage.jsx';
@@ -101,6 +102,7 @@ export default function AppRoutes() {
         <Route path="/ta/candidates" element={<TACandidatesPage />} />
         <Route path="/ta/candidates/new" element={<CreateCandidatePage />} />
         <Route path="/ta/candidates/bulk-upload" element={<BulkUploadCandidatesPage />} />
+        <Route path="/ta/candidates/:candidateId/documents/:documentId/verify" element={<TADocumentVerifyPage />} />
         <Route path="/ta/candidates/:candidateId" element={<TACandidateDetailPage />} />
         <Route path="/ta/jobs" element={<TAJobsPage />} />
         <Route path="/ta/jobs/:jobId" element={<TAJobDetailPage />} />

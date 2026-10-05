@@ -872,3 +872,30 @@ button.stat-tile { text-align: left; font: inherit; cursor: pointer; }
   .jf-steps { position: static; flex-direction: row; overflow-x: auto; max-height: none; }
   .jf-step { width: auto; white-space: nowrap; }
 }
+
+/* Employee Joining Form — compact, scannable, laptop-first (layout only; logic unchanged) */
+.jf-sections { display: flex; flex-direction: column; gap: 12px; }
+.jf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; align-items: start; }
+.jf-grid .ta-field { margin-bottom: 0; gap: 4px; }
+.jf-grid .ta-field--full { grid-column: 1 / -1; }
+.jf-grid .ta-field__label { font-size: 12.5px; }
+.jf-grid .ta-input, .jf-grid .ta-textarea { font-size: 14px; padding: 6px 10px; }
+.jf-actions {
+  position: sticky; bottom: 0; z-index: 5; margin: 14px -16px -16px; padding: 10px 16px;
+  display: flex; justify-content: space-between; gap: 8px; background: var(--card-bg, #fff);
+  border-top: 1px solid var(--ta-line, #e5e7eb);
+}
+.jf-layout .ta-card__body { padding: 14px 16px; }
+.jf-layout .ta-card__title { font-size: 15px; }
+.cx-page:has(.jf-layout) { max-width: min(1240px, 100%); }
+@media (max-width: 1100px) { .jf-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+@media (max-width: 640px) { .jf-grid { grid-template-columns: 1fr; } .jf-actions { flex-direction: column-reverse; } }
+
+/* Compact candidate / TA application forms (Apply + Add Candidate). Layout only. */
+.cx-compact .ta-formgrid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; }
+.cx-compact .ta-field { margin-bottom: 0; gap: 4px; }
+.cx-compact .ta-input, .cx-compact .ta-textarea { font-size: 14px; padding: 6px 10px; }
+.cx-compact .ta-field__label { font-size: 12.5px; }
+.cx-compact .cx-section { margin-bottom: 14px; }
+.cx-compact .cx-formbar { position: sticky; bottom: 0; z-index: 5; background: var(--card-bg, #fff); border-top: 1px solid var(--ta-line, #e5e7eb); padding: 10px 0; }
+@media (max-width: 640px) { .cx-compact .ta-formgrid { grid-template-columns: 1fr; } }

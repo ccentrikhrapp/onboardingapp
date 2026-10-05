@@ -58,3 +58,8 @@ export const updateDocConfig = (refKey, changes) => callFn('joining-doc-config',
 export function listDocConfigRows() {
   return supabase.from('joining_document_config').select('*').then(unwrap);
 }
+
+/* ---- onboarding PDF + decisions ---- */
+export const decideJoining = (profileId, action, remarks) => act(profileId, action, { remarks });
+export const listJoiningPdfs = (profileId) => callFn('joining-pdf', { body: { profileId, action: 'list' } });
+export const getJoiningPdfUrl = (profileId, version) => callFn('joining-pdf', { body: { profileId, action: 'url', version } });

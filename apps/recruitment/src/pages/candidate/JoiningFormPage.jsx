@@ -21,7 +21,7 @@ const STEPS = [
   SECTIONS.find((s) => s.id === 'declaration'),
   { id: 'review', title: 'Review & submit', icon: 'ClipboardCheck', blurb: 'Check everything, then sign and submit once.' },
 ];
-const STATUS_TONE = { not_started: 'grey', in_progress: 'blue', submitted: 'amber', under_review: 'amber', correction_required: 'red', resubmitted: 'amber', verified: 'green', completed: 'green' };
+const STATUS_TONE = { approved_with_remarks: 'amber', rejected: 'red', not_started: 'grey', in_progress: 'blue', submitted: 'amber', under_review: 'amber', correction_required: 'red', resubmitted: 'amber', verified: 'green', completed: 'green' };
 const SAVE_DELAY = 1200;
 
 export default function JoiningFormPage() {
@@ -263,7 +263,7 @@ export default function JoiningFormPage() {
             )}
 
             {step.id !== 'review' && (
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 20, gap: 8 }}>
+              <div className="jf-actions">
                 <Button variant="ghost" icon="ArrowLeft" onClick={() => goTo(STEPS[Math.max(0, stepIndex - 1)].id)} disabled={stepIndex === 0}>Back</Button>
                 <Button iconRight="ArrowRight" onClick={next}>Save & continue</Button>
               </div>

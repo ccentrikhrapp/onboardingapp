@@ -523,6 +523,7 @@ export const HR_FIELDS: Field[] = [
 ];
 
 export const STATUS_LABEL: Record<string, string> = {
+  approved_with_remarks: 'Approved with remarks', rejected: 'Rejected',
   not_started: 'Not started', in_progress: 'In progress', submitted: 'Submitted', under_review: 'Under review',
   correction_required: 'Correction required', resubmitted: 'Resubmitted', verified: 'Verified', completed: 'Completed',
 };

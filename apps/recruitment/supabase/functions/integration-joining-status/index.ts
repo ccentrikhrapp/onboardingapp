@@ -3,7 +3,7 @@
 // (correction required / verified / completed). Service-to-service only.
 // Puts a clear line on the candidate's timeline and a bell notification.
 //
-// Body: { eventId, applicationId, status: 'correction_required'|'verified'|'completed'|'documents_clarification'|'documents_rejected'|'documents_approved', message }
+// Body: { eventId, applicationId, status: 'correction_required'|'verified'|'completed'|'approved_with_remarks'|'rejected'|'documents_clarification'|'documents_rejected'|'documents_approved', message }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
@@ -17,6 +17,8 @@ const TITLE: Record<string, string> = {
   documents_clarification: "Joining Document Clarification Required",
   documents_rejected: "Joining Document Rejected",
   documents_approved: "Joining Documentation Approved",
+  approved_with_remarks: "Joining Form Approved with Remarks",
+  rejected: "Joining Form Rejected",
 };
 
 Deno.serve(async (req) => {

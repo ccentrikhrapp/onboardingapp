@@ -18,7 +18,7 @@ import { ApiError } from '../../api/client.js';
 import { jobFromDb } from '../../api/mappers.js';
 import { fileUploadError } from '../../utils/validation.js';
 import {
-  EXP_OPTIONS, NOTICE_OPTIONS, REQUIRED, expToNumber, isFieldRequired, fieldError, validateFormFields,
+  EXP_OPTIONS, NOTICE_OPTIONS, REQUIRED, LABELS, expToNumber, isFieldRequired, fieldError, validateFormFields,
   RESET_ON_NEW_RESUME, parsedToFormPatch, formToApplicationBlocks,
 } from '../../utils/candidateForm.js';
 import { returnErrorMessage, cleanAuthUrl } from '../../utils/authFlow.js';
@@ -79,7 +79,7 @@ export default function ApplyPage() {
 
   if (!configured) {
     return (
-      <div className="cx-page cx-page--form">
+      <div className="cx-page cx-page--form cx-compact">
         <div className="wsauth__alert" role="alert">
           <Icon name="AlertCircle" size={15} /> Backend not configured yet — see .env.example.
         </div>
@@ -162,10 +162,34 @@ export default function ApplyPage() {
     return Object.keys(e).length === 0;
   };
 
+  // Resume values never overwrite something the candidate already typed: an empty field
+  // is filled, a different filled value is listed for the candidate to choose.
+  const formRef = useRef(form);
+  formRef.current = form;
+  const [resumeReview, setResumeReview] = useState(null); // { filled, conflicts: [{ key, existing, resume }] }
   const applyParsed = (p) => {
-    setForm((f) => ({ ...f, ...parsedToFormPatch(f, p) }));
+    const current = formRef.current;
+    const patch = parsedToFormPatch(current, p);
+    const next = {};
+    const filledKeys = [];
+    const conflicts = [];
+    for (const k of ['firstName', 'lastName', 'email', 'phone', 'currentLocation', 'experience', 'currentCompany', 'currentJobTitle', 'highestQualification', 'portfolio']) {
+      const incoming = patch[k];
+      const existing = current[k];
+      if (incoming === undefined || incoming === null || String(incoming).trim() === '') continue;
+      if (String(existing ?? '').trim() === '') { next[k] = incoming; filledKeys.push(k); }
+      else if (String(existing).trim() !== String(incoming).trim()) conflicts.push({ key: k, existing, resume: incoming });
+    }
+    if (!(current.skills?.length) && patch.skills?.length) { next.skills = patch.skills; filledKeys.push('skills'); }
+    setForm((f) => ({ ...f, ...next, autofilled: [...new Set([...(f.autofilled || []), ...filledKeys])] }));
+    setResumeReview({ filled: filledKeys.length, conflicts });
     setErrors({});
   };
+  const useResumeValue = (c) => {
+    setForm((f) => ({ ...f, [c.key]: c.resume, autofilled: [...new Set([...(f.autofilled || []), c.key])] }));
+    setResumeReview((r) => r && { ...r, conflicts: r.conflicts.filter((x) => x.key !== c.key) });
+  };
+  const keepMine = (c) => setResumeReview((r) => r && { ...r, conflicts: r.conflicts.filter((x) => x.key !== c.key) });
 
   const handleFile = async (fileList) => {
     const file = fileList?.[0];
@@ -186,6 +210,7 @@ export default function ApplyPage() {
     // says — clear the previously auto-filled fields first so nothing from
     // an earlier upload (or an earlier draft) can linger and look mismatched.
     set({ ...RESET_ON_NEW_RESUME });
+    setResumeReview(null);
 
     try {
       setAnalyzeIdx(0);
@@ -215,6 +240,7 @@ export default function ApplyPage() {
     timers.current.forEach(clearTimeout);
     setAnalyzeIdx(-1);
     set({ resume: null, resumePath: null, autofilled: [] });
+    setResumeReview(null);
   };
 
   const setDoc = (reqId, patch) => setDocState((s) => ({ ...s, [reqId]: { ...s[reqId], ...patch } }));
@@ -347,7 +373,7 @@ export default function ApplyPage() {
 
   if (linkError) {
     return (
-      <div className="cx-page cx-page--form">
+      <div className="cx-page cx-page--form cx-compact">
         <div className="wsauth__alert" role="alert" style={{ marginBottom: 16 }}>
           <Icon name="AlertCircle" size={15} /> {linkError}
         </div>
@@ -400,7 +426,7 @@ export default function ApplyPage() {
   }
 
   return (
-    <div className="cx-page cx-page--form">
+    <div className="cx-page cx-page--form cx-compact">
       <button className="ta-link" onClick={() => navigate(job ? `/candidate/jobs/${job.id}` : '/candidate/jobs')} style={{ marginBottom: 14 }}>
         <Icon name="ArrowLeft" size={14} /> {job ? 'Back to job' : 'Back to jobs'}
       </button>
@@ -477,6 +503,23 @@ export default function ApplyPage() {
           {errors.resume && (
             <div className="ta-field__error" style={{ marginBottom: 14 }}>
               <Icon name="AlertCircle" size={12} /> {errors.resume}
+            </div>
+          )}
+          {resumeReview && (
+            <div className="ta-note ta-note--info" style={{ marginBottom: 14, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+              <div>
+                <Icon name="CheckCircle2" size={14} /> <strong>Resume processed.</strong> {resumeReview.filled} field{resumeReview.filled === 1 ? '' : 's'} filled from your resume
+                {resumeReview.conflicts.length ? <>, <strong>{resumeReview.conflicts.length} need{resumeReview.conflicts.length === 1 ? 's' : ''} your review</strong> — we kept what you typed.</> : '.'}
+                {' '}Nothing is submitted until you press Submit.
+              </div>
+              {resumeReview.conflicts.map((c) => (
+                <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <span className="ta-cell-sub" style={{ minWidth: 150 }}>{LABELS[c.key] || c.key}</span>
+                  <span style={{ flex: 1, minWidth: 180 }}>You: <strong>{String(c.existing)}</strong> · Resume: <strong>{String(c.resume)}</strong></span>
+                  <Button variant="ghost" onClick={() => useResumeValue(c)}>Use resume value</Button>
+                  <Button variant="ghost" onClick={() => keepMine(c)}>Keep mine</Button>
+                </div>
+              ))}
             </div>
           )}
 

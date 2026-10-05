@@ -18,7 +18,7 @@ const GROUPS = [
    providing it — on to HR for final sign-off. Verification is complete when every APPLICABLE mandatory /
    conditional requirement is resolved; optional and not-applicable ones never block, and PAN / Aadhaar is one
    requirement satisfied by either. */
-export default function TADocumentReview({ docs, onReload, onView }) {
+export default function TADocumentReview({ docs, onReload, onView, onOpen }) {
   const toast = useToast();
   const [busy, setBusy] = useState(null);
   const [remarkFor, setRemarkFor] = useState(null); // { id, action }
@@ -112,6 +112,7 @@ export default function TADocumentReview({ docs, onReload, onView }) {
                     <Tag tone={meta.tone}>{meta.label}</Tag>
                     {!asking && (
                       <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {review && <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onOpen?.(d)}><Icon name="Eye" size={13} /> Verify</button>}
                         {review && <button type="button" className="ta-btn ta-btn--sm" disabled={isBusy} onClick={() => act(d, 'approve')}><Icon name="CheckCircle2" size={13} /> {d.status === 'cannot_provide' ? 'Approve reason' : 'Approve'}</button>}
                         {review && <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={isBusy} onClick={() => { setRemarkFor({ id: d.id, action: 'reupload_required' }); setText(''); }}><Icon name="RotateCcw" size={13} /> Request clarification</button>}
                         {review && <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={isBusy} onClick={() => { setRemarkFor({ id: d.id, action: 'reject' }); setText(''); }}><Icon name="X" size={13} /> Reject</button>}

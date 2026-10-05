@@ -10,14 +10,14 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { getOnboardingCase } from '../../api/onboarding.js';
 import {
   getJoiningForCase, listJoiningEvents, listJoiningSnapshots, listJoiningItems, listDocConfigRows, setHrFields, requestCorrection,
-  startReview, verifyJoining, completeJoining, docApprove, docClarify, docReject, docMarkNa, docMarkApplicable, approveDocumentation, getJoiningFileUrl,
+  startReview, verifyJoining, completeJoining, decideJoining, listJoiningPdfs, getJoiningPdfUrl, docApprove, docClarify, docReject, docMarkNa, docMarkApplicable, approveDocumentation, getJoiningFileUrl,
 } from '../../api/joining.js';
 import { DOC_REFERENCE, HR_FIELDS, SECTIONS, STATUS_LABEL, deriveRequirements, docLabel, docSummary, docUnits, validateAll } from '../../utils/joiningSchema.ts';
 import { summarizeSections } from '../../utils/joiningView.js';
 import { FORMS, buildForm, openPrint } from '../../utils/joiningDocs.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
 
-const STATUS_TONE = { not_started: 'grey', in_progress: 'blue', submitted: 'amber', under_review: 'amber', correction_required: 'red', resubmitted: 'amber', verified: 'green', completed: 'green' };
+const STATUS_TONE = { approved_with_remarks: 'amber', rejected: 'red', not_started: 'grey', in_progress: 'blue', submitted: 'amber', under_review: 'amber', correction_required: 'red', resubmitted: 'amber', verified: 'green', completed: 'green' };
 const CLASS_LABEL = { critical: 'Mandatory', conditional: 'Conditional', optional: 'Optional' };
 
 function Remark({ label, onSubmit, onCancel }) {
@@ -58,6 +58,8 @@ export default function JoiningReviewPage() {
   const [queue, setQueue] = useState([]); // pending form corrections
   const [corrFor, setCorrFor] = useState(null);
   const [preview, setPreview] = useState(null);
+  const [pdfs, setPdfs] = useState([]);
+  const [decRemarks, setDecRemarks] = useState('');
 
   const load = async () => {
     try {
@@ -66,6 +68,7 @@ export default function JoiningReviewPage() {
       const p = await getJoiningForCase(caseId);
       setProfile(p);
       if (p) {
+        listJoiningPdfs(p.id).then((r) => setPdfs(r.versions || [])).catch(() => setPdfs([]));
         const [ev, snaps, items, cfg] = await Promise.all([listJoiningEvents(p.id), listJoiningSnapshots(p.id), listJoiningItems(p.id), listDocConfigRows().catch(() => [])]);
         setEvents(ev); setSnapshots(snaps); setItemRows(items);
         setCfgRows(cfg);
@@ -247,6 +250,44 @@ export default function JoiningReviewPage() {
           </Button>
           {!summary.ready && <span className="hr-cell-sub">Still to resolve: {summary.unresolved.join(', ')}</span>}
           {summary.ready && !profile.documents_approved_at && <span className="hr-cell-sub">Every applicable requirement is resolved — the rest of the reference checklist isn't needed.</span>}
+        </div>
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card title="Onboarding document (PDF)" action={pdfs[0] ? <Tag tone="green">Version {pdfs[0].version}.0 · {pdfs[0].label}</Tag> : <Tag tone="grey">Not generated</Tag>}>
+        {pdfs.length === 0 ? <p className="hr-cell-sub">Generated automatically when the employee submits.</p> : (
+          <div className="hr-table-scroll">
+            <table className="hr-table">
+              <thead><tr><th>Version</th><th>Event</th><th>Status</th><th>Created</th><th></th></tr></thead>
+              <tbody>
+                {pdfs.map((v) => (
+                  <tr key={v.id}>
+                    <td>{v.version}.0</td><td>{v.label}</td><td>{v.status_at_creation}</td>
+                    <td>{formatDateTime(v.created_at)}</td>
+                    <td style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
+                      <Button variant="ghost" icon="Eye" onClick={async () => { try { const r = await getJoiningPdfUrl(pid, v.version); window.open(r.url, '_blank', 'noopener'); } catch (e) { toast.error(e.message || 'Could not open this document.'); } }}>View</Button>
+                      <Button variant="ghost" icon="Download" onClick={async () => { try { const r = await getJoiningPdfUrl(pid, v.version); const a = document.createElement('a'); a.href = r.url; a.download = r.fileName; document.body.appendChild(a); a.click(); a.remove(); } catch (e) { toast.error(e.message || 'Could not download this document.'); } }}>Download</Button>
+                      <Button variant="ghost" icon="Printer" onClick={async () => { try { const r = await getJoiningPdfUrl(pid, v.version); const w = window.open(r.url, '_blank', 'noopener'); w?.addEventListener?.('load', () => w.print()); } catch (e) { toast.error(e.message || 'Could not print this document.'); } }}>Print</Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Card>
+
+      <div style={{ height: 14 }} />
+
+      <Card title="HR decision">
+        <p className="hr-cell-sub" style={{ marginBottom: 8 }}>Decisions are recorded with your name and time. Remarks are required for Approve with remarks and Reject.</p>
+        <textarea className="hr-input" rows={3} placeholder="HR remarks" value={decRemarks} onChange={(e) => setDecRemarks(e.target.value)} style={{ width: '100%', marginBottom: 10 }} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <Button icon="Check" disabled={busy || !['submitted', 'resubmitted', 'under_review'].includes(st) || openCorr.length > 0} onClick={() => { if (window.confirm('Approve this onboarding record?')) run(() => verifyJoining(pid), 'Approved.'); }}>Approve</Button>
+          <Button variant="ghost" disabled={busy || !decRemarks.trim() || !['submitted', 'resubmitted', 'under_review'].includes(st)} onClick={() => { if (window.confirm('Approve this onboarding record with remarks?')) run(() => decideJoining(pid, 'approve_with_remarks', decRemarks.trim()), 'Approved with remarks.').then(() => setDecRemarks('')); }}>Approve with remarks</Button>
+          <Button variant="ghost" disabled={busy || !['submitted', 'resubmitted', 'under_review'].includes(st)} onClick={() => { if (!queue.length) { toast.error('Add the correction(s) to the queue above first.'); return; } if (window.confirm('Request clarification from the employee?')) run(() => requestCorrection(pid, queue), 'Clarification requested.').then((r) => { if (r) setQueue([]); }); }}>Request clarification</Button>
+          <Button variant="danger" disabled={busy || !decRemarks.trim() || !['submitted', 'resubmitted', 'under_review'].includes(st)} onClick={() => { if (window.confirm('Reject this onboarding record? The employee will be notified.')) run(() => decideJoining(pid, 'reject', decRemarks.trim()), 'Rejected.').then(() => setDecRemarks('')); }}>Reject</Button>
         </div>
       </Card>
 

@@ -1,0 +1,46 @@
+// Generates the Employee Onboarding PDF for a joining record and stores it as the
+// next version. Old versions are never overwritten. Called by the HR functions
+// when a record is submitted, resubmitted or decided.
+
+import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { renderOnboardingPdf, referenceFor, fileNameFor, DOC_STATUS } from "./onboardingPdf.ts";
+
+export async function storeOnboardingPdf(
+  svc: SupabaseClient,
+  profileId: string,
+  label: string,
+  actorName: string,
+): Promise<{ version: number; id: string; fileName: string } | null> {
+  const { data: profile } = await svc.from("joining_profiles").select("*").eq("id", profileId).maybeSingle();
+  if (!profile) return null;
+  const { data: caseInfo } = await svc.from("onboarding_cases").select("*").eq("id", profile.onboarding_case_id).maybeSingle();
+  const { data: items } = await svc.from("joining_document_items").select("*").eq("joining_profile_id", profileId).order("created_at");
+
+  const reference = profile.reference_no ?? referenceFor(profile.id, profile.created_at);
+  if (!profile.reference_no) await svc.from("joining_profiles").update({ reference_no: reference }).eq("id", profileId);
+
+  const version = (profile.pdf_version ?? 0) + 1;
+  const now = new Date().toISOString();
+  const bytes = await renderOnboardingPdf({
+    referenceNo: reference, statusKey: profile.status, version, profile, caseInfo: caseInfo ?? {},
+    items: items ?? [], generatedAt: now, submittedBy: actorName,
+  });
+
+  const employeeId = profile.hr_fields?.employeeCode || "PENDING";
+  const name = caseInfo?.candidate_name || "Employee";
+  const fileName = fileNameFor(employeeId, name, now);
+  const path = `${profileId}/v${version}-${now.replace(/[:.]/g, "-")}.pdf`;
+
+  const { error: upErr } = await svc.storage.from("joining-pdfs").upload(path, bytes, { contentType: "application/pdf", upsert: false });
+  if (upErr) throw new Error(`PDF storage failed: ${upErr.message}`);
+
+  const { data: row, error: insErr } = await svc.from("joining_pdfs").insert({
+    joining_profile_id: profileId, version, label, status_at_creation: profile.status,
+    storage_path: path, file_name: fileName, size_bytes: bytes.length, created_by: actorName,
+  }).select("id").single();
+  if (insErr || !row) throw new Error(`PDF record failed: ${insErr?.message ?? "unknown"}`);
+
+  await svc.from("joining_profiles").update({ pdf_version: version }).eq("id", profileId);
+  void DOC_STATUS;
+  return { version, id: row.id, fileName };
+}

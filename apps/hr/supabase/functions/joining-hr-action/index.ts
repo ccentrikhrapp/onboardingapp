@@ -17,6 +17,7 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { HR_FIELDS, SECTIONS, fieldError } from "../_shared/joiningSchema.ts";
 import { buildDocuments } from "../_shared/joiningDocs.ts";
+import { storeOnboardingPdf } from "../_shared/onboardingPdfStore.ts";
 
 const SECTION_IDS = new Set(SECTIONS.map((s) => s.id));
 const DOC_ACTIONS = ["doc_approve", "doc_clarify", "doc_reject", "doc_mark_na", "doc_mark_applicable", "approve_documentation"];
@@ -50,7 +51,7 @@ Deno.serve(async (req) => {
   let body: Record<string, any>;
   try { body = await req.json(); } catch { return fail("INVALID_JSON", "Malformed body.", 400); }
   const { profileId, action } = body;
-  if (!profileId || !["set_hr_fields", "request_correction", "start_review", "verify", "complete", ...DOC_ACTIONS].includes(action)) {
+  if (!profileId || !["set_hr_fields", "request_correction", "start_review", "verify", "complete", "approve_with_remarks", "reject", ...DOC_ACTIONS].includes(action)) {
     return fail("VALIDATION_ERROR", "Invalid request.", 422);
   }
 
@@ -150,6 +151,20 @@ Deno.serve(async (req) => {
 
   const open = (p.corrections ?? []).filter((c: any) => !c.resolved_at);
 
+  if (action === "approve_with_remarks" || action === "reject") {
+    const remark = String(body.remarks ?? "").trim();
+    if (!remark) return fail("VALIDATION_ERROR", "Please add remarks for this decision.", 422, { remarks: "Remarks are required." });
+    if (!["submitted", "resubmitted", "under_review"].includes(p.status)) return fail("INVALID_STATE", "The form must be submitted before it can be decided.", 409);
+    if (action === "approve_with_remarks" && open.length) return fail("INVALID_STATE", "There are open corrections.", 409);
+    const next = action === "reject" ? "rejected" : "approved_with_remarks";
+    await svc.from("joining_profiles").update({ status: next, decision_remarks: remark, decided_by: actor, decided_at: now }).eq("id", p.id);
+    await log({ kind: "status", old_value: { status: p.status }, new_value: { status: next }, remark });
+    await audit(svc, { actor_profile_id: me.id, actor_label: actor, action: `joining.${next}`, entity_type: "joining_profile", entity_id: p.id, remarks: remark });
+    try { await storeOnboardingPdf(svc, p.id, next === "rejected" ? "Rejected" : "Approved with remarks", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
+    const synced = await notifyRecruitment(p.source_application_id, next, remark);
+    return ok({ status: next, synced });
+  }
+
   if (action === "request_correction") {
     if (!["submitted", "resubmitted", "under_review"].includes(p.status)) return fail("INVALID_STATE", "Corrections can be requested once the form is submitted and before it is verified.", 409);
     const items = Array.isArray(body.items) ? body.items : [];
@@ -166,6 +181,8 @@ Deno.serve(async (req) => {
     for (const c of fresh) await log({ kind: "correction", section: c.section, field: c.field, remark: c.remark });
     await log({ kind: "status", old_value: { status: p.status }, new_value: { status: "correction_required" } });
     await audit(svc, { actor_profile_id: me.id, actor_label: actor, action: "joining.correction_requested", entity_type: "joining_profile", entity_id: p.id, new_state: { items: fresh.length } });
+    await svc.from("joining_profiles").update({ decided_by: actor, decided_at: now, decision_remarks: fresh.map((c) => c.remark).join(" | ").slice(0, 1000) }).eq("id", p.id);
+    try { await storeOnboardingPdf(svc, p.id, "Pending clarification", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
     const synced = await notifyRecruitment(p.source_application_id, "correction_required",
       `HR asked for a correction in your joining form: ${fresh.map((c) => c.remark).join(" · ").slice(0, 300)}`);
     return ok({ status: "correction_required", synced });
@@ -183,7 +200,9 @@ Deno.serve(async (req) => {
     if (open.length) return fail("INVALID_STATE", "There are open corrections.", 409);
     await svc.from("joining_profiles").update({ status: "verified", verified_at: now }).eq("id", p.id);
     await log({ kind: "status", old_value: { status: p.status }, new_value: { status: "verified" } });
+    await svc.from("joining_profiles").update({ decided_by: actor, decided_at: now }).eq("id", p.id);
     await audit(svc, { actor_profile_id: me.id, actor_label: actor, action: "joining.verified", entity_type: "joining_profile", entity_id: p.id });
+    try { await storeOnboardingPdf(svc, p.id, "Approved", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
     const synced = await notifyRecruitment(p.source_application_id, "verified", "HR has verified your joining form.");
     return ok({ status: "verified", synced });
   }
@@ -193,6 +212,7 @@ Deno.serve(async (req) => {
   await svc.from("joining_profiles").update({ status: "completed", completed_at: now }).eq("id", p.id);
   await log({ kind: "status", old_value: { status: "verified" }, new_value: { status: "completed" } });
   await audit(svc, { actor_profile_id: me.id, actor_label: actor, action: "joining.completed", entity_type: "joining_profile", entity_id: p.id });
+  try { await storeOnboardingPdf(svc, p.id, "Finalised", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
   const synced = await notifyRecruitment(p.source_application_id, "completed", "Your joining formalities are complete.");
   return ok({ status: "completed", synced, name: caseRow?.candidate_name ?? null });
 });

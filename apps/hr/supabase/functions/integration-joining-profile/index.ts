@@ -19,6 +19,7 @@ import { serviceClient } from "../_shared/supabase.ts";
 import { verifyServiceRequest } from "../_shared/serviceAuth.ts";
 import { EDITABLE_STATUSES, SECTIONS, maskValue, normalizeData, validateAll } from "../_shared/joiningSchema.ts";
 import { buildDocuments, loadConfig } from "../_shared/joiningDocs.ts";
+import { storeOnboardingPdf } from "../_shared/onboardingPdfStore.ts";
 
 const SECTION_BY_ID = new Map(SECTIONS.map((s) => [s.id, s]));
 
@@ -300,5 +301,10 @@ Deno.serve(async (req) => {
     message: `${caseRow.candidate_name ?? "A new joiner"} ${resub ? "resubmitted" : "submitted"} the joining form for review.`,
     type: "joining_form_submitted", entity_type: "joining_profile", entity_id: profile.id,
   });
+  try {
+    await storeOnboardingPdf(svc, profile.id, resub ? "Resubmitted" : "Submitted", actorName);
+  } catch (e) {
+    console.error("onboarding pdf failed", String(e).slice(0, 300));
+  }
   return ok(await buildResponse(svc, saved, caseRow));
 });

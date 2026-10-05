@@ -157,7 +157,7 @@ export default function CreateCandidatePage() {
   };
 
   return (
-    <div className="cx-page cx-page--form">
+    <div className="cx-page cx-page--form cx-compact">
       <button className="ta-link" onClick={() => navigate('/ta/candidates')} style={{ marginBottom: 14 }}>
         <Icon name="ArrowLeft" size={14} /> Back to candidates
       </button>

@@ -719,7 +719,7 @@ export default function TACandidateDetailPage() {
               {docs.length === 0 ? (
                 <p className="ta-cell-sub">No documents requested yet.</p>
               ) : (
-                <TADocumentReview docs={docs} onReload={reloadDocs} onView={viewDoc} />
+                <TADocumentReview docs={docs} onReload={reloadDocs} onView={viewDoc} onOpen={(d) => navigate(`/ta/candidates/${candidateId}/documents/${d.id}/verify`)} />
               )}
             </Card>
           )}

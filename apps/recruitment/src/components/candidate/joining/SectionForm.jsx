@@ -1,6 +1,6 @@
 import Icon from '../../common/Icon.jsx';
 import Button from '../../ta/Button.jsx';
-import { FieldGrid } from '../../ta/Field.jsx';
+const FieldGrid = ({ children }) => <div className="jf-grid">{children}</div>;
 import FieldControl from './FieldControl.jsx';
 import { fieldIsRequired, fieldIsVisible, groupIsVisible, sectionProgress } from '../../../utils/joiningSchema.ts';
 
@@ -18,7 +18,7 @@ export default function SectionForm({ section, data, onChange, disabled, sources
   const setGroup = (gid, val) => onChange({ ...seg, [gid]: val });
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+    <div className="jf-sections">
       {section.groups.filter((g) => groupIsVisible(g, data)).map((g) => {
         if (g.kind === 'fields') {
           const obj = seg[g.id] ?? {};
