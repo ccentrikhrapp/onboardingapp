@@ -175,6 +175,7 @@
 /* Configuration drawer */
 .drl-overlay {
   position: fixed;
+  overscroll-behavior: contain;
   inset: 0;
   z-index: 60;
   background: rgba(16, 24, 40, 0.35);
@@ -201,7 +202,7 @@
 }
 .drl-drawer__title { margin: 0; font-size: 16px; line-height: 24px; font-weight: 600; }
 .drl-drawer__desc { margin: 4px 0 0; font-size: 13px; line-height: 20px; color: var(--drl-text-2); }
-.drl-drawer__body { flex: 1; overflow-y: auto; padding: 8px 24px; }
+.drl-drawer__body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 8px 24px; }
 .drl-drawer__foot {
   display: flex;
   justify-content: flex-end;

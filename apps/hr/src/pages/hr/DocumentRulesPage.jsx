@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Icon from '../../components/common/Icon.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { listDocConfig, updateDocConfig } from '../../api/joining.js';
@@ -43,6 +44,12 @@ function Toggle({ id, checked, disabled, onChange, label }) {
 }
 
 function ConfigDrawer({ rule, busy, onClose, onSave }) {
+  // Lock page scroll while the drawer is open, so only the drawer scrolls.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, []);
   const [draft, setDraft] = useState(() => ({
     classification: rule.classification,
     active: rule.active,
@@ -76,7 +83,7 @@ function ConfigDrawer({ rule, busy, onClose, onSave }) {
     onSave(changes);
   };
 
-  return (
+  return createPortal(
     <div className="drl-overlay" onClick={onClose}>
       <aside className="drl-drawer" role="dialog" aria-modal="true" aria-labelledby="drl-drawer-title" onClick={(e) => e.stopPropagation()}>
         <header className="drl-drawer__head">
@@ -139,7 +146,8 @@ function ConfigDrawer({ rule, busy, onClose, onSave }) {
           <button className="drl-btn drl-btn--primary" onClick={save} disabled={busy}>{busy ? 'Saving…' : 'Save'}</button>
         </footer>
       </aside>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
