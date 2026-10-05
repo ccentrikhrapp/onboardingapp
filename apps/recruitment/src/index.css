@@ -899,3 +899,5 @@ button.stat-tile { text-align: left; font: inherit; cursor: pointer; }
 .cx-compact .cx-section { margin-bottom: 14px; }
 .cx-compact .cx-formbar { position: sticky; bottom: 0; z-index: 5; background: var(--card-bg, #fff); border-top: 1px solid var(--ta-line, #e5e7eb); padding: 10px 0; }
 @media (max-width: 640px) { .cx-compact .ta-formgrid { grid-template-columns: 1fr; } }
+
+.skeleton-bar { display: block; height: 14px; width: 70%; }

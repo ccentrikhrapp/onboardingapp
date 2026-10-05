@@ -3,7 +3,22 @@ import EmptyState from './EmptyState.jsx';
 
 /* Premium data table inside a card. See apps/recruitment's ta/DataGrid.jsx —
    same shape, ported for the HR app's own component tree. */
-export default function DataGrid({ columns, rows, renderRow, sort, onSort, title, action, pager, empty }) {
+// Placeholder rows while the data is still loading, so the table shape is visible at once.
+function SkeletonBody({ columns, rows = 5 }) {
+  return (
+    <tbody aria-busy="true" aria-label="Loading">
+      {Array.from({ length: rows }).map((_, r) => (
+        <tr key={r}>
+          {columns.map((c) => (
+            <td key={c.key}><span className="skeleton skeleton-bar" /></td>
+          ))}
+        </tr>
+      ))}
+    </tbody>
+  );
+}
+
+export default function DataGrid({ columns, rows, renderRow, sort, onSort, title, action, pager, empty, loading }) {
   const pages = pager ? Math.max(1, Math.ceil(pager.total / pager.pageSize)) : 1;
 
   const goto = (p) => {
@@ -20,7 +35,7 @@ export default function DataGrid({ columns, rows, renderRow, sort, onSort, title
         </div>
       )}
 
-      {rows.length === 0 ? (
+      {!loading && rows.length === 0 ? (
         <EmptyState {...(empty || { title: 'Nothing to show', message: 'Try changing the filters or search.' })} />
       ) : (
         <div className="hr-table-scroll">
@@ -43,7 +58,7 @@ export default function DataGrid({ columns, rows, renderRow, sort, onSort, title
                 ))}
               </tr>
             </thead>
-            <tbody>{rows.map(renderRow)}</tbody>
+            {loading ? <SkeletonBody columns={columns} /> : <tbody>{rows.map(renderRow)}</tbody>}
           </table>
         </div>
       )}

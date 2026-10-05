@@ -65,7 +65,11 @@ export default function VerificationQueuePage() {
         <Card><p className="text-secondary">{error}</p></Card>
       )}
 
-      {rows === null && !error && <div className="hr-loading">Loading…</div>}
+      {rows === null && !error && (
+        <div className="stack gap-3" aria-busy="true" aria-label="Loading">
+          {[0, 1, 2].map((i) => <div key={i} className="skeleton skeleton-block" />)}
+        </div>
+      )}
 
       {rows !== null && groups.length === 0 && (
         <EmptyState

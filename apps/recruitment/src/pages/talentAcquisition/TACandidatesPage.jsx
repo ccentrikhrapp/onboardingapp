@@ -321,6 +321,7 @@ export default function TACandidatesPage() {
       <DataGrid
         columns={isSuperTa ? [{ key: 'select', label: '' }, ...COLUMNS] : COLUMNS}
         rows={view.rows}
+        loading={remoteRows === null}
         sort={view.sort}
         onSort={view.onSort}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}

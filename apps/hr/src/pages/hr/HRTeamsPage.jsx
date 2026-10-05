@@ -150,7 +150,8 @@ This removes their account, revokes their Google access and stops ${m.email} fro
       <DataGrid
         columns={COLUMNS}
         rows={members}
-        title={`${members.length} team member${members.length === 1 ? '' : 's'}`}
+        loading={!team}
+        title={team ? `${members.length} team member${members.length === 1 ? '' : 's'}` : 'Team'}
         action={<Button icon="UserPlus" onClick={() => setInviteOpen(true)}>Add Team Member</Button>}
         empty={{ icon: 'Users', title: 'No team members yet', message: 'Add your first team member to get started.' }}
         renderRow={(m) => (

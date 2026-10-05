@@ -5,6 +5,7 @@ import App from './App.jsx';
 import { AuthProvider } from './context/AuthContext.jsx';
 import { ToastProvider } from './context/ToastContext.jsx';
 import './styles/hr.css';
+import './styles/loading.css';
 import './styles/base.css';
 import './styles/auth.css';
 

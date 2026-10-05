@@ -250,7 +250,8 @@ Deno.serve(async (req) => {
     .insert({
       candidate_id: candidate.id,
       job_id: jobId,
-      assigned_ta_id: profile.role === "ta" ? profile.id : null,
+      // A candidate the TA creates belongs to that TA straight away (no wait for a head to assign).
+      assigned_ta_id: ["ta", "admin_ta"].includes(profile.role) ? profile.id : null,
       source: "ta_sourced",
       status: "DRAFT",
       current_version: 1,

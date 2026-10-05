@@ -1,0 +1,11 @@
+/* Loading placeholders: shimmer bars shown where data is still arriving. */
+.skeleton {
+  background: linear-gradient(90deg, #f2f4f7 25%, #e4e7ec 37%, #f2f4f7 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+  border-radius: 6px;
+}
+.skeleton-bar { display: block; height: 14px; width: 70%; }
+.skeleton-block { height: 88px; width: 100%; }
+@keyframes skeleton-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
