@@ -37,6 +37,25 @@ export function hasStoredCandidateSession() {
 // now-real account once they land back (see claim-application, MyApplicationPage).
 export const CLAIM_APPLICATION_KEY = 'ccx-claim-application';
 
+// Where a candidate started their Google sign-up (e.g. the apply page). Google
+// can return them to the site root instead, so RootGate reads this and sends
+// them back. Only ever a /candidate path.
+const CANDIDATE_RETURN_KEY = 'ccx-candidate-return';
+export function saveCandidateReturn(path) {
+  try { sessionStorage.setItem(CANDIDATE_RETURN_KEY, path); } catch { /* ignore */ }
+}
+export function peekCandidateReturn() {
+  try {
+    const p = sessionStorage.getItem(CANDIDATE_RETURN_KEY);
+    return p && p.startsWith('/candidate') ? p : null;
+  } catch {
+    return null;
+  }
+}
+export function clearCandidateReturn() {
+  try { sessionStorage.removeItem(CANDIDATE_RETURN_KEY); } catch { /* ignore */ }
+}
+
 export const SIGN_IN_FAILED = "We couldn't complete your sign-in. Please try again.";
 export const NOT_AUTHORIZED = 'This Google account is not authorized for this workspace. Please use the email address you were invited with, or contact your administrator.';
 

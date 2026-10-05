@@ -20,7 +20,7 @@ function shell(title: string, bodyHtml: string): string {
   <table role="presentation" width="100%" style="background:#F5F7FA;border-collapse:collapse"><tr><td align="center" style="padding:24px 12px">
     <table role="presentation" width="100%" style="max-width:620px;background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;border-collapse:separate">
       <tr><td style="padding:24px 32px 18px;border-bottom:2px solid ${BRAND}">
-        <img src="${logoUrl()}" width="150" alt="Ccentrik" style="display:block;border:0;height:auto;max-width:150px" />
+        <img src="${logoUrl()}" width="100" alt="Ccentrik" style="display:block;border:0;height:auto;max-width:100px" />
       </td></tr>
       <tr><td style="padding:28px 32px 28px">
         <h1 style="margin:0 0 14px;font-size:24px;line-height:1.3;font-weight:600;color:#1F2937">${title}</h1>

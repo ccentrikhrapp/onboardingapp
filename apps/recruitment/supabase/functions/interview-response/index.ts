@@ -61,11 +61,18 @@ Deno.serve(async (req) => {
   const svc = serviceClient();
   const { data: round } = await svc
     .from("interview_rounds")
-    .select("id, name, application_id, applications(assigned_ta_id, personal, jobs(title))")
+    .select("id, name, application_id, candidate_response, applications(assigned_ta_id, personal, jobs(title))")
     .eq("response_token", token)
     .maybeSingle();
   if (!round) {
     return page("Link not valid", "This response link has expired or is no longer valid.", "bad");
+  }
+
+  const app = round.applications as any;
+  // Same button clicked again (or an email link opened twice): the response is
+  // already recorded, so don't write a second event or notify the TA again.
+  if (round.candidate_response === meta.response) {
+    return page(meta.heading, meta.message);
   }
 
   await svc
@@ -73,7 +80,6 @@ Deno.serve(async (req) => {
     .update({ candidate_response: meta.response, responded_at: new Date().toISOString() })
     .eq("id", round.id);
 
-  const app = round.applications as any;
   const candidateName = `${app?.personal?.firstName ?? ""} ${app?.personal?.lastName ?? ""}`.trim();
   const jobTitle = app?.jobs?.title ?? "the role";
 

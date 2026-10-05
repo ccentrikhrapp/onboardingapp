@@ -21,7 +21,7 @@ import {
   EXP_OPTIONS, NOTICE_OPTIONS, REQUIRED, LABELS, expToNumber, isFieldRequired, fieldError, validateFormFields,
   RESET_ON_NEW_RESUME, parsedToFormPatch, formToApplicationBlocks,
 } from '../../utils/candidateForm.js';
-import { returnErrorMessage, cleanAuthUrl } from '../../utils/authFlow.js';
+import { returnErrorMessage, cleanAuthUrl, saveCandidateReturn } from '../../utils/authFlow.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 const DRAFT_KEY = 'talentflow.apply.draft.v2';
@@ -64,7 +64,12 @@ export default function ApplyPage() {
   // plain language instead of silently doing nothing and leaving the
   // "Sign up with Google" card looking like it never responded.
   const [returnUrlError, setReturnUrlError] = useState(() => { try { return returnErrorMessage(); } catch { return ''; } });
-  useEffect(() => { cleanAuthUrl(); }, []);
+  // Wait until the candidate session has read the Google return tokens from
+  // the URL — clearing them earlier can drop the sign-in silently.
+  useEffect(() => {
+    if (authLoading) return;
+    cleanAuthUrl();
+  }, [authLoading]);
 
   // A TA link (?ref=token) is resolved server-side into the job + recruiter.
   const [link, setLink] = useState(null);
@@ -118,7 +123,7 @@ export default function ApplyPage() {
   useEffect(() => {
     if (!googleEmail) return;
     setForm((f) => {
-      const full = String(user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim().split(/s+/);
+      const full = String(user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim().split(/\s+/);
       const patch = {};
       if (f.email !== googleEmail) patch.email = googleEmail;
       if (!f.firstName && full[0]) patch.firstName = full[0];
@@ -290,6 +295,7 @@ export default function ApplyPage() {
   // an unfinished draft from here on mount, whoever ends up signed in).
   const signUpWithGoogle = () => {
     saveJSON(DRAFT_KEY, form);
+    saveCandidateReturn(applyLandingPath);
     triggerGoogle();
   };
 
