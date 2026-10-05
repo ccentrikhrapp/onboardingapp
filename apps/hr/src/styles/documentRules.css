@@ -2,7 +2,8 @@
    primary (--hr-blue in hr.css); neutrals and semantic colours follow the
    Ccentrik enterprise palette. */
 
-.drl {
+.drl,
+.drl-overlay {
   --drl-text: #1d2939;
   --drl-text-2: #667085;
   --drl-text-3: #98a2b3;
