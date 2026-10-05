@@ -11,6 +11,7 @@ import { getApplication } from '../../api/applications.js';
 import { listApplicationDocuments, documentFileUrl, reviewDocument } from '../../api/documents.js';
 import { docStatusMeta, requiredSlots, slotLabel } from '../../utils/documentRules.js';
 import { formatDateTime } from '../../utils/format.js';
+import { SkeletonPage } from '../../components/common/States.jsx';
 
 const ACTIONS = [
   { value: 'approve', label: 'Approve', needsRemark: false },
@@ -60,7 +61,7 @@ export default function TADocumentVerifyPage() {
 
   const back = () => navigate(`/ta/candidates/${candidateId}`);
 
-  if (loading) return <div className="ta-page"><div className="ta-cell-sub">Loading document…</div></div>;
+  if (loading) return <div className="ta-page"><SkeletonPage /></div>;
   if (!doc) return (
     <div className="ta-page">
       <button className="ta-link" onClick={back}><Icon name="ArrowLeft" size={14} /> Back to candidate</button>

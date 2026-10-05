@@ -9,3 +9,7 @@
 .skeleton-block { height: 88px; width: 100%; }
 @keyframes skeleton-shimmer { 0% { background-position: 100% 0; } 100% { background-position: -100% 0; } }
 @media (prefers-reduced-motion: reduce) { .skeleton { animation: none; } }
+.skeleton-card { padding: 16px; border: 1px solid #e4e7ec; border-radius: 8px; background: #fff; margin-bottom: 12px; }
+.skeleton-title { display: block; height: 24px; width: 240px; margin-bottom: 16px; }
+.skeleton-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin: 12px 0; }
+.skeleton-page { padding: 16px 0; }

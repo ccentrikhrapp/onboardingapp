@@ -5,6 +5,7 @@ import Tag from '../../components/ta/Tag.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { supabase } from '../../lib/supabase.js';
 import { unwrap } from '../../api/client.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 const CLASS_OPTIONS = [['mandatory', 'Mandatory'], ['conditional', 'Conditional'], ['optional', 'Optional']];
 const GROUP_OF = {
@@ -48,7 +49,7 @@ export default function DocumentRulesPage() {
           <strong>Mandatory</strong> must be resolved before the offer · <strong>Conditional</strong> applies only in some situations (previous-employer papers, cancelled cheque…) and must be resolved when it does ·
           <strong> Optional</strong> never blocks. PAN and Aadhaar are one requirement — either one satisfies it. "Cannot provide" lets a candidate give a reason for the team to accept.
         </p>
-        {!rows ? <div className="ta-cell-sub">Loading…</div> : (
+        {!rows ? <SkeletonBlock lines={6} /> : (
           <div className="ta-table-scroll">
             <table className="ta-table">
               <thead><tr><th>Document</th><th>Treated as</th><th>Cannot provide allowed</th><th>“Not applicable” allowed</th><th>HR sign-off</th><th>In use</th></tr></thead>

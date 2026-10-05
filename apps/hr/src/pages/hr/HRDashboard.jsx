@@ -12,6 +12,7 @@ import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases, listEmployees } from '../../api/onboarding.js';
 import { statusMeta } from '../../constants/statuses.js';
 import { timeAgo } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const DEPT_COLORS = ['#4b7bf7', '#8b7ff0', '#f6a04a', '#46c98a', '#e5484d', '#f2b705'];
 const ACTIVE_ONBOARDING = new Set(['onboarding_initiated', 'documents_pending', 'documents_submitted', 'verification_in_progress', 'formalities_pending']);
@@ -31,7 +32,7 @@ export default function HRDashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  if (remote.loading) return <div className="hr-loading">Loading…</div>;
+  if (remote.loading) return <SkeletonPage />;
 
   const { verifications, cases, employees } = remote;
   const awaitingReview = verifications.filter((v) => ['pending', 'under_review'].includes(v.status));

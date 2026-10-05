@@ -16,6 +16,7 @@ import { emailError } from '../../utils/validation.js';
 import { listApplications } from '../../api/applications.js';
 import { APP_STATUS, stageIndexForStatus } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 /* The TA's personal application link for this role. One link per (TA, job);
    the token is server-generated and attribution is resolved server-side. */
@@ -33,7 +34,7 @@ function ApplicationLinkCard({ jobId }) {
     return () => { cancelled = true; };
   }, [jobId]);
 
-  if (busy) return <Card title="Your application link"><p className="ta-cell-mute">Loading…</p></Card>;
+  if (busy) return <Card title="Your application link"><SkeletonBlock lines={2} /></Card>;
   if (!link) return null;
 
   const url = `${window.location.origin}/candidate/apply?ref=${link.token}`;

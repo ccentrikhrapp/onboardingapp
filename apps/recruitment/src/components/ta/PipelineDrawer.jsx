@@ -9,6 +9,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { listPipelineActivities, addPipelineActivity } from '../../api/pipeline.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
 import { pipelineStatus, PIPELINE_STATUS_TONE, daysUntil, REMINDER_WINDOW_DAYS } from '../../utils/pipelineForm.js';
+import { SkeletonLine } from '../common/States.jsx';
 
 const ACTIVITY_TYPES = ['Note', 'Follow-up', 'Call', 'Email', 'Interview Discussion', 'Job Discussion', 'Candidate Update', 'Status Update', 'Other'];
 const ICONS = {
@@ -206,7 +207,7 @@ export default function PipelineDrawer({ candidate: c, onClose, onEdit, onMove, 
 
           <div style={{ maxHeight: 340, overflowY: 'auto', paddingRight: 6 }}>
             {activities === null ? (
-              <div className="ta-cell-sub">Loading…</div>
+              <SkeletonLine width="50%" />
             ) : shown.length === 0 ? (
               <div className="ta-cell-sub">No activity{filter === 'all' ? ' yet' : ' of this type'}.</div>
             ) : (

@@ -16,6 +16,7 @@ import { DOC_REFERENCE, HR_FIELDS, SECTIONS, STATUS_LABEL, deriveRequirements, d
 import { summarizeSections } from '../../utils/joiningView.js';
 import { FORMS, buildForm, openPrint } from '../../utils/joiningDocs.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const STATUS_TONE = { approved_with_remarks: 'amber', rejected: 'red', not_started: 'grey', in_progress: 'blue', submitted: 'amber', under_review: 'amber', correction_required: 'red', resubmitted: 'amber', verified: 'green', completed: 'green' };
 const CLASS_LABEL = { critical: 'Mandatory', conditional: 'Conditional', optional: 'Optional' };
@@ -111,7 +112,7 @@ export default function JoiningReviewPage() {
     return null;
   };
 
-  if (profile === undefined) return (<><HRHeader title="Joining form" backTo={`/hr/candidates/${caseId}`} backLabel="Candidate" /><div className="hr-loading">Loading…</div></>);
+  if (profile === undefined) return (<><HRHeader title="Joining form" backTo={`/hr/candidates/${caseId}`} backLabel="Candidate" /><SkeletonPage /></>);
   if (profile === null) {
     return (
       <>

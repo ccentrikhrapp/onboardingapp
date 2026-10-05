@@ -1,5 +1,6 @@
 import { Modal } from './Modal.jsx';
 import Icon from './Icon.jsx';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../kit/Skeleton.jsx';
 
 function fileKind(fileName) {
   const ext = (fileName || '').split('.').pop()?.toLowerCase();
@@ -31,7 +32,7 @@ export default function DocumentPreviewModal({ open, onClose, url, fileName, tit
         </div>
       )}
       {!url ? (
-        <p className="hr-cell-mute">Loading…</p>
+        <SkeletonBlock lines={4} />
       ) : kind === 'pdf' ? (
         <iframe src={url} title={fileName || 'Document preview'} style={{ width: '100%', height: '75vh', border: 0, borderRadius: 8 }} />
       ) : kind === 'image' ? (

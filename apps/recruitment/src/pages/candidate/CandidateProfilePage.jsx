@@ -7,6 +7,7 @@ import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { listMyApplications } from '../../api/applications.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { initialsOf, formatCurrencyINR } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 function Info({ label, value }) {
   return (
@@ -30,7 +31,7 @@ export default function CandidateProfilePage() {
   }, [configured]);
 
   if (app === undefined) {
-    return <div className="cx-page cx-page--narrow"><div className="cx-loading">Loading…</div></div>;
+    return <div className="cx-page cx-page--narrow"><SkeletonPage /></div>;
   }
 
   if (!app) {

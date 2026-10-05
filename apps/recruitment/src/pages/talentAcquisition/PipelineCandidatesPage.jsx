@@ -14,6 +14,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { listPipelineCandidates, setPipelineArchived } from '../../api/pipeline.js';
 import { pipelineStatus, PIPELINE_STATUS_TONE } from '../../utils/pipelineForm.js';
 import { formatDate } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 const COLUMNS = [
   { key: 'name', label: 'Name', sortable: true },
@@ -125,7 +126,7 @@ export default function PipelineCandidatesPage() {
       />
 
       {rows === null ? (
-        <div className="ta-cell-sub" style={{ padding: 24 }}>Loading…</div>
+        <div style={{ padding: 24 }}><SkeletonBlock lines={3} /></div>
       ) : (
         <DataGrid
           columns={COLUMNS}

@@ -15,6 +15,7 @@ import {
 } from '../../api/onboardingDocuments.js';
 import { statusMeta } from '../../constants/statuses.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const DOC_STATUS_META = {
   requested: { label: 'Pending upload', tone: 'grey' },
@@ -94,7 +95,7 @@ export default function HRCandidateDetailPage() {
         action={<Button variant="ghost" onClick={() => navigate('/hr/candidates')}>Back to candidates</Button>} />
     );
   }
-  if (!item) return <div className="hr-loading">Loading…</div>;
+  if (!item) return <SkeletonPage />;
 
   const meta = statusMeta(item.status);
   const rank = rankOfStatus(item.status);
@@ -230,7 +231,7 @@ export default function HRCandidateDetailPage() {
 
               {activeStep === 1 && (
                 docs === null ? (
-                  <p className="hr-cell-sub">Loading…</p>
+                  <SkeletonLine width="60%" />
                 ) : docs.length === 0 ? (
                   <>
                     <p className="hr-cell-sub" style={{ marginBottom: 12 }}>

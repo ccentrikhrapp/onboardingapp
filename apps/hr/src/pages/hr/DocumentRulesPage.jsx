@@ -4,6 +4,7 @@ import Icon from '../../components/common/Icon.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { listDocConfig, updateDocConfig } from '../../api/joining.js';
 import '../../styles/documentRules.css';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 /* Settings › Documents › Document Rules (admin configuration).
    Presentation only: the rules, validation and save call are the same as
@@ -234,7 +235,7 @@ export default function DocumentRulesPage() {
       </div>
 
       {!rows ? (
-        <div className="drl-empty">Loading document rules…</div>
+        <SkeletonBlock lines={6} />
       ) : groups.length === 0 ? (
         <div className="drl-empty">No documents match these filters.</div>
       ) : (

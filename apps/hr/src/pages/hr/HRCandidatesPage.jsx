@@ -11,6 +11,7 @@ import { listOnboardingCases } from '../../api/onboarding.js';
 import { listAllOnboardingDocuments } from '../../api/onboardingDocuments.js';
 import { ONBOARDING_STATUSES, statusMeta } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const STAGE_FILTERS = [
   { key: 'onboarding_initiated', label: 'Initiated' },
@@ -107,7 +108,7 @@ export default function HRCandidatesPage() {
     { icon: 'UserRoundCheck', accent: 'green', label: 'Onboarded', value: rows.filter((r) => ['employee_created', 'completed'].includes(r.hrStatus)).length, onClick: () => setStage('employee_created') },
   ];
 
-  if (remote.loading) return <div className="hr-loading">Loading…</div>;
+  if (remote.loading) return <SkeletonPage />;
 
   return (
     <>

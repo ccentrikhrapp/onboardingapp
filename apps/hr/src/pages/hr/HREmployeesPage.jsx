@@ -9,6 +9,7 @@ import Tag from '../../components/kit/Tag.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { listEmployees, listOnboardingCases } from '../../api/onboarding.js';
 import { formatDate } from '../../utils/format.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const COLUMNS = [
   { key: 'full_name', label: 'Employee', sortable: true },
@@ -88,7 +89,7 @@ export default function HREmployeesPage() {
     { icon: 'Building2', accent: 'violet', label: 'Departments', value: departmentCount },
   ];
 
-  if (remote.loading) return <div className="hr-loading">Loading…</div>;
+  if (remote.loading) return <SkeletonPage />;
 
   return (
     <>

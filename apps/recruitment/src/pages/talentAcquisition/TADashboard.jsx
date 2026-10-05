@@ -18,6 +18,7 @@ import {
 import { countInWindow, trendPercent, groupCounts, noticePeriodDays } from '../../utils/metrics.js';
 import { timeAgo } from '../../utils/format.js';
 import PipelineReminderPopup from '../../components/ta/PipelineReminderPopup.jsx';
+import { SkeletonPage } from '../../components/common/States.jsx';
 
 /* Activity entries that come from the candidate's own actions — these are the
    "something changed, take a look" updates the TA shouldn't have to hunt for. */
@@ -218,6 +219,8 @@ export default function TADashboard() {
       {PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
     </select>
   );
+
+  if (remote.apps === null) return <SkeletonPage />;
 
   return (
     <>

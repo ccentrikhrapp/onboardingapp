@@ -22,6 +22,7 @@ import {
   RESET_ON_NEW_RESUME, parsedToFormPatch, formToApplicationBlocks,
 } from '../../utils/candidateForm.js';
 import { returnErrorMessage, cleanAuthUrl } from '../../utils/authFlow.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 const DRAFT_KEY = 'talentflow.apply.draft.v2';
 const SOURCE_OPTIONS = ['Job Board', 'Referral', 'Social', 'Direct'];
@@ -388,7 +389,7 @@ export default function ApplyPage() {
   // sign in (same Google button — Google/Supabase decide which). Whatever was
   // typed before is saved first and restored when they land back on this page.
   if (authLoading) {
-    return <div className="cx-page"><div className="cx-loading">Loading…</div></div>;
+    return <div className="cx-page"><SkeletonPage /></div>;
   }
   if (!isRealUser) {
     return (

@@ -3,6 +3,7 @@ import Icon from '../common/Icon.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { callFn } from '../../api/client.js';
+import { SkeletonBlock } from '../kit/Skeleton.jsx';
 
 /* Settings -> Email. Same idea as the CRM's "Meeting Email Settings": save your Gmail
    App Password once, and the emails you trigger (interview invites, offers, document
@@ -61,6 +62,8 @@ export default function EmailSettingsCard() {
   const box = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: 24, marginTop: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' };
   const label = { display: 'block', fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#374151' };
   const input = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', border: '1px solid #D1D5DB', borderRadius: 10, fontSize: 14 };
+
+  if (state.loading) return <SkeletonBlock lines={3} />;
 
   return (
     <section style={box} aria-label="Email settings">

@@ -1,6 +1,7 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { ROLES } from '../../constants/roles.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../kit/Skeleton.jsx';
 
 /* Every real route in this app requires an hr/admin session. */
 export default function RoleRoute({ allow, children }) {
@@ -14,7 +15,7 @@ export default function RoleRoute({ allow, children }) {
     );
   }
   if (loading) {
-    return <div style={{ padding: 48, textAlign: 'center', color: 'var(--hr-text-soft)' }}>Loading…</div>;
+    return <SkeletonPage />;
   }
   if (!role || ![ROLES.HR, ROLES.ADMIN].includes(role)) return <Navigate to="/" replace />;
   // allow="admin": Super Admin only (e.g. Teams) — the team-* edge functions

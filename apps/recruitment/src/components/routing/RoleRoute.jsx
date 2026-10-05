@@ -1,12 +1,13 @@
 import { Navigate } from 'react-router-dom';
 import { useApp } from '../../context/AppContext.jsx';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../common/States.jsx';
 
 export default function RoleRoute({ allow, children }) {
   const { role, authConfigured, authLoading } = useApp();
 
   // Wait for the real session + profile before deciding anything.
   if (authConfigured && authLoading) {
-    return <div className="route-loading" style={{ padding: 48, textAlign: 'center', color: '#8a93a3' }}>Loading…</div>;
+    return <SkeletonPage />;
   }
 
   // Not signed in: send to the login page matching what was requested,

@@ -9,6 +9,7 @@ import Icon from '../../components/common/Icon.jsx';
 import { listActivity, listOnboardingCases } from '../../api/onboarding.js';
 import { listAllOnboardingDocuments } from '../../api/onboardingDocuments.js';
 import { listVerifications } from '../../api/verification.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 
@@ -126,7 +127,7 @@ export default function HRActivityPage() {
     else if (it.linkApplicationId) navigate(`/hr/applications/${it.linkApplicationId}`);
   };
 
-  if (remote.loading) return <div className="hr-loading">Loading…</div>;
+  if (remote.loading) return <SkeletonPage />;
 
   return (
     <>

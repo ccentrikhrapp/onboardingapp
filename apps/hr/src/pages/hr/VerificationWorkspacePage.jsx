@@ -9,6 +9,7 @@ import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.j
 import { useToast } from '../../context/ToastContext.jsx';
 import { listVerificationsForApplication, getVerificationDocumentUrl, getVerificationSummary } from '../../api/verification.js';
 import { verifyDocument } from '../../api/verify.js';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const STATUS_META = {
   pending: { label: 'Pending', tone: 'grey' },
@@ -98,7 +99,7 @@ export default function VerificationWorkspacePage() {
       />
 
       {error && <Card><p className="text-secondary">{error}</p></Card>}
-      {docs === null && !error && <div className="hr-loading">Loading…</div>}
+      {docs === null && !error && <SkeletonBlock lines={4} />}
 
       {summary && (
         <Card title="Documentation summary">
