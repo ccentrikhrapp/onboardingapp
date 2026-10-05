@@ -1,12 +1,11 @@
 import { useAuth } from '../../context/AuthContext.jsx';
 import Button from '../../components/kit/Button.jsx';
-import EmailSettingsCard from '../../components/settings/EmailSettingsCard.jsx';
 
 export default function SettingsPage() {
   const { signOut } = useAuth();
   return (
-    <div className="page-body" style={{ maxWidth: 640 }}>
-      <h1 className="page-title mb-4">Settings</h1>
+    <div style={{ maxWidth: 640 }}>
+      <h2 className="page-title mb-4">General</h2>
       <div className="hr-card">
         <div className="hr-card__body">
           <p className="text-secondary" style={{ marginBottom: 14 }}>
@@ -16,7 +15,6 @@ export default function SettingsPage() {
           <Button variant="ghost" icon="LogOut" onClick={() => signOut()}>Sign out</Button>
         </div>
       </div>
-      <EmailSettingsCard />
     </div>
   );
 }

@@ -7,11 +7,11 @@ import {
   ClipboardCheck, UserPlus, ArrowRightLeft, FileCheck2, CalendarCheck2,
   AlertTriangle, CalendarCheck, Menu, Rocket, Activity, CalendarClock, CalendarPlus, FileSearch, History,
   ShieldCheck, UserCheck, Trash2,
-  Printer,
+  Printer, Info,
 } from 'lucide-react';
 
 const REGISTRY = {
-  Printer,
+  Printer, Info,
   LayoutDashboard, User, UserRound, Users, Briefcase, FileText, CalendarDays, Files, FileCheck,
   UserRoundCheck, Search, Plus, Upload, Download, CheckCircle2, XCircle, RotateCcw, Bell,
   Settings, ArrowLeft, ArrowRight, ArrowUp, ArrowDown, Eye, EyeOff, Clock3, Mail, Phone,

@@ -10,6 +10,8 @@ import VerificationQueuePage from '../pages/hr/VerificationQueuePage.jsx';
 import VerificationWorkspacePage from '../pages/hr/VerificationWorkspacePage.jsx';
 import HRCandidatesPage from '../pages/hr/HRCandidatesPage.jsx';
 import DocumentRulesPage from '../pages/hr/DocumentRulesPage.jsx';
+import SettingsLayout from '../pages/shared/SettingsLayout.jsx';
+import EmailSettingsPage from '../pages/shared/EmailSettingsPage.jsx';
 import JoiningReviewPage from '../pages/hr/JoiningReviewPage.jsx';
 import HRCandidateDetailPage from '../pages/hr/HRCandidateDetailPage.jsx';
 import HREmployeesPage from '../pages/hr/HREmployeesPage.jsx';
@@ -39,9 +41,15 @@ export default function AppRoutes() {
         <Route path="/hr/onboarding" element={<Navigate to="/hr/candidates" replace />} />
         <Route path="/hr/employees" element={<HREmployeesPage />} />
         <Route path="/hr/activity" element={<HRActivityPage />} />
-        <Route path="/hr/document-rules" element={<RoleRoute allow="admin"><DocumentRulesPage /></RoleRoute>} />
+        {/* Document Rules moved under Settings. Old links still work. */}
+        <Route path="/hr/document-rules" element={<Navigate to="/hr/settings/documents/rules" replace />} />
         <Route path="/hr/team" element={<RoleRoute allow="admin"><HRTeamsPage /></RoleRoute>} />
-        <Route path="/hr/settings" element={<SettingsPage />} />
+        <Route path="/hr/settings" element={<SettingsLayout />}>
+          <Route index element={<Navigate to="/hr/settings/general" replace />} />
+          <Route path="general" element={<SettingsPage />} />
+          <Route path="email" element={<EmailSettingsPage />} />
+          <Route path="documents/rules" element={<RoleRoute allow="admin"><DocumentRulesPage /></RoleRoute>} />
+        </Route>
         <Route path="/hr/profile" element={<ProfilePage />} />
       </Route>
 
