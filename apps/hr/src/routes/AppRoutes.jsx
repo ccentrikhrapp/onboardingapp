@@ -48,7 +48,7 @@ export default function AppRoutes() {
           <Route index element={<Navigate to="/hr/settings/general" replace />} />
           <Route path="general" element={<SettingsPage />} />
           <Route path="email" element={<EmailSettingsPage />} />
-          <Route path="documents/rules" element={<RoleRoute allow="admin"><DocumentRulesPage /></RoleRoute>} />
+          <Route path="documents/rules" element={<RoleRoute><DocumentRulesPage /></RoleRoute>} />
         </Route>
         <Route path="/hr/profile" element={<ProfilePage />} />
       </Route>

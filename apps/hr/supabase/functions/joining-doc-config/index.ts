@@ -16,7 +16,7 @@ Deno.serve(async (req) => {
   if (pre) return pre;
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
   const me = await currentProfile(req);
-  if (!me || me.role !== "admin") return fail("FORBIDDEN", "Only a Super Admin can change document rules.", 403);
+  if (!me || !["admin", "hr"].includes(me.role)) return fail("FORBIDDEN", "Only HR or a Super Admin can manage document rules.", 403);
 
   let body: Record<string, any>;
   try { body = await req.json(); } catch { return fail("INVALID_JSON", "Malformed body.", 400); }

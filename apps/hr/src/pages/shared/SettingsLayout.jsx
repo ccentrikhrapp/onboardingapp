@@ -14,7 +14,7 @@ export default function SettingsLayout() {
       <nav className="settings-nav" aria-label="Settings">
         <h1 className="settings-nav__title">Settings</h1>
         <NavLink to="/hr/settings/general" className={({ isActive }) => `settings-nav__link${isActive ? ' settings-nav__link--active' : ''}`}>General</NavLink>
-        {role === 'admin' && (
+        {(role === 'admin' || role === 'hr') && (
           <NavLink to="/hr/settings/documents/rules" className={() => `settings-nav__link${inDocuments ? " settings-nav__link--active" : ""}`}>Documents</NavLink>
         )}
         <NavLink to="/hr/settings/email" className={({ isActive }) => `settings-nav__link${isActive ? ' settings-nav__link--active' : ''}`}>Email</NavLink>
