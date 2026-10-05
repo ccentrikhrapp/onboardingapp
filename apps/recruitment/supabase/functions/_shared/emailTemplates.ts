@@ -34,6 +34,36 @@ function shell(title: string, bodyHtml: string): string {
 </body></html>`;
 }
 
+// Key/value details block: labels muted, values bold, hairline separators.
+function details(rows: [string, string][]): string {
+  const cells = rows
+    .map(([label, value], i) => {
+      const rule = i < rows.length - 1 ? "border-bottom:1px solid #EEF0F4;" : "";
+      return `<tr>
+        <td style="padding:12px 16px 12px 0;width:40%;font-size:13px;color:#6B7280;vertical-align:top;${rule}">${label}</td>
+        <td style="padding:12px 0;font-size:14px;font-weight:600;color:#1F2937;vertical-align:top;${rule}">${value}</td>
+      </tr>`;
+    })
+    .join("");
+  return `<table role="presentation" width="100%" style="border-collapse:collapse;margin:20px 0;border-top:1px solid #EEF0F4;border-bottom:1px solid #EEF0F4"><tbody>${cells}</tbody></table>`;
+}
+
+// A reason or instruction the candidate must act on.
+function notice(text: string): string {
+  return `<div style="margin:16px 0;padding:14px 16px;background:#FFF8EB;border:1px solid #FDE7B8;border-radius:6px;font-size:14px;line-height:1.6;color:#1F2937;white-space:pre-wrap">${text}</div>`;
+}
+
+// Compact status pill. Tones: approved (green), pending (amber), info (brand), rejected (red).
+function badge(label: string, tone: "approved" | "pending" | "info" | "rejected"): string {
+  const t = {
+    approved: ["#E8F7EF", "#12703F"],
+    pending: ["#FFF4E0", "#8A5A00"],
+    info: ["#EEF2FD", BRAND],
+    rejected: ["#FDECEC", "#B42318"],
+  }[tone];
+  return `<span style="display:inline-block;padding:3px 10px;border-radius:999px;background:${t[0]};color:${t[1]};font-size:12px;font-weight:600">&#9679;&nbsp;${label}</span>`;
+}
+
 function button(label: string, href: string): string {
   return `<a href="${href}" style="display:inline-block;margin:16px 0;padding:12px 22px;background:${BRAND};color:#FFFFFF;text-decoration:none;border-radius:6px;font-weight:600;font-size:14px">${label}</a>`;
 }
@@ -75,9 +105,14 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     html: shell(
       "We've received your application",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Thanks for applying for <strong>${v.job_title}</strong>. Your application reference is <strong>${v.application_code}</strong>.</p>
-       <p>Our Talent Acquisition team will review it and get back to you. You can track the status any time.</p>
-       ${button("Track your application", v.application_link)}`,
+       <p>Thank you for applying. Our Talent Acquisition team will review your application and get back to you.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Application reference", v.application_code],
+         ["Status", badge("Received", "info")],
+       ])}
+       ${button("Track your application", v.application_link)}
+       <p style="font-size:13px;color:#6B7280;margin-top:8px">You can check the status of your application at any time using the link above.</p>`,
     ),
     text:
       `Hi ${v.candidate_name},\n\nThanks for applying for ${v.job_title}. ` +
@@ -89,7 +124,11 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     html: shell(
       "Your application has progressed",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Good news — your application for <strong>${v.job_title}</strong> has progressed to the next stage. We'll be in touch with the next steps shortly.</p>
+       <p>Good news. Your application has moved to the next stage. We will be in touch with the next steps shortly.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Status", badge("Progressed to next stage", "approved")],
+       ])}
        ${button("View your application", v.application_link)}`,
     ),
     text: `Hi ${v.candidate_name},\n\nYour application for ${v.job_title} has progressed to the next stage.\n\n${v.application_link}\n\n— Ccentrik`,
@@ -100,8 +139,12 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     html: shell(
       "Application update",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Thank you for your interest in <strong>${v.job_title}</strong> and for the time you invested in your application. After careful consideration, we won't be taking your application forward on this occasion.</p>
-       <p>We'd be glad to consider you for future roles that match your experience.</p>`,
+       <p>Thank you for your interest in ${v.job_title} and for the time you invested in your application. After careful consideration, we will not be taking your application forward on this occasion.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Status", badge("Not progressing", "rejected")],
+       ])}
+       <p>We would be glad to consider you for future roles that match your experience.</p>`,
     ),
     text: `Hi ${v.candidate_name},\n\nThank you for applying for ${v.job_title}. We won't be taking your application forward on this occasion.\n\n— Ccentrik`,
   }),
@@ -111,10 +154,15 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     html: shell(
       "Your application needs an update",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Before we can continue reviewing your application for <strong>${v.job_title}</strong>, we need you to update the following:</p>
-       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
+       <p>Before we can continue reviewing your application, please update the item below.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Status", badge("Action required", "pending")],
+       ])}
+       <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#6B7280">What needs to change</p>
+       ${notice(v.reason)}
        ${button("Update your application", v.application_link)}
-       <p style="font-size:13px;color:#6b7280">Your previous submission is kept — updating creates a new version for review.</p>`,
+       <p style="font-size:13px;color:#6B7280">Your previous submission is kept. Updating creates a new version for review.</p>`,
     ),
     text:
       `Hi ${v.candidate_name},\n\nYour application for ${v.job_title} needs an update:\n\n${v.reason}\n\n` +
@@ -126,8 +174,13 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     html: shell(
       "Please submit your pre-offer documents",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Congratulations on clearing the interview process for <strong>${v.job_title}</strong>. The next step is document verification.</p>
-       <p>Open your document centre to see the checklist and upload each item. Where a document genuinely doesn't apply to you, you can mark it and give a reason.</p>
+       <p>Congratulations on clearing the interview process. The next step is document verification.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Next step", "Upload the checklist items in your document centre"],
+         ["Status", badge("Documents pending", "pending")],
+       ])}
+       <p>Where a document does not apply to you, you can mark it as not applicable and give a short reason.</p>
        ${button("Open document centre", v.document_link)}`,
     ),
     text: `Hi ${v.candidate_name},\n\nPlease submit your pre-offer documents for ${v.job_title}:\n${v.document_link}\n\n— Ccentrik`,
@@ -136,10 +189,15 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
   document_correction_required: (v) => ({
     subject: `Document correction needed — ${v.job_title}`,
     html: shell(
-      "One or more documents need a correction",
+      "A document needs a correction",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Our HR team reviewed your documents and needs a correction on:</p>
-       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
+       <p>Our HR team reviewed your documents and needs a correction on the item below.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Status", badge("Correction required", "pending")],
+       ])}
+       <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#6B7280">What needs to change</p>
+       ${notice(v.reason)}
        ${button("Re-upload document", v.document_link)}`,
     ),
     text: `Hi ${v.candidate_name},\n\nA document needs correction:\n${v.reason}\n\n${v.document_link}\n\n— Ccentrik`,
@@ -150,7 +208,11 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     html: shell(
       "Your documents are verified",
       `<p>Hi ${v.candidate_name},</p>
-       <p>All required documents for <strong>${v.job_title}</strong> have been verified. We'll be in touch with your offer shortly.</p>`,
+       <p>All required documents have been verified. We will be in touch with your offer shortly.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Status", badge("Verified", "approved")],
+       ])}`,
     ),
     text: `Hi ${v.candidate_name},\n\nAll required documents for ${v.job_title} have been verified.\n\n— Ccentrik`,
   }),
@@ -158,10 +220,14 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
   onboarding_documents_requested: (v) => ({
     subject: `Welcome aboard — please submit your onboarding documents`,
     html: shell(
-      "A few documents to complete your onboarding",
+      "Complete your onboarding",
       `<p>Hi ${v.candidate_name},</p>
-       <p>Congratulations again on joining as <strong>${v.job_title}</strong>! HR needs a few documents to complete your onboarding.</p>
-       <p>Open your onboarding checklist below to see what's required and upload each item.</p>
+       <p>Congratulations again on joining. HR needs a few documents and details to complete your onboarding.</p>
+       ${details([
+         ["Position", v.job_title],
+         ["Next step", "Open your checklist and complete each item"],
+         ["Status", badge("Onboarding pending", "pending")],
+       ])}
        ${button("Open onboarding checklist", v.onboarding_link)}`,
     ),
     text: `Hi ${v.candidate_name},\n\nPlease submit your onboarding documents for ${v.job_title}:\n${v.onboarding_link}\n\n— Ccentrik`,
@@ -170,10 +236,12 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
   onboarding_document_correction_required: (v) => ({
     subject: `Onboarding document needs a correction`,
     html: shell(
-      "One onboarding document needs a correction",
+      "An onboarding item needs a correction",
       `<p>Hi ${v.candidate_name},</p>
-       <p>HR reviewed your onboarding documents and needs a correction on:</p>
-       <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:14px;white-space:pre-wrap">${v.reason}</div>
+       <p>HR reviewed your onboarding documents and needs a correction on the item below.</p>
+       ${details([["Status", badge("Correction required", "pending")]])}
+       <p style="margin:0 0 4px;font-size:13px;font-weight:600;color:#6B7280">What needs to change</p>
+       ${notice(v.reason)}
        ${button("Re-upload document", v.onboarding_link)}`,
     ),
     text: `Hi ${v.candidate_name},\n\nAn onboarding document needs correction:\n${v.reason}\n\n${v.onboarding_link}\n\n— Ccentrik`,

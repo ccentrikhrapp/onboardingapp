@@ -1,7 +1,6 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { sendGmailAsActor } from "./gmailSend.ts";
 import { sendAsUser, withHostedLogo } from "./userMail.ts";
-import { LOGO_JPEG_BASE64 } from "./emailLogo.ts";
 
 // Shared by team-invite and accept-invite. Tokens are 256 random bits; only
 // their SHA-256 hash is ever stored, so a database read never yields a
@@ -147,8 +146,7 @@ export async function deliverInvitation(
     return { sent: false, error };
   }
   const res = await sendGmailAsActor(svc, {
-    actorEmail: o.inviterEmail, to: o.to, subject: o.subject, html: o.html, text: o.text,
-    inlineImages: [{ cid: "ccentrik-logo", mimeType: "image/jpeg", base64: LOGO_JPEG_BASE64, filename: "ccentrik-logo.jpg" }],
+    actorEmail: o.inviterEmail, to: o.to, subject: o.subject, html: withHostedLogo(o.html, appBaseUrl()), text: o.text,
   });
   if (res.sent) {
     if (row) await svc.from("emails").update({ status: "sent", sent_at: new Date().toISOString(), sender: res.from }).eq("id", row.id);

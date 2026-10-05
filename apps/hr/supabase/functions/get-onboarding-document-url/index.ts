@@ -7,7 +7,7 @@
 // Body: { onboardingDocumentId }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
-import { currentProfile } from "../_shared/supabase.ts";
+import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -24,6 +24,21 @@ Deno.serve(async (req) => {
     return fail("INVALID_JSON", "Malformed body.", 400);
   }
   if (!body.onboardingDocumentId) return fail("VALIDATION_ERROR", "Missing document.", 422);
+
+  // A form approved by HR has its own printable PDF here; use that.
+  const svc = serviceClient();
+  const { data: doc } = await svc
+    .from("onboarding_documents")
+    .select("approved_pdf_path, approved_pdf_name")
+    .eq("id", body.onboardingDocumentId)
+    .maybeSingle();
+  if (doc?.approved_pdf_path) {
+    const { data: signed, error: signErr } = await svc.storage
+      .from("joining-pdfs")
+      .createSignedUrl(doc.approved_pdf_path, 300, { download: doc.approved_pdf_name ?? undefined });
+    if (signErr || !signed) return fail("FILE_UNAVAILABLE", "Could not open this document. Please try again.", 500);
+    return ok({ url: signed.signedUrl, fileName: doc.approved_pdf_name, source: "approved_pdf" });
+  }
 
   const baseUrl = Deno.env.get("RECRUITMENT_FUNCTIONS_URL");
   const secret = Deno.env.get("INTEGRATION_SHARED_SECRET");

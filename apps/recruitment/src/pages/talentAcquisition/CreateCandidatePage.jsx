@@ -148,6 +148,11 @@ export default function CreateCandidatePage() {
           ? `Candidate created (${result.candidateCode}). Verification link sent to ${result.candidateEmail}.`
           : `Candidate created (${result.candidateCode}), but the verification email could not be sent to ${result.candidateEmail}. Make sure your Google account is connected ("Connect Google" at the top), then use "Resend verification" on the candidate.`
       );
+      if (result.toPipeline) {
+        toast.success(`Candidate saved to Pipeline Candidates (${result.pipelineCode}). Move them to a job when a role fits.`);
+        navigate('/ta/pipeline');
+        return;
+      }
       navigate(`/ta/candidates/${result.applicationId}`);
     } catch (err) {
       toast.error(err.message || 'Could not create the candidate.');

@@ -182,6 +182,55 @@ Deno.serve(async (req) => {
     if (!moveErr) resumePath = `resumes/${newObjectPath}`;
   }
 
+  // --- no job: a profile only, not a job application ---------------------
+  // A candidate without a role isn't in any recruitment process. Their details
+  // and resume go to Pipeline Candidates (which holds people not yet tied to
+  // a job); moving them to a job later creates the application.
+  if (!jobId) {
+    const professional = body.professional ?? {};
+    const experience = Number(String(professional.totalExperience ?? "").trim());
+    const notice = Number(String(professional.noticePeriod ?? "").trim());
+    const { data: pipeline, error: pipeErr } = await svc
+      .from("pipeline_candidates")
+      .insert({
+        name: `${personal.firstName} ${personal.lastName}`.trim(),
+        phone: personal.mobile,
+        email,
+        position: professional.currentJobTitle || null,
+        organisation: professional.currentCompany || null,
+        total_exp: Number.isFinite(experience) ? experience : null,
+        notice_days: Number.isInteger(notice) ? notice : null,
+        current_location: personal.currentLocation || null,
+        source: "ta_create",
+        resume_path: resumePath || null,
+        resume_meta: body.resumeMeta ?? null,
+        details: { personal: { ...personal, email }, professional, education: body.education ?? [], additional: body.additional ?? {} },
+        created_by: profile.id,
+        updated_by: profile.id,
+      })
+      .select("id, pipeline_code")
+      .single();
+    if (pipeErr || !pipeline) {
+      await rollback();
+      if (pipeErr?.code === "23505") return fail("DUPLICATE_CANDIDATE", "This candidate is already in Pipeline Candidates.", 409);
+      console.error("create-ta-candidate: pipeline insert failed", pipeErr?.message);
+      return fail("DB_ERROR", "Could not save the candidate. Please try again.", 500);
+    }
+    await audit(svc, {
+      actor_profile_id: profile.id, actor_label: profile.full_name, action: "candidate.ta_create_pipeline",
+      entity_type: "pipeline_candidate", entity_id: pipeline.id, new_state: { candidate_id: candidate.id, email },
+    });
+    return ok({
+      toPipeline: true,
+      pipelineId: pipeline.id,
+      pipelineCode: pipeline.pipeline_code,
+      candidateId: candidate.id,
+      candidateCode: candidate.candidate_code,
+      candidateEmail: email,
+      emailStatus: "not_sent",
+    });
+  }
+
   // --- application (DRAFT — awaiting candidate verification) ------------
   const payload = {
     personal: { ...personal, email },

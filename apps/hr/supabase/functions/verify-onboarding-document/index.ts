@@ -9,6 +9,7 @@
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
+import { renderFormPdf, type FormField } from "../_shared/formPdf.ts";
 
 const STATUS_BY_ACTION: Record<string, string> = {
   approve: "verified",
@@ -42,7 +43,7 @@ Deno.serve(async (req) => {
   const svc = serviceClient();
   const { data: doc } = await svc
     .from("onboarding_documents")
-    .select("id, status, onboarding_case_id, requirement_id, source_application_id")
+    .select("id, status, onboarding_case_id, requirement_id, source_application_id, form_data, requirement:onboarding_document_requirements(name, field_schema)")
     .eq("id", body.onboardingDocumentId)
     .maybeSingle();
   if (!doc) return fail("NOT_FOUND", "Document not found.", 404);
@@ -68,6 +69,33 @@ Deno.serve(async (req) => {
     new_state: { status },
     remarks: remarks || null,
   });
+
+  // A filled-in form gets its printable PDF only once HR has approved it.
+  // A failure is logged, not surfaced: the approval itself has already saved.
+  const formReq = (doc as any).requirement;
+  if (action === "approve" && doc.form_data && formReq?.field_schema?.length) {
+    try {
+      const { data: caseRow } = await svc.from("onboarding_cases").select("candidate_name").eq("id", doc.onboarding_case_id).maybeSingle();
+      const fields: FormField[] = formReq.field_schema
+        .filter((f: any) => f.type !== "file")
+        .map((f: any) => ({ label: f.label ?? f.key, value: String(doc.form_data?.[f.key] ?? "") }));
+      const bytes = await renderFormPdf({
+        title: formReq.name,
+        candidateName: caseRow?.candidate_name ?? "Employee",
+        reference: `ONB-${doc.id.replace(/-/g, "").slice(0, 8).toUpperCase()}`,
+        fields,
+      });
+      const now = new Date().toISOString();
+      const safeName = String(formReq.name).replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "");
+      const fileName = `${safeName}_${now.slice(0, 10).replace(/-/g, "")}.pdf`;
+      const path = `onboarding/${doc.id}/approved-${now.replace(/[:.]/g, "-")}.pdf`;
+      const { error: pdfErr } = await svc.storage.from("joining-pdfs").upload(path, bytes, { contentType: "application/pdf", upsert: false });
+      if (pdfErr) throw new Error(pdfErr.message);
+      await svc.from("onboarding_documents").update({ approved_pdf_path: path, approved_pdf_name: fileName, approved_pdf_at: now }).eq("id", doc.id);
+    } catch (e) {
+      console.error("approved form pdf failed", String(e).slice(0, 300));
+    }
+  }
 
   // A required document just cleared — see if that was the last one.
   let allRequiredVerified = false;

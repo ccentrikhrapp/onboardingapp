@@ -160,7 +160,9 @@ Deno.serve(async (req) => {
     await svc.from("joining_profiles").update({ status: next, decision_remarks: remark, decided_by: actor, decided_at: now }).eq("id", p.id);
     await log({ kind: "status", old_value: { status: p.status }, new_value: { status: next }, remark });
     await audit(svc, { actor_profile_id: me.id, actor_label: actor, action: `joining.${next}`, entity_type: "joining_profile", entity_id: p.id, remarks: remark });
-    try { await storeOnboardingPdf(svc, p.id, next === "rejected" ? "Rejected" : "Approved with remarks", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
+    if (next === "approved_with_remarks") {
+      try { await storeOnboardingPdf(svc, p.id, "Approved with remarks", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
+    }
     const synced = await notifyRecruitment(p.source_application_id, next, remark);
     return ok({ status: next, synced });
   }
@@ -182,7 +184,6 @@ Deno.serve(async (req) => {
     await log({ kind: "status", old_value: { status: p.status }, new_value: { status: "correction_required" } });
     await audit(svc, { actor_profile_id: me.id, actor_label: actor, action: "joining.correction_requested", entity_type: "joining_profile", entity_id: p.id, new_state: { items: fresh.length } });
     await svc.from("joining_profiles").update({ decided_by: actor, decided_at: now, decision_remarks: fresh.map((c) => c.remark).join(" | ").slice(0, 1000) }).eq("id", p.id);
-    try { await storeOnboardingPdf(svc, p.id, "Pending clarification", actor); } catch (e) { console.error("pdf", String(e).slice(0, 300)); }
     const synced = await notifyRecruitment(p.source_application_id, "correction_required",
       `HR asked for a correction in your joining form: ${fresh.map((c) => c.remark).join(" · ").slice(0, 300)}`);
     return ok({ status: "correction_required", synced });
