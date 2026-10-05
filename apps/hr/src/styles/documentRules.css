@@ -276,7 +276,7 @@
 .drl-radio__hint { font-size: 12px; line-height: 18px; color: var(--drl-text-2); }
 
 /* Settings navigation layout (wraps the page) */
-.settings-shell { display: flex; flex-direction: column; gap: 16px; max-width: none; margin: 0; padding: 16px 24px; font-family: var(--drl-font); color: var(--drl-text); }
+.settings-shell { display: flex; flex-direction: column; gap: 8px; max-width: none; margin: 0; padding: 0 24px 16px; font-family: var(--drl-font); color: var(--drl-text); }
 .settings-nav { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; border-bottom: 1px solid var(--drl-border); padding-bottom: 0; }
 .settings-nav__title { margin: 0 24px 12px 0; font-size: 20px; line-height: 28px; font-weight: 600; }
 .settings-nav__link {
@@ -303,3 +303,5 @@
 
 /* Document Rules inside the settings shell: the shell already sets the page gutter. */
 .settings-content .drl { max-width: none; margin: 0; padding: 0; }
+.settings-nav { margin-top: 0; }
+.settings-content .drl-header { margin-top: 0; }
