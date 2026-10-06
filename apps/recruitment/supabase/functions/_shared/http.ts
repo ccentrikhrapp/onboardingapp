@@ -36,3 +36,13 @@ export function preflight(req: Request): Response | null {
   }
   return null;
 }
+
+// Runs a task after the reply has been sent, so the person isn't kept waiting
+// for slow work (sending an email, building a PDF). Errors are logged, never
+// thrown. Outside the Supabase Edge runtime it simply waits for the task.
+export async function afterResponse(task: Promise<unknown>): Promise<void> {
+  const safe = task.then(() => undefined).catch((e) => console.error("afterResponse", String(e).slice(0, 300)));
+  // @ts-ignore EdgeRuntime is provided by Supabase Edge Functions
+  if (typeof EdgeRuntime !== "undefined") { EdgeRuntime.waitUntil(safe); return; }
+  await safe;
+}

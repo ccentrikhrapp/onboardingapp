@@ -347,8 +347,10 @@ export default function TACandidateDetailPage() {
     try {
       const result = await scheduleInterview({ applicationId: app.id, ...payload });
       setModal(null);
-      if (result.emailStatus === 'sent') {
-        toast.success(`Interview scheduled successfully. Invitation sent to ${result.candidateEmail}.`);
+      if (result.emailStatus === 'queued') {
+        toast.success(`Interview scheduled. The invitation is being sent to ${result.candidateEmail}.`);
+        // The email goes out just after the reply — refresh the round so it shows sent / failed.
+        setTimeout(reloadRounds, 6000);
       } else if (result.emailStatus === 'no_email') {
         toast.success('Interview scheduled. This candidate has no email on file, so no invitation was sent.');
       } else {
@@ -699,6 +701,7 @@ export default function TACandidateDetailPage() {
                           {r.invitation?.status === 'failed' && (
                             <span style={{ color: 'var(--tag-red-fg)' }}>Invitation could not be sent to {r.invitation.sentTo}.</span>
                           )}
+                          {r.invitation?.status === 'queued' && <>Sending invitation to: {r.invitation.sentTo}…</>}
                           {!r.invitation && <>No invitation sent yet.</>}
                           {r.invitation?.status !== 'sent' && (
                             <button

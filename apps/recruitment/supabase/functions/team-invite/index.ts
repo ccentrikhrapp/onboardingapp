@@ -10,7 +10,7 @@
 // actually went out — a failed send leaves a real "pending" invitation that
 // can be resent, never a fake success.
 
-import { fail, ok, preflight } from "../_shared/http.ts";
+import { afterResponse, fail, ok, preflight } from "../_shared/http.ts";
 import { phoneOk } from "../_shared/phone.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { appBaseUrl, deliverInvitation, generateTempPassword, hashToken, INVITATION_EXPIRY_DAYS, invitationEmail, randomToken } from "../_shared/teamInvite.ts";
@@ -55,12 +55,13 @@ Deno.serve(async (req) => {
     if (!INVITABLE[me.role].includes(role)) return fail("FORBIDDEN", `You can't invite someone as ${ROLE_LABEL[role] ?? "that role"}.`, 403);
     if (existing) return fail("ALREADY_EXISTS", "This email already has an account. Manage it from the team list instead.", 409);
     // A previously removed member can be brought back — only by this deliberate invite.
-    await svc.from("blocked_emails").delete().ilike("email", pat);
-
-    const { error: invErr } = await svc.from("staff_invites").upsert(
-      { email, role, full_name: fullName, invited_by: me.id, invited_at: new Date().toISOString(), accepted_at: null },
-      { onConflict: "email" },
-    );
+    const [, { error: invErr }] = await Promise.all([
+      svc.from("blocked_emails").delete().ilike("email", pat),
+      svc.from("staff_invites").upsert(
+        { email, role, full_name: fullName, invited_by: me.id, invited_at: new Date().toISOString(), accepted_at: null },
+        { onConflict: "email" },
+      ),
+    ]);
     if (invErr) return fail("DB_ERROR", "Could not create the invitation.", 500);
 
     // The profile row (and role) is created by the handle_new_user trigger from
@@ -89,19 +90,20 @@ Deno.serve(async (req) => {
     await svc.from("profiles").update({ must_change_password: true }).eq("id", existing.id);
   }
 
-  // New token; any earlier unused ones for this email are void.
-  await svc.from("staff_invitation_tokens").delete().ilike("email", pat).is("used_at", null);
+  // New token (earlier unused ones for this email are void) and the send
+  // count don't depend on each other, so the two run together.
   const token = randomToken();
+  const tokenHash = await hashToken(token);
   const expiresAt = new Date(Date.now() + INVITATION_EXPIRY_DAYS * 86_400_000);
-  const { error: tErr } = await svc.from("staff_invitation_tokens").insert({
-    email, token_hash: await hashToken(token), expires_at: expiresAt.toISOString(), created_by: me.id,
-  });
+  const [{ error: tErr }] = await Promise.all([
+    svc.from("staff_invitation_tokens").delete().ilike("email", pat).is("used_at", null).then(() =>
+      svc.from("staff_invitation_tokens").insert({ email, token_hash: tokenHash, expires_at: expiresAt.toISOString(), created_by: me.id })),
+    svc.from("staff_invites").select("send_count").ilike("email", pat).maybeSingle().then(({ data: inv2 }) =>
+      svc.from("staff_invites").update({
+        expires_at: expiresAt.toISOString(), last_sent_at: new Date().toISOString(), send_count: (inv2?.send_count ?? 0) + 1,
+      }).ilike("email", pat)),
+  ]);
   if (tErr) return fail("DB_ERROR", "Could not create the invitation link.", 500);
-
-  const { data: inv2 } = await svc.from("staff_invites").select("send_count").ilike("email", pat).maybeSingle();
-  await svc.from("staff_invites").update({
-    expires_at: expiresAt.toISOString(), last_sent_at: new Date().toISOString(), send_count: (inv2?.send_count ?? 0) + 1,
-  }).ilike("email", pat);
 
   const link = `${appBaseUrl()}/accept-invite?token=${token}`;
   const mail = invitationEmail({
@@ -109,14 +111,25 @@ Deno.serve(async (req) => {
     inviterName: me.full_name || me.email, inviterEmail: me.email,
     tempPassword, loginUrl: `${appBaseUrl()}/ta/login?email=${encodeURIComponent(email)}`,
   });
-  const delivery = await deliverInvitation(svc, { to: email, inviterEmail: me.email, ...mail });
+  const send = async () => {
+    const delivery = await deliverInvitation(svc, { to: email, inviterEmail: me.email, ...mail });
 
-  await audit(svc, {
-    actor_profile_id: me.id, actor_label: me.full_name ?? me.email,
-    action: action === "invite" ? "team.invite" : "team.invite_resend",
-    entity_type: "profile", entity_id: profileId,
-    new_state: { email, role, app: "recruitment", emailSent: delivery.sent },
-  });
+    await audit(svc, {
+      actor_profile_id: me.id, actor_label: me.full_name ?? me.email,
+      action: action === "invite" ? "team.invite" : "team.invite_resend",
+      entity_type: "profile", entity_id: profileId,
+      new_state: { email, role, app: "recruitment", emailSent: delivery.sent },
+    });
+    return delivery;
+  };
 
+  // A new invitation replies straight away and the email goes out right after
+  // (its result is recorded in the emails table and the audit trail). "Resend"
+  // exists to send the email, so it still waits and reports what happened.
+  if (action === "invite") {
+    await afterResponse(send());
+    return ok({ profileId, emailQueued: true, emailSent: false, emailError: null, expiresAt: expiresAt.toISOString() });
+  }
+  const delivery = await send();
   return ok({ profileId, emailSent: delivery.sent, emailError: delivery.error ?? null, expiresAt: expiresAt.toISOString() });
 });

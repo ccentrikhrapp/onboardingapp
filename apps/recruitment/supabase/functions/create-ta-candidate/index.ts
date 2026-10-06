@@ -24,7 +24,7 @@
 //     already saw a DUPLICATE_CANDIDATE response and chose how to proceed
 // }
 
-import { fail, ok, preflight } from "../_shared/http.ts";
+import { afterResponse, fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
@@ -284,7 +284,7 @@ Deno.serve(async (req) => {
     type: "magiclink", email, options: { redirectTo },
   });
 
-  let emailStatus: "sent" | "failed" | "no_link" = "no_link";
+  let emailStatus: "queued" | "failed" | "no_link" = "no_link";
   if (!linkErr && linkData?.properties?.action_link) {
     const mail = render("ta_candidate_verification", {
       candidate_name: candidateName,
@@ -299,23 +299,26 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
-    try {
-      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-        body: JSON.stringify({ emailId: emailRow?.id }),
-      });
-      emailStatus = res.ok ? "sent" : "failed";
-    } catch {
+    // Sent right after the reply. "Verification Link Sent" is only written to
+    // the timeline once the email has really gone out.
+    if (emailRow?.id) {
+      emailStatus = "queued";
+      await afterResponse((async () => {
+        const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
+          body: JSON.stringify({ emailId: emailRow.id }),
+        });
+        if (res.ok) {
+          await addEvent(svc, {
+            application_id: application.id, type: "creation", title: "Verification Link Sent",
+            description: `A verification email was sent to ${email}.`, actor_label: "System",
+          });
+        }
+      })());
+    } else {
       emailStatus = "failed";
     }
-  }
-
-  if (emailStatus === "sent") {
-    await addEvent(svc, {
-      application_id: application.id, type: "creation", title: "Verification Link Sent",
-      description: `A verification email was sent to ${email}.`, actor_label: "System",
-    });
   }
 
   return ok({

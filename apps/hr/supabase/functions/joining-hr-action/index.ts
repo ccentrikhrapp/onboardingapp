@@ -13,7 +13,7 @@
 // The employee is told (in the recruitment app) about corrections, verification
 // and completion; everything is written to the audit trail.
 
-import { fail, ok, preflight } from "../_shared/http.ts";
+import { afterResponse, fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { HR_FIELDS, SECTIONS, fieldError } from "../_shared/joiningSchema.ts";
 import { buildDocuments } from "../_shared/joiningDocs.ts";
@@ -24,17 +24,12 @@ const DOC_ACTIONS = ["doc_approve", "doc_clarify", "doc_reject", "doc_mark_na", 
 const PRE_JOINING_STATUSES = ["onboarding_initiated", "documents_pending", "documents_submitted", "verification_in_progress", "formalities_pending"];
 
 // The PDF generator (pdf-lib) is heavy, so it is loaded only when a PDF is due,
-// and built after the response is sent — the HR button returns straight away.
-async function pdfAfterResponse(svc: any, profileId: string, label: string, actor: string) {
-  const task = import("../_shared/onboardingPdfStore.ts")
-    .then((m) => m.storeOnboardingPdf(svc, profileId, label, actor))
-    .catch((e) => console.error("pdf", String(e).slice(0, 300)));
-  // @ts-ignore EdgeRuntime is provided by Supabase Edge Functions
-  if (typeof EdgeRuntime !== "undefined") { EdgeRuntime.waitUntil(task); return; }
-  await task;
+// and built after the reply is sent.
+function pdfAfterResponse(svc: any, profileId: string, label: string, actor: string) {
+  return afterResponse(import("../_shared/onboardingPdfStore.ts").then((m) => m.storeOnboardingPdf(svc, profileId, label, actor)));
 }
 
-async function notifyRecruitment(applicationId: string, status: string, message: string) {
+async function postToRecruitment(applicationId: string, status: string, message: string) {
   const baseUrl = Deno.env.get("RECRUITMENT_FUNCTIONS_URL");
   const secret = Deno.env.get("INTEGRATION_SHARED_SECRET");
   if (!baseUrl || !secret) return false;
@@ -49,6 +44,13 @@ async function notifyRecruitment(applicationId: string, status: string, message:
   } catch {
     return false;
   }
+}
+
+// Tells the recruitment app about a status change after the reply is sent — the
+// HR action never waits on the other app. Returns true when it has been handed off.
+async function notifyRecruitment(applicationId: string, status: string, message: string) {
+  await afterResponse(postToRecruitment(applicationId, status, message));
+  return true;
 }
 
 Deno.serve(async (req) => {

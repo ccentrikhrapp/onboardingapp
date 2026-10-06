@@ -1,4 +1,5 @@
 import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
+import { afterResponse } from "./http.ts";
 
 // One place for the side-effects every workflow transition needs:
 // a timeline event, an in-app notification, and a queued email.
@@ -39,8 +40,8 @@ export async function notify(
   await svc.from("notifications").insert({ metadata: {}, ...n });
 }
 
-// Queue an email row and immediately try to deliver it via the send-email
-// function. Delivery failure is recorded on the row, not thrown — the workflow
+// Queue an email row; it is delivered via the send-email function right after
+// the reply is sent. Delivery failure is recorded on the row, not thrown — the workflow
 // transition still succeeds.
 export async function queueEmail(
   svc: SupabaseClient,
@@ -68,21 +69,27 @@ export async function queueEmail(
 
   if (!row) return;
 
-  try {
-    await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
+  await deliverQueuedEmail(svc, row.id);
+}
+
+// Hands a queued email row to send-email after the reply has gone out. The
+// outcome (sent / failed) is written on the row by send-email, or here if it
+// could not even be reached.
+export function deliverQueuedEmail(svc: SupabaseClient, emailId: string): Promise<void> {
+  return afterResponse(
+    fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}`,
       },
-      body: JSON.stringify({ emailId: row.id }),
-    });
-  } catch (_err) {
-    await svc
-      .from("emails")
-      .update({ status: "failed", error: "send-email invocation failed", failed_at: new Date().toISOString() })
-      .eq("id", row.id);
-  }
+      body: JSON.stringify({ emailId }),
+    }).catch(() =>
+      svc.from("emails")
+        .update({ status: "failed", error: "send-email invocation failed", failed_at: new Date().toISOString() })
+        .eq("id", emailId)
+    ),
+  );
 }
 
 // Secure links inside candidate emails — no internal ids in the query string

@@ -89,7 +89,8 @@ export default function TAManagementPage() {
     setInviting(true);
     try {
       const res = await inviteMember({ ...form, email: form.email.trim() });
-      if (res.emailSent) toast.success(`Invitation emailed to ${form.email}.`);
+      if (res.emailQueued) toast.success(`Invitation created. The email is being sent to ${form.email}.`);
+      else if (res.emailSent) toast.success(`Invitation emailed to ${form.email}.`);
       else toast.error(`Invitation created, but the email could not be sent. ${res.emailError || ''} Use "Resend" once fixed.`);
       setInviteOpen(false);
       setForm({ fullName: '', email: '', phone: '', role: inviteRoles.includes('ta') ? 'ta' : inviteRoles[0] });

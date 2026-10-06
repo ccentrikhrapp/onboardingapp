@@ -14,7 +14,7 @@
 //
 // Body: { onboardingDocumentId, path?, fileName?, mimeType?, sizeBytes?, formData? }
 
-import { fail, ok, preflight } from "../_shared/http.ts";
+import { afterResponse, fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent } from "../_shared/workflow.ts";
 import { callHr } from "../_shared/hrIntegration.ts";
@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
     new_state: { status: "uploaded" },
   });
 
-  await callHr(
+  await afterResponse(callHr(
     svc,
     "integration-onboarding-document-submitted",
     "ONBOARDING_DOCUMENT_SUBMITTED",
@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
       formData: body.formData ?? null,
     },
     { entity_type: "onboarding_document", entity_id: doc.id },
-  );
+  ));
 
   return ok({ status: "uploaded" });
 });

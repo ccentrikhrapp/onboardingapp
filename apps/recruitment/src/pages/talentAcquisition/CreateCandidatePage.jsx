@@ -147,8 +147,8 @@ export default function CreateCandidatePage() {
       }
       setDuplicate(null);
       toast.success(
-        result.emailStatus === 'sent'
-          ? `Candidate created (${result.candidateCode}). Verification link sent to ${result.candidateEmail}.`
+        result.emailStatus === 'queued'
+          ? `Candidate created (${result.candidateCode}). The verification link is being sent to ${result.candidateEmail}.`
           : `Candidate created (${result.candidateCode}), but the verification email could not be sent to ${result.candidateEmail}. Make sure your Google account is connected ("Connect Google" at the top), then use "Resend verification" on the candidate.`
       );
       if (result.toPipeline) {

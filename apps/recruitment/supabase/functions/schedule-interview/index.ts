@@ -21,7 +21,7 @@
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
-import { addEvent, notify, queueEmail } from "../_shared/workflow.ts";
+import { addEvent, deliverQueuedEmail, notify, queueEmail } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { createMeetingLink } from "../_shared/meetingProviders.ts";
 
@@ -207,7 +207,7 @@ Deno.serve(async (req) => {
   // report whether it actually reached them — scheduling the round and
   // notifying the candidate are reported as two separate outcomes.
   const candidateEmail: string | undefined = app.personal?.email;
-  let emailStatus: "sent" | "failed" | "no_email" = "no_email";
+  let emailStatus: "queued" | "failed" | "no_email" = "no_email";
   if (candidateEmail) {
     const functionsBase = Deno.env.get("SUPABASE_URL") ?? "";
     const responseLink = (action: string) => `${functionsBase}/functions/v1/interview-response?token=${round.response_token}&action=${action}`;
@@ -240,14 +240,11 @@ Deno.serve(async (req) => {
       })
       .select("id")
       .single();
-    try {
-      const res = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/send-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")}` },
-        body: JSON.stringify({ emailId: emailRow?.id }),
-      });
-      emailStatus = res.ok ? "sent" : "failed";
-    } catch {
+    // Sent right after the reply; the round shows "sent" or "failed" from the emails table.
+    if (emailRow?.id) {
+      await deliverQueuedEmail(svc, emailRow.id);
+      emailStatus = "queued";
+    } else {
       emailStatus = "failed";
     }
   }

@@ -16,7 +16,7 @@
 //   is the one that actually reopens the Upload button for the candidate
 //   (application_documents.status already allows re-upload from that state).
 
-import { fail, ok, preflight } from "../_shared/http.ts";
+import { afterResponse, fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify } from "../_shared/workflow.ts";
 import { callHr } from "../_shared/hrIntegration.ts";
@@ -115,7 +115,7 @@ Deno.serve(async (req) => {
       .eq("application_document_id", doc.id);
     const version = count ?? 1;
     const candidateName = `${app.candidates?.first_name ?? ""} ${app.candidates?.last_name ?? ""}`.trim();
-    await callHr(
+    await afterResponse(callHr(
       svc,
       "integration-document-submitted",
       "DOCUMENT_SUBMITTED",
@@ -133,7 +133,7 @@ Deno.serve(async (req) => {
         reason: doc.cannot_provide_reason ?? null,
       },
       { entity_type: "application_document", entity_id: doc.id },
-    );
+    ));
   }
   await addEvent(svc, {
     application_id: app.id,

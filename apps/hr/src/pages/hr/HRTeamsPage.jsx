@@ -64,7 +64,8 @@ export default function HRTeamsPage() {
     setInviting(true);
     try {
       const res = await inviteMember({ ...form, email: form.email.trim() });
-      if (res.emailSent) toast.success(`Invitation emailed to ${form.email.trim()}.`);
+      if (res.emailQueued) toast.success(`Invitation created. The email is being sent to ${form.email.trim()}.`);
+      else if (res.emailSent) toast.success(`Invitation emailed to ${form.email.trim()}.`);
       else toast.error(`Invitation created, but the email could not be sent. ${res.emailError || ''} Use "Resend" once fixed.`);
       setInviteOpen(false);
       setForm({ fullName: '', email: '', phone: '', role: 'hr' });
