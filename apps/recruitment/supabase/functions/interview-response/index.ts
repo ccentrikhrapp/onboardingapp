@@ -1,4 +1,4 @@
-// GET /functions/v1/interview-response?token=...&action=accept|decline|reschedule
+// GET /functions/v1/interview-response?token=...&action=accept|decline
 //
 // One-click candidate response straight from the interview-invitation
 // email — no login, so the unguessable response_token (not the round's own
@@ -8,11 +8,14 @@
 
 import { preflight, corsHeaders } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
-import { addEvent, notify } from "../_shared/workflow.ts";
+import { addEvent, notify, queueEmail } from "../_shared/workflow.ts";
+import { render } from "../_shared/emailTemplates.ts";
 
-const ACTION_META: Record<string, { response: string; heading: string; message: string; eventTitle: string; notifyTitle: string }> = {
+const ACTION_META: Record<string, { response: string; headline: string; responseLabel: string; heading: string; message: string; eventTitle: string; notifyTitle: string }> = {
   accept: {
     response: "accepted",
+    headline: "Interview accepted",
+    responseLabel: "Accepted",
     heading: "You're all set",
     message: "Thanks for confirming — we've let the recruiting team know you'll be there.",
     eventTitle: "Candidate Confirmed Interview",
@@ -20,30 +23,20 @@ const ACTION_META: Record<string, { response: string; heading: string; message: 
   },
   decline: {
     response: "declined",
+    headline: "Interview declined",
+    responseLabel: "Declined",
     heading: "Got it",
     message: "We've let the recruiting team know this time doesn't work — they'll be in touch to reschedule.",
     eventTitle: "Candidate Declined Interview",
     notifyTitle: "Candidate declined the interview",
   },
-  reschedule: {
-    response: "reschedule_requested",
-    heading: "Reschedule request received",
-    message: "We've asked the recruiting team to reach out and find a new time that works for you.",
-    eventTitle: "Candidate Requested Reschedule",
-    notifyTitle: "Candidate asked to reschedule the interview",
-  },
 };
 
-function page(heading: string, message: string, tone: "good" | "bad" = "good"): Response {
-  const color = tone === "good" ? "#16a34a" : "#dc2626";
-  const html = `<!doctype html><html><body style="margin:0;background:#f4f5f7;padding:40px 20px;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#1f2430">
-    <div style="max-width:440px;margin:0 auto;background:#fff;border:1px solid #e6e8ec;border-radius:12px;padding:32px;text-align:center">
-      <div style="width:48px;height:48px;border-radius:999px;background:${color}1a;color:${color};display:inline-flex;align-items:center;justify-content:center;font-size:24px;margin-bottom:16px">✓</div>
-      <h1 style="margin:0 0 8px;font-size:18px;color:#0f1729">${heading}</h1>
-      <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.5">${message}</p>
-    </div>
-  </body></html>`;
-  return new Response(html, { headers: { ...corsHeaders, "Content-Type": "text/html; charset=utf-8" } });
+// Supabase serves function responses as text/plain, so HTML returned here would
+// show as raw source. Redirect to the static confirmation page on the site instead.
+function page(result: string): Response {
+  const base = (Deno.env.get("PUBLIC_SITE_URL") ?? "https://ccentrik-recruitment.vercel.app").replace(/\/$/, "");
+  return new Response(null, { status: 302, headers: { ...corsHeaders, Location: `${base}/interview-response.html?result=${result}` } });
 }
 
 Deno.serve(async (req) => {
@@ -55,7 +48,7 @@ Deno.serve(async (req) => {
   const action = url.searchParams.get("action");
   const meta = action ? ACTION_META[action] : null;
   if (!token || !meta) {
-    return page("Link not valid", "This response link is missing or malformed. Please use the link from your interview email.", "bad");
+    return page("invalid");
   }
 
   const svc = serviceClient();
@@ -65,20 +58,24 @@ Deno.serve(async (req) => {
     .eq("response_token", token)
     .maybeSingle();
   if (!round) {
-    return page("Link not valid", "This response link has expired or is no longer valid.", "bad");
+    return page("invalid");
   }
 
   const app = round.applications as any;
-  // Same button clicked again (or an email link opened twice): the response is
-  // already recorded, so don't write a second event or notify the TA again.
-  if (round.candidate_response === meta.response) {
-    return page(meta.heading, meta.message);
-  }
-
-  await svc
+  // One-time response: the row is only changed while no response is recorded
+  // yet, so two clicks at the same moment can't both succeed. Anything after
+  // the first response is refused and the stored response is left as it is.
+  const { data: claimed } = await svc
     .from("interview_rounds")
     .update({ candidate_response: meta.response, responded_at: new Date().toISOString() })
-    .eq("id", round.id);
+    .eq("id", round.id)
+    .is("candidate_response", null)
+    .select("id");
+  if (!claimed || claimed.length === 0) {
+    const { data: current } = await svc.from("interview_rounds").select("candidate_response").eq("id", round.id).maybeSingle();
+    // Same button again: show its confirmation. Any other button: locked.
+    return page(current?.candidate_response === meta.response ? meta.response : "locked");
+  }
 
   const candidateName = `${app?.personal?.firstName ?? ""} ${app?.personal?.lastName ?? ""}`.trim();
   const jobTitle = app?.jobs?.title ?? "the role";
@@ -102,5 +99,25 @@ Deno.serve(async (req) => {
     });
   }
 
-  return page(meta.heading, meta.message);
+  // Same email for every response, sent to the assigned TA (no duplicate on repeat clicks — returned above).
+  if (app?.assigned_ta_id) {
+    const { data: ta } = await svc.from("profiles").select("email, full_name").eq("id", app.assigned_ta_id).maybeSingle();
+    if (ta?.email) {
+      const mail = render("interview_response_ta", {
+        headline: meta.headline,
+        ta_name: ta.full_name || "there",
+        candidate_name: candidateName || "The candidate",
+        job_title: jobTitle,
+        round_name: round.name,
+        response_label: meta.responseLabel,
+        responded_at: new Date().toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: "Asia/Kolkata" }),
+      });
+      await queueEmail(svc, {
+        recipient: ta.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
+        template: "interview_response_ta", entity_type: "interview_round", entity_id: round.id,
+      });
+    }
+  }
+
+  return page(meta.response);
 });

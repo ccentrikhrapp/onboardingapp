@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import Button from '../../components/ta/Button.jsx';
@@ -8,6 +9,7 @@ import { useApp } from '../../context/AppContext.jsx';
 import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { useGoogleSignIn } from '../../components/auth/useGoogleSignIn.js';
 import { useToast } from '../../context/ToastContext.jsx';
+import { useUpload } from '../../context/UploadContext.jsx';
 import { loadJSON, saveJSON } from '../../hooks/useLocalStorage.js';
 import { candidateSupabase } from '../../lib/supabase.js';
 import { resolveLink } from '../../api/applicationLinks.js';
@@ -54,6 +56,7 @@ export default function ApplyPage() {
   const { getJob } = useApp();
   const { configured, user, loading: authLoading, ensureSession } = useCandidateAuth();
   const toast = useToast();
+  const { run: runUpload } = useUpload();
   const isRealUser = !!user && !user.is_anonymous;
   // Lands back on this exact apply URL (job id + ?ref= token, if any) so a
   // TA-link application isn't lost by bouncing through a generic page.
@@ -220,7 +223,7 @@ export default function ApplyPage() {
 
     try {
       setAnalyzeIdx(0);
-      const { path, meta } = await uploadResume(file, form.draftId, candidateSupabase);
+      const { path, meta } = await runUpload('Resume', () => uploadResume(file, form.draftId, candidateSupabase));
       if (isStale()) return;
       set({ resume: meta, resumePath: path });
       setAnalyzeIdx(2);
@@ -256,8 +259,10 @@ export default function ApplyPage() {
     if (!file) return;
     setDoc(req.id, { uploading: true });
     try {
-      await ensureSession();
-      const uploaded = await uploadPendingDocument(file, req);
+      const uploaded = await runUpload(req.name, async () => {
+        await ensureSession();
+        return uploadPendingDocument(file, req);
+      });
       setDoc(req.id, {
         uploading: false, path: uploaded.path, fileName: uploaded.fileName,
         mimeType: uploaded.mimeType, sizeBytes: uploaded.sizeBytes,
@@ -547,7 +552,7 @@ export default function ApplyPage() {
                   <Input type="email" value={form.email} error={errors.email} readOnly={!!googleEmail} onChange={(e) => setAndValidate('email', e.target.value)} onBlur={(e) => validateField('email', e.target.value)} />
                 </Field>
                 <Field label="Phone number" required error={errors.phone} extracted={isAuto('phone')}>
-                  <Input value={form.phone} error={errors.phone} onChange={(e) => setAndValidate('phone', e.target.value)} onBlur={(e) => validateField('phone', e.target.value)} />
+                  <CountryPhoneInput value={form.phone} error={errors.phone} onChange={(v) => setAndValidate('phone', v)} onBlur={() => validateField('phone', form.phone)} />
                 </Field>
                 <Field label="Current location" required error={errors.currentLocation} extracted={isAuto('currentLocation')}>
                   <Input value={form.currentLocation} error={errors.currentLocation} onChange={(e) => setAndValidate('currentLocation', e.target.value)} onBlur={(e) => validateField('currentLocation', e.target.value)} />

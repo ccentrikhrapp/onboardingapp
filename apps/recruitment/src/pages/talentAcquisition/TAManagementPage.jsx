@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react';
+import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import TAHeader from '../../components/ta/TAHeader.jsx';
+import { phoneError } from '../../utils/validation.js';
 import DataGrid from '../../components/ta/DataGrid.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
@@ -14,12 +16,7 @@ import { emailError, nameError } from '../../utils/validation.js';
 import { formatDate } from '../../utils/format.js';
 
 // Optional, international formats allowed (+91 98765 43210) — mirrors team-invite.
-const phoneProblem = (p) => {
-  const v = p.trim();
-  if (!v) return '';
-  const digits = v.replace(/\D/g, '').length;
-  return /^\+?[0-9 ()-]+$/.test(v) && digits >= 7 && digits <= 15 ? '' : 'Enter a valid phone number.';
-};
+const phoneProblem = (p) => phoneError(p, { required: false });
 
 const ROLE_LABEL = { admin: 'Super Admin', admin_ta: 'Talent Acquisition Head', ta: 'Talent Acquisition' };
 const ROLE_TONE = { admin: 'green', admin_ta: 'violet', ta: 'blue' };
@@ -298,7 +295,7 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
                 <Input type="email" value={editForm.email} error={editErrors.email} disabled={editing.id === team?.actorId} onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))} />
               </Field>
               <Field label="Phone" error={editErrors.phone}>
-                <Input type="tel" value={editForm.phone} error={editErrors.phone} onChange={(e) => setEditForm((f) => ({ ...f, phone: e.target.value }))} />
+                <CountryPhoneInput value={editForm.phone} error={editErrors.phone} onChange={(v) => setEditForm((f) => ({ ...f, phone: v }))} />
               </Field>
               <Field label="Department" error={editErrors.department}>
                 <Input value={editForm.department} error={editErrors.department} onChange={(e) => setEditForm((f) => ({ ...f, department: e.target.value }))} />
@@ -337,7 +334,7 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
             <Input type="email" placeholder="jane.smith@gmail.com" value={form.email} error={formErrors.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
           </Field>
           <Field label="Phone" full error={formErrors.phone}>
-            <Input type="tel" placeholder="+91 98765 43210" value={form.phone} error={formErrors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+            <CountryPhoneInput value={form.phone} error={formErrors.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
           </Field>
           <Field label="Assign role" required full>
             <Select

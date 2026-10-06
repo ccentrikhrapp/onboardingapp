@@ -41,6 +41,11 @@ const OFFER_STATUS_LABEL = { draft: 'Draft', sent: 'Sent', viewed: 'Viewed', acc
 const OFFER_STATUS_TONE = { draft: 'grey', sent: 'blue', viewed: 'blue', accepted: 'green', declined: 'red', expired: 'grey' };
 const ROUND_DECISION_LABEL = { advance: 'Advance', further_review: 'Further Review', not_progressing: 'Not Moving Forward' };
 const ROUND_DECISION_TONE = { advance: 'green', further_review: 'amber', not_progressing: 'red' };
+// The candidate's one-time answer to the interview email (interview_rounds.candidate_response).
+const CANDIDATE_RESPONSE = {
+  accepted: { label: 'Candidate: Accepted', tone: 'green' },
+  declined: { label: 'Candidate: Declined', tone: 'red' },
+};
 const ATS_RECOMMENDATION_TONE = { 'Strong Match': 'green', 'Good Match': 'blue', 'Partial Match': 'amber', 'Low Match': 'red' };
 const PLATFORM_LABEL = { teams: 'Microsoft Teams', google_meet: 'Google Meet' };
 /* Server-computed match between this application and its job (see
@@ -661,6 +666,10 @@ export default function TACandidateDetailPage() {
                       <div className="ta-round" key={r.id}>
                         <div className="ta-round__head">
                           <span className="ta-cell-strong">Round {r.round_number} · {r.name}{r.is_hr_final ? ' (HR final)' : ''}</span>
+                          {/* Candidate's one-time answer from the interview email (Accept / Decline / Reschedule). */}
+                          <Tag tone={CANDIDATE_RESPONSE[r.candidate_response]?.tone || 'grey'}>
+                            {CANDIDATE_RESPONSE[r.candidate_response]?.label || 'Not responded yet'}
+                          </Tag>
                           {feedback ? (
                             <Tag tone={ROUND_DECISION_TONE[feedback.decision]}>{ROUND_DECISION_LABEL[feedback.decision]}</Tag>
                           ) : (

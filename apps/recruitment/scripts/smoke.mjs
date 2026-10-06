@@ -18,12 +18,16 @@ import React from 'react';
 import { AuthProvider } from './src/context/AuthContext.jsx';
 import { AppProvider } from './src/context/AppContext.jsx';
 import { ToastProvider } from './src/context/ToastContext.jsx';
+import { CandidateAuthProvider } from './src/context/CandidateAuthContext.jsx';
+import { UploadProvider } from './src/context/UploadContext.jsx';
 import AppRoutes from './src/routes/AppRoutes.jsx';
 export function Root() {
   return React.createElement(ToastProvider, null,
+    React.createElement(UploadProvider, null,
     React.createElement(AuthProvider, null,
-      React.createElement(AppProvider, null,
-        React.createElement(AppRoutes, null))));
+      React.createElement(CandidateAuthProvider, null,
+        React.createElement(AppProvider, null,
+          React.createElement(AppRoutes, null))))));
 }
 `;
 mkdirSync('scripts/.tmp', { recursive: true });

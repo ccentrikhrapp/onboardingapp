@@ -71,7 +71,6 @@ Deno.serve(async (req) => {
     application_link: `${Deno.env.get("PUBLIC_SITE_URL") ?? "http://localhost:5173"}/candidate/application`,
     accept_link: responseLink("accept"),
     decline_link: responseLink("decline"),
-    reschedule_link: responseLink("reschedule"),
   });
 
   const { data: emailRow } = await svc

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import Button from '../../components/ta/Button.jsx';
@@ -14,6 +15,7 @@ import { CLAIM_APPLICATION_KEY, isAuthReturn, returnErrorMessage, cleanAuthUrl }
 import { listInterviewRounds } from '../../api/interviews.js';
 import { listApplicationDocuments, uploadDocumentFile, submitDocument } from '../../api/documents.js';
 import { listOnboardingDocuments, uploadOnboardingDocument, submitOnboardingForm } from '../../api/onboarding.js';
+import { useUpload } from '../../context/UploadContext.jsx';
 import OnboardingFormFields, { validateOnboardingForm } from '../../components/candidate/OnboardingFormFields.jsx';
 import { getOffer } from '../../api/offers.js';
 import { applicationFromDb } from '../../api/mappers.js';
@@ -187,6 +189,7 @@ function adaptRemote(a) {
 export default function MyApplicationPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { run: runUpload } = useUpload();
   const { configured, user, loading: authLoading } = useCandidateAuth();
   const [remote, setRemote] = useState({ loading: true, app: null, events: [] });
   const [resubmitting, setResubmitting] = useState(false);
@@ -201,6 +204,48 @@ export default function MyApplicationPage() {
   const [onboardingFormValues, setOnboardingFormValues] = useState({}); // onboarding_document id -> { fieldKey: value }
   const [onboardingFormErrors, setOnboardingFormErrors] = useState({}); // onboarding_document id -> { fieldKey: message }
   const [activeTab, setActiveTab] = useState('progress'); // progress | interviews | documents | onboarding | offer
+
+  // Onboarding: the form values and errors are kept per onboarding document.
+  const onboardingFormValuesFor = (d) => onboardingFormValues[d.id] || {};
+  const setOnboardingFormValue = (d, key, value) => {
+    setOnboardingFormValues((s) => ({ ...s, [d.id]: { ...(s[d.id] || {}), [key]: value } }));
+    setOnboardingFormErrors((s) => ({ ...s, [d.id]: { ...(s[d.id] || {}), [key]: undefined } }));
+  };
+  const reloadOnboardingDocs = (appId) => listOnboardingDocuments(appId).then(setOnboardingDocs).catch(() => {});
+
+  // Candidate uploads one file for an onboarding document; the loader covers it until it succeeds or fails.
+  const uploadOnboardingDoc = async (d, fileList) => {
+    const file = fileList?.[0];
+    if (!file || !remote.app) return;
+    setOnboardingBusy((s) => ({ ...s, [d.id]: true }));
+    try {
+      await runUpload(d.requirement_name, () => uploadOnboardingDocument(remote.app.id, d, file));
+      await reloadOnboardingDocs(remote.app.id);
+    } catch { /* the loader has already shown the failure notification */ }
+    finally { setOnboardingBusy((s) => ({ ...s, [d.id]: false })); }
+  };
+
+  // Candidate submits the filled-in onboarding form. Required fields are checked first.
+  const submitOnboardingFormFor = async (d) => {
+    if (!remote.app) return;
+    const values = onboardingFormValuesFor(d);
+    const errs = {};
+    for (const f of d.field_schema || []) {
+      if (f.type !== 'file' && f.required && !String(values[f.key] ?? '').trim()) errs[f.key] = `${f.label || f.key} is required.`;
+    }
+    if (Object.keys(errs).length) {
+      setOnboardingFormErrors((s) => ({ ...s, [d.id]: errs }));
+      return;
+    }
+    setOnboardingBusy((s) => ({ ...s, [d.id]: true }));
+    try {
+      await submitOnboardingForm(remote.app.id, d, null, values);
+      toast.success('Submitted. HR will review it.');
+      await reloadOnboardingDocs(remote.app.id);
+    } catch (err) {
+      toast.error(err.message || 'Could not submit. Please try again.');
+    } finally { setOnboardingBusy((s) => ({ ...s, [d.id]: false })); }
+  };
 
   const load = () => {
     listMyApplications()
@@ -415,7 +460,7 @@ export default function MyApplicationPage() {
               <Input type="email" value={form.email} error={formErrors.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
             </Field>
             <Field label="Phone number" required error={formErrors.phone}>
-              <Input value={form.phone} error={formErrors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+              <CountryPhoneInput value={form.phone} error={formErrors.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
             </Field>
             <Field label="Current location" required error={formErrors.currentLocation}>
               <Input value={form.currentLocation} error={formErrors.currentLocation} onChange={(e) => setForm((f) => ({ ...f, currentLocation: e.target.value }))} />
@@ -510,7 +555,7 @@ export default function MyApplicationPage() {
               <Input type="email" value={form.email} error={formErrors.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} />
             </Field>
             <Field label="Phone number" required error={formErrors.phone}>
-              <Input value={form.phone} error={formErrors.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+              <CountryPhoneInput value={form.phone} error={formErrors.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
             </Field>
             <Field label="Current location" required error={formErrors.currentLocation}>
               <Input value={form.currentLocation} error={formErrors.currentLocation} onChange={(e) => setForm((f) => ({ ...f, currentLocation: e.target.value }))} />

@@ -9,7 +9,8 @@
 // Body: { onboardingCaseId, joiningDate?, department?, designation? }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
-import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
+import { currentProfile, serviceClient } from "../_shared/supabase.ts";
+import { ensureEmployee } from "../_shared/employee.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -50,62 +51,12 @@ Deno.serve(async (req) => {
     return fail("DOCS_NOT_VERIFIED", "All required onboarding documents must be verified before creating the employee record.", 409);
   }
 
-  const designation = body.designation || onboardingCase.designation;
-
-  const { data: employee, error: empErr } = await svc
-    .from("employees")
-    .insert({
-      onboarding_case_id: onboardingCase.id,
-      full_name: onboardingCase.candidate_name,
-      email: onboardingCase.candidate_email,
-      department: body.department || onboardingCase.department,
-      designation,
-      joining_date: body.joiningDate || onboardingCase.joining_date,
-    })
-    .select("*")
-    .single();
-  if (empErr || !employee) return fail("DB_ERROR", "Could not create the employee record.", 500);
-
-  await svc.from("onboarding_cases").update({ status: "employee_created" }).eq("id", onboardingCase.id);
-
-  await audit(svc, {
-    actor_profile_id: profile.id,
-    actor_label: profile.full_name ?? profile.email,
-    action: "onboarding.create_employee",
-    entity_type: "onboarding_case",
-    entity_id: onboardingCase.id,
-    new_state: { employeeId: employee.id, employeeCode: employee.employee_code },
-  });
-
-  // Best-effort: the employee record is already durably created above even
-  // if this call fails — same pattern as every other cross-project return
-  // leg in this app (e.g. verify-document's sync back to recruitment).
-  let syncedToRecruitment = false;
-  const baseUrl = Deno.env.get("RECRUITMENT_FUNCTIONS_URL");
-  const secret = Deno.env.get("INTEGRATION_SHARED_SECRET");
-  const recruitmentAnonKey = Deno.env.get("RECRUITMENT_ANON_KEY");
-  if (baseUrl && secret && onboardingCase.source_application_id) {
-    try {
-      const res = await fetch(`${baseUrl.replace(/\/$/, "")}/integration-employee-created`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Integration-Secret": secret,
-          ...(recruitmentAnonKey ? { Authorization: `Bearer ${recruitmentAnonKey}`, apikey: recruitmentAnonKey } : {}),
-        },
-        body: JSON.stringify({
-          eventId: `employee-created-${employee.id}`,
-          sourceApplicationId: onboardingCase.source_application_id,
-          employeeCode: employee.employee_code,
-          designation,
-          reviewedBy: profile.full_name ?? profile.email,
-        }),
-      });
-      syncedToRecruitment = res.ok;
-    } catch {
-      syncedToRecruitment = false;
-    }
+  try {
+    const { employee, syncedToRecruitment } = await ensureEmployee(svc, onboardingCase.id,
+      { id: profile.id, label: profile.full_name ?? profile.email },
+      { joiningDate: body.joiningDate, department: body.department, designation: body.designation });
+    return ok({ employee, syncedToRecruitment });
+  } catch (e) {
+    return fail("DB_ERROR", (e as Error).message || "Could not create the employee record.", 500);
   }
-
-  return ok({ employee, syncedToRecruitment });
 });

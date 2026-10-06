@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { activityStart, activityEnd } from '../lib/activity.js';
 
 /** Error carrying the backend's { code, message, fields } so forms can show it. */
 export class ApiError extends Error {
@@ -20,7 +21,7 @@ export function unwrap({ data, error }) {
  * Call an edge function and unwrap the { success, data } / { success, error }
  * envelope into either the payload or a thrown ApiError.
  */
-export async function callFn(name, { body, method = 'POST', query } = {}) {
+async function callFnInner(name, { body, method = 'POST', query } = {}) {
   let path = name;
   if (query) path += `?${new URLSearchParams(query)}`;
 
@@ -62,4 +63,14 @@ export async function signedUrl(bucket, path, expiresIn = 300) {
   const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, expiresIn);
   if (error) throw new ApiError(error.message, 'STORAGE_ERROR');
   return data.signedUrl;
+}
+
+// Every server action goes through here, so this is where the "working…" bar starts and stops.
+export async function callFn(...args) {
+  activityStart();
+  try {
+    return await callFnInner(...args);
+  } finally {
+    activityEnd();
+  }
 }

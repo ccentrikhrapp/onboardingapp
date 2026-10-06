@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import Card from '../../components/ta/Card.jsx';
@@ -7,6 +8,7 @@ import { Field, FieldGrid, Input, Select, Textarea } from '../../components/ta/F
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { uploadResume, parseResume } from '../../api/resumes.js';
+import { useUpload } from '../../context/UploadContext.jsx';
 import { createTaCandidate } from '../../api/applications.js';
 import { fileUploadError } from '../../utils/validation.js';
 import {
@@ -37,6 +39,7 @@ export default function CreateCandidatePage() {
   const { jobs } = useApp();
   const [form, setForm] = useState(blank());
   const [errors, setErrors] = useState({});
+  const { run: runUpload } = useUpload();
   const [analyzeIdx, setAnalyzeIdx] = useState(-1);
   const [submitting, setSubmitting] = useState(false);
   const [duplicate, setDuplicate] = useState(null); // { existingCandidate, existingApplications }
@@ -76,7 +79,7 @@ export default function CreateCandidatePage() {
 
     try {
       setAnalyzeIdx(0);
-      const { path, meta } = await uploadResume(file);
+      const { path, meta } = await runUpload('Resume', () => uploadResume(file));
       if (isStale()) return;
       set({ resume: meta, resumePath: path });
       setAnalyzeIdx(2);
@@ -264,7 +267,7 @@ export default function CreateCandidatePage() {
               <Input type="email" value={form.email} error={errors.email} onChange={(e) => setAndValidate('email', e.target.value)} onBlur={(e) => validateField('email', e.target.value)} />
             </Field>
             <Field label="Phone number" required error={errors.phone} extracted={isAuto('phone')}>
-              <Input value={form.phone} error={errors.phone} onChange={(e) => setAndValidate('phone', e.target.value)} onBlur={(e) => validateField('phone', e.target.value)} />
+              <CountryPhoneInput value={form.phone} error={errors.phone} onChange={(v) => setAndValidate('phone', v)} onBlur={() => validateField('phone', form.phone)} />
             </Field>
             <Field label="Current location" required error={errors.currentLocation} extracted={isAuto('currentLocation')}>
               <Input value={form.currentLocation} error={errors.currentLocation} onChange={(e) => setAndValidate('currentLocation', e.target.value)} onBlur={(e) => validateField('currentLocation', e.target.value)} />

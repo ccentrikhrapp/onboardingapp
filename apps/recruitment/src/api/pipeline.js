@@ -132,3 +132,11 @@ export async function dismissPipelineReminder(id) {
 export function movePipelineCandidate({ pipelineCandidateId, jobId, hiringLocation }) {
   return callFn('move-pipeline-candidate', { body: { pipelineCandidateId, jobId, hiringLocation } });
 }
+
+/** Super Admin only: permanently delete pipeline candidates (their activity history goes with them).
+    The database refuses the delete for anyone else, so a short count means "not allowed". */
+export async function deletePipelineCandidates(ids) {
+  const rows = await supabase.from('pipeline_candidates').delete().in('id', ids).select('id').then(unwrap);
+  if (rows.length !== ids.length) throw new Error('Some candidates could not be deleted. Only a Super Admin can delete them.');
+  return rows.length;
+}

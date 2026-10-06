@@ -79,7 +79,7 @@
 .ta-brand__text { display: flex; flex-direction: column; min-width: 0; }
 .ta-brand__name { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .ta-brand__sub { font-size: 11px; color: var(--ta-text-mute); }
-.ta-brand__logo { height: 21px; width: auto; display: block; flex-shrink: 0; }
+.ta-brand__logo { height: 34px; width: auto; display: block; flex-shrink: 0; }
 .ta-brand__badge {
   display: none; width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
   background: linear-gradient(150deg, #4b7bf7, #2a53c8); color: #fff;
@@ -1296,7 +1296,7 @@
   display: flex; align-items: center; gap: clamp(10px, 2vw, 20px);
 }
 .cx-brand { display: flex; align-items: center; gap: 11px; }
-.cx-brand__logo { height: 26px; width: auto; display: block; flex-shrink: 0; }
+.cx-brand__logo { height: 38px; width: auto; display: block; flex-shrink: 0; }
 .cx-brand__sub {
   font-size: 13px; font-weight: 500; color: var(--ta-text-soft);
   padding-left: 12px; border-left: 1px solid var(--ta-line);
@@ -1852,7 +1852,7 @@
 }
 @media (max-width: 480px) {
   .cx-brand__sub { display: none; }
-  .cx-brand__logo { height: 23px; }
+  .cx-brand__logo { height: 32px; }
   .cx-nav { margin-left: 0; }
   .cx-nav a { padding: 7px 9px; }
 }

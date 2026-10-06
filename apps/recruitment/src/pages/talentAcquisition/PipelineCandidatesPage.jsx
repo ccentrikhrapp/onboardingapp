@@ -11,7 +11,8 @@ import PipelineFormModal from '../../components/ta/PipelineFormModal.jsx';
 import MoveToJobModal from '../../components/ta/MoveToJobModal.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listPipelineCandidates, setPipelineArchived } from '../../api/pipeline.js';
+import { listPipelineCandidates, setPipelineArchived, deletePipelineCandidates } from '../../api/pipeline.js';
+import { useApp } from '../../context/AppContext.jsx';
 import { pipelineStatus, PIPELINE_STATUS_TONE } from '../../utils/pipelineForm.js';
 import { formatDate } from '../../utils/format.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
@@ -42,6 +43,9 @@ const STATUS_OPTIONS = ['Active', 'Reminder Due', 'Moved to Job Candidate', 'Arc
 export default function PipelineCandidatesPage() {
   const navigate = useNavigate();
   const toast = useToast();
+  const { role } = useApp();
+  const isSuperAdmin = role === 'admin';
+  const [picked, setPicked] = useState([]);
   const [sp, setSp] = useSearchParams();
   const [rows, setRows] = useState(null);
   const [selectedId, setSelectedId] = useState(sp.get('open'));
@@ -54,6 +58,20 @@ export default function PipelineCandidatesPage() {
         ...c, statusLabel: pipelineStatus(c), offerLabel: c.offerInHand ? 'Yes' : 'No',
       }))))
       .catch(() => { setRows([]); toast.error('Could not load pipeline candidates.'); });
+  const removeSelected = async () => {
+    const ids = [...picked];
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} pipeline candidate${ids.length === 1 ? '' : 's'}? Their notes and history are deleted too. This can't be undone.`)) return;
+    try {
+      await deletePipelineCandidates(ids);
+      toast.success(`${ids.length} candidate${ids.length === 1 ? '' : 's'} deleted.`);
+      setPicked([]);
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete the selected candidates.');
+    }
+  };
+
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
   // Opened from a reminder popup / bell notification (?open=<id>).
@@ -125,11 +143,23 @@ export default function PipelineCandidatesPage() {
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
+      {isSuperAdmin && picked.length > 0 && (
+        <div className="ta-card" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+          <span className="ta-cell-strong">{picked.length} selected</span>
+          <Button variant="danger" icon="Trash2" onClick={removeSelected}>Delete selected</Button>
+          <Button variant="ghost" onClick={() => setPicked([])}>Clear selection</Button>
+        </div>
+      )}
+
       {rows === null ? (
         <div style={{ padding: 24 }}><SkeletonBlock lines={3} /></div>
       ) : (
         <DataGrid
-          columns={COLUMNS}
+          columns={isSuperAdmin ? [{ key: '_pick', label: (
+            <input type="checkbox" aria-label="Select all on this page"
+              checked={view.rows.length > 0 && view.rows.every((r) => picked.includes(r.id))}
+              onChange={(e) => setPicked(e.target.checked ? [...new Set([...picked, ...view.rows.map((r) => r.id)])] : picked.filter((id) => !view.rows.some((r) => r.id === id)))} />
+          ) }, ...COLUMNS] : COLUMNS}
           rows={view.rows}
           sort={view.sort}
           onSort={view.onSort}
@@ -137,6 +167,12 @@ export default function PipelineCandidatesPage() {
           empty={{ icon: 'Users', title: 'No pipeline candidates', message: all.length ? 'Try changing the filters or search.' : 'Add candidates you want to keep in touch with for future openings.' }}
           renderRow={(r) => (
             <tr key={r.id} onClick={() => setSelectedId(r.id)} style={{ cursor: 'pointer' }}>
+              {isSuperAdmin && (
+                <td onClick={(e) => e.stopPropagation()}>
+                  <input type="checkbox" aria-label={`Select ${r.name}`} checked={picked.includes(r.id)}
+                    onChange={() => setPicked((p) => (p.includes(r.id) ? p.filter((x) => x !== r.id) : [...p, r.id]))} />
+                </td>
+              )}
               <td>
                 <span className="ta-cell-cand__name">{r.name}</span><br />
                 <span className="ta-cell-cand__sub">{r.code}</span>

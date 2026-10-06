@@ -10,6 +10,7 @@
 // can be resent, never a fake success.
 
 import { fail, ok, preflight } from "../_shared/http.ts";
+import { phoneOk } from "../_shared/phone.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { appBaseUrl, deliverInvitation, generateTempPassword, hashToken, INVITATION_EXPIRY_DAYS, invitationEmail, randomToken } from "../_shared/teamInvite.ts";
 
@@ -18,10 +19,7 @@ const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR" };
 const INVITABLE: Record<string, string[]> = { admin: ["admin", "hr"] };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Optional. Accepts international formats (+91 98765 43210, (022) 1234 5678...).
-const phoneOk = (p: string) => {
-  const digits = p.replace(/\D/g, "").length;
-  return /^\+?[0-9 ()-]+$/.test(p) && digits >= 7 && digits <= 15;
-};
+
 
 Deno.serve(async (req) => {
   const pre = preflight(req);

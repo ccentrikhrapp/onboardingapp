@@ -298,7 +298,6 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
          <table role="presentation" style="width:100%;border-collapse:separate;border-spacing:8px 0">
            <tr>
              <td style="text-align:center"><a href="${v.accept_link}" style="display:block;padding:11px 0;background:#16a34a;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Accept</a></td>
-             <td style="text-align:center"><a href="${v.reschedule_link}" style="display:block;padding:11px 0;background:#f59e0b;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Reschedule</a></td>
              <td style="text-align:center"><a href="${v.decline_link}" style="display:block;padding:11px 0;background:#dc2626;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">Decline</a></td>
            </tr>
          </table>
@@ -310,7 +309,7 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
         (isVirtual
           ? `Platform: ${v.platform_label}\nMeeting Link: ${v.meeting_link}\n`
           : `Location: ${v.location}\n${v.location_details ? `Location Details: ${v.location_details}\n` : ""}`) +
-        `\nAccept: ${v.accept_link}\nReschedule: ${v.reschedule_link}\nDecline: ${v.decline_link}\n\nRegards,\nTalent Acquisition Team\nCcentrik`,
+        `\nAccept: ${v.accept_link}\nDecline: ${v.decline_link}\n\nRegards,\nTalent Acquisition Team\nCcentrik`,
     };
   },
 
@@ -326,6 +325,21 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
        </div>`,
     ),
     text: `Hi ${v.panelist_name},\n\nYou're on the panel for ${v.round_name} — ${v.candidate_name} (${v.job_title}) at ${v.when}.\n\n— Ccentrik`,
+  }),
+
+  interview_response_ta: (v) => ({
+    subject: `${v.headline} — ${v.candidate_name} for ${v.job_title}`,
+    html: shell(
+      v.headline,
+      `<p>Hi ${v.ta_name},</p>
+       <p><strong>${v.candidate_name}</strong> responded to <strong>${v.round_name}</strong> for <strong>${v.job_title}</strong>.</p>
+       <div style="background:#EEF2FD;border:1px solid #DCE4FB;border-radius:8px;padding:12px 14px;font-size:14px">
+         <div><strong>Response:</strong> ${v.response_label}</div>
+         <div><strong>When:</strong> ${v.responded_at}</div>
+       </div>
+       <p style="font-size:13px;color:#6B7280">Please follow up in the TA portal.</p>`,
+    ),
+    text: `Hi ${v.ta_name},\n\n${v.candidate_name} responded to ${v.round_name} for ${v.job_title}.\nResponse: ${v.response_label}\nWhen: ${v.responded_at}\n\nPlease follow up in the TA portal.\n\n— Ccentrik`,
   }),
 
   interview_advance: (v) => ({

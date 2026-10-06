@@ -33,6 +33,11 @@ export function listActivity(limit = 300) {
     .then(unwrap);
 }
 
+/** The employee record for one onboarding case (null until HR creates it). */
+export function getEmployeeForCase(caseId) {
+  return supabase.from('employees').select('employee_code, designation, department, joining_date').eq('onboarding_case_id', caseId).maybeSingle().then(unwrap);
+}
+
 export function listEmployees() {
   return supabase
     .from('employees')

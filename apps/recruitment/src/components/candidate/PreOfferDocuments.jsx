@@ -5,6 +5,7 @@ import Tag from '../ta/Tag.jsx';
 import { Field, Input, Select, Textarea } from '../ta/Field.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { uploadDocumentFile, submitDocument, setDocumentAnswers } from '../../api/documents.js';
+import { useUpload } from '../../context/UploadContext.jsx';
 import { docStatusMeta, requiredSlots, slotLabel, summarizeDocuments, currentFilesBySlot } from '../../utils/documentRules.js';
 
 const GROUPS = [
@@ -163,6 +164,7 @@ function DocCard({ doc, appId, identityResolved, onDone, toast }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const single = useRef(null);
+  const { run: runUpload } = useUpload();
   const accept = (req.allowed_file_types || []).map((t) => `.${t}`).join(',');
 
   const send = async (payload, okMsg) => {
@@ -182,11 +184,12 @@ function DocCard({ doc, appId, identityResolved, onDone, toast }) {
     setBusy(true); setErr('');
     try {
       const list = [...files].slice(0, slots.length ? 1 : req.multiple_files ? 20 : 1);
-      for (let i = 0; i < list.length; i++) {
-        const up = await uploadDocumentFile(appId, req, list[i]);
-        await submitDocument({ applicationDocumentId: doc.id, ...up, slot, replace: i === 0 && (attention || !allFiles.length) });
-      }
-      toast.success(`${req.name} uploaded.`);
+      await runUpload(req.name, async () => {
+        for (let i = 0; i < list.length; i++) {
+          const up = await uploadDocumentFile(appId, req, list[i]);
+          await submitDocument({ applicationDocumentId: doc.id, ...up, slot, replace: i === 0 && (attention || !allFiles.length) });
+        }
+      });
       onDone();
     } catch (e) {
       setErr(e.message || 'Upload failed.');

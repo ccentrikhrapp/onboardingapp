@@ -5,6 +5,7 @@ import Tag from '../../ta/Tag.jsx';
 import { Field, Select, Textarea } from '../../ta/Field.jsx';
 import { useToast } from '../../../context/ToastContext.jsx';
 import { submitJoiningDocument, uploadJoiningFile } from '../../../api/joining.js';
+import { useUpload } from '../../../context/UploadContext.jsx';
 
 const CLASS_TAG = { critical: ['Required', 'red'], conditional: ['Applicable', 'blue'], optional: ['Optional', 'grey'] };
 const LOCKED = ['approved', 'approved_with_reason', 'na_accepted'];
@@ -96,6 +97,8 @@ function DocItem({ item, applicationId, disabled, onUpdated, identityResolved })
   const [clsLabel, clsTone] = CLASS_TAG[item.classification];
   const attention = ['clarification_required', 'rejected'].includes(item.status);
 
+  const { run: runUpload } = useUpload();
+
   const save = async () => {
     setErr('');
     setBusy(true);
@@ -103,7 +106,7 @@ function DocItem({ item, applicationId, disabled, onUpdated, identityResolved })
       let uploaded;
       if (choice === 'upload') {
         if (!files.length) throw Object.assign(new Error('Choose at least one file.'), { fields: {} });
-        uploaded = await Promise.all(files.map((f) => uploadJoiningFile(applicationId, item.itemKey, f)));
+        uploaded = await runUpload(item.label || 'Document', () => Promise.all(files.map((f) => uploadJoiningFile(applicationId, item.itemKey, f))));
       }
       const res = await submitJoiningDocument({ itemKey: item.itemKey, choice, files: uploaded, reasonCategory, reasonText });
       onUpdated(res);

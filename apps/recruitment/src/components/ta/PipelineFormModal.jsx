@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import { Modal } from '../common/Modal.jsx';
 import Button from './Button.jsx';
 import { Field, FieldGrid, Input, Select } from './Field.jsx';
@@ -57,17 +58,19 @@ export default function PipelineFormModal({ open, candidate, onClose, onSaved })
     >
       <FieldGrid>
         {text('name', 'Name')}
-        {text('phone', 'Number', { inputMode: 'tel' })}
+        <Field label="Number" required error={errors.phone}>
+          <CountryPhoneInput value={form.phone} error={errors.phone} onChange={(v) => set('phone', v)} />
+        </Field>
         {text('email', 'Email ID', { type: 'email' })}
         {text('position', 'Position')}
         {text('organisation', 'Organisation')}
         {text('totalExp', 'Total Exp (years)', { type: 'number', min: 0, step: '0.1' })}
         {text('relevantExp', 'Relevant Exp (years)', { type: 'number', min: 0, step: '0.1' })}
-        {text('currentCtc', 'Current CTC', { type: 'number', min: 0 })}
+        {text('currentCtc', 'Current CTC (LPA)', { type: 'number', min: 0 })}
         <Field label="Offer in Hand" required error={errors.offerInHand}>
           <Select value={form.offerInHand} error={errors.offerInHand} placeholder="Select" options={['Yes', 'No']} onChange={(e) => set('offerInHand', e.target.value)} />
         </Field>
-        {text('expectedCtc', 'Expected CTC', { type: 'number', min: 0 })}
+        {text('expectedCtc', 'Expected CTC (LPA)', { type: 'number', min: 0 })}
         <Field label="Notice (days)" required error={errors.noticeDays} hint="Expected availability is calculated from this automatically.">
           <Input type="number" min="0" step="1" value={form.noticeDays} error={errors.noticeDays} onChange={(e) => set('noticeDays', e.target.value)} />
         </Field>

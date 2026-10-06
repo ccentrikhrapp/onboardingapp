@@ -93,7 +93,7 @@
 .hr-brand__text { display: flex; flex-direction: column; min-width: 0; }
 .hr-brand__name { font-size: 14px; font-weight: 700; line-height: 1.2; }
 .hr-brand__sub { font-size: 11px; color: var(--hr-text-mute); }
-.hr-brand__logo { height: 21px; width: auto; display: block; flex-shrink: 0; }
+.hr-brand__logo { height: 34px; width: auto; display: block; flex-shrink: 0; }
 .hr-brand__badge {
   display: none; width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
   background: linear-gradient(150deg, #4b7bf7, #2a53c8); color: #fff;
@@ -1912,3 +1912,6 @@
 .hr-note--ok { background: #e9f8ef; color: #14532d; }
 .hr-note--warn { background: #fff6e5; color: #7a4b00; flex-direction: column; }
 .hr-note--info { background: #eef3ff; color: #1e3a8a; }
+
+/* Any disabled button looks disabled, so a button that is correctly off never looks broken. */
+.hr-btn:disabled { opacity: 0.5; cursor: not-allowed; }

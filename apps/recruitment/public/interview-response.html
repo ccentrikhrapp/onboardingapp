@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Interview response</title>
+  <style>
+    body { margin: 0; background: #f4f5f7; padding: 40px 20px; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2430; }
+    .card { max-width: 440px; margin: 0 auto; background: #fff; border: 1px solid #e6e8ec; border-radius: 12px; padding: 32px; text-align: center; }
+    .icon { width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin-bottom: 16px; }
+    .good { background: #16a34a1a; color: #16a34a; }
+    .bad { background: #dc26261a; color: #dc2626; }
+    h1 { margin: 0 0 8px; font-size: 18px; color: #0f1729; }
+    p { margin: 0; font-size: 14px; color: #6b7280; line-height: 1.5; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div id="icon" class="icon good">✓</div>
+    <h1 id="heading">Thank you</h1>
+    <p id="message"></p>
+  </div>
+  <script>
+    // Result is set by the interview-response function's redirect (?result=...).
+    var MESSAGES = {
+      accepted: ["You're all set", "Thanks for confirming — we've let the recruiting team know you'll be there.", "good"],
+      declined: ["Got it", "We've let the recruiting team know this time doesn't work — they'll be in touch to reschedule.", "good"],
+      locked: ["Response already recorded", "You've already responded to this interview, so your earlier response has been kept. If you need to change it, please contact the recruiting team.", "bad"],
+      invalid: ["Link not valid", "This response link is missing or malformed, or has expired. Please use the link from your interview email.", "bad"]
+    };
+    var result = new URLSearchParams(window.location.search).get("result");
+    var entry = MESSAGES[result] || MESSAGES.invalid;
+    document.getElementById("heading").textContent = entry[0];
+    document.getElementById("message").textContent = entry[1];
+    var icon = document.getElementById("icon");
+    icon.className = "icon " + entry[2];
+    icon.textContent = entry[2] === "good" ? "✓" : "!";
+    document.title = entry[0];
+  </script>
+</body>
+</html>

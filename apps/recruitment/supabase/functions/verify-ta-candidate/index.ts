@@ -16,7 +16,6 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { addEvent, notify, queueEmail } from "../_shared/workflow.ts";
 import { audit, currentProfile, isStaffRole, serviceClient } from "../_shared/supabase.ts";
 import { render } from "../_shared/emailTemplates.ts";
-import { extractResumeText } from "../_shared/resumeText.ts";
 import { computeAtsScore } from "../_shared/ats.ts";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -74,7 +73,7 @@ Deno.serve(async (req) => {
     try {
       const objectPath = app.resume_path.replace(/^resumes\//, "");
       const { data: resumeFile } = await svc.storage.from("resumes").download(objectPath);
-      const resumeText = resumeFile ? await extractResumeText(new Uint8Array(await resumeFile.arrayBuffer()), objectPath) : "";
+      const resumeText = resumeFile ? await (await import("../_shared/resumeText.ts")).extractResumeText(new Uint8Array(await resumeFile.arrayBuffer()), objectPath) : "";
       atsScore = computeAtsScore({ job, professional, education, resumeText });
     } catch {
       atsScore = null;

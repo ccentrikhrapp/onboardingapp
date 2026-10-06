@@ -35,7 +35,6 @@ import TAJobDetailPage from '../pages/talentAcquisition/TAJobDetailPage.jsx';
 import TAManagementPage from '../pages/talentAcquisition/TAManagementPage.jsx';
 import CreateCandidatePage from '../pages/talentAcquisition/CreateCandidatePage.jsx';
 import BulkUploadCandidatesPage from '../pages/talentAcquisition/BulkUploadCandidatesPage.jsx';
-import DocumentRulesPage from '../pages/talentAcquisition/DocumentRulesPage.jsx';
 import PipelineCandidatesPage from '../pages/talentAcquisition/PipelineCandidatesPage.jsx';
 import PipelineBulkUploadPage from '../pages/talentAcquisition/PipelineBulkUploadPage.jsx';
 
@@ -106,7 +105,6 @@ export default function AppRoutes() {
         <Route path="/ta/candidates/:candidateId" element={<TACandidateDetailPage />} />
         <Route path="/ta/jobs" element={<TAJobsPage />} />
         <Route path="/ta/jobs/:jobId" element={<TAJobDetailPage />} />
-        <Route path="/ta/document-rules" element={<RoleRoute allow="admin"><DocumentRulesPage /></RoleRoute>} />
         <Route path="/ta/team" element={<RoleRoute allow="team"><TAManagementPage /></RoleRoute>} />
         <Route path="/ta/settings" element={<SettingsPage />} />
         <Route path="/ta/profile" element={<ProfilePage role="ta" />} />

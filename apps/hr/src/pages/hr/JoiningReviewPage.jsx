@@ -7,12 +7,12 @@ import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { getOnboardingCase } from '../../api/onboarding.js';
+import { getOnboardingCase, getEmployeeForCase } from '../../api/onboarding.js';
 import {
-  getJoiningForCase, listJoiningEvents, listJoiningSnapshots, listJoiningItems, listDocConfigRows, setHrFields, requestCorrection,
-  startReview, verifyJoining, completeJoining, decideJoining, listJoiningPdfs, getJoiningPdfUrl, docApprove, docClarify, docReject, docMarkNa, docMarkApplicable, approveDocumentation, getJoiningFileUrl,
+  getJoiningForCase, listJoiningEvents, listJoiningSnapshots, listJoiningItems, listDocConfigRows, requestCorrection,
+  listJoiningPdfs, getJoiningPdfUrl, docApprove, docClarify, docReject, docMarkNa, docMarkApplicable, approveDocumentation, getJoiningFileUrl,
 } from '../../api/joining.js';
-import { DOC_REFERENCE, HR_FIELDS, SECTIONS, STATUS_LABEL, deriveRequirements, docLabel, docSummary, docUnits, validateAll } from '../../utils/joiningSchema.ts';
+import { DOC_REFERENCE, SECTIONS, STATUS_LABEL, deriveRequirements, docLabel, docSummary, docUnits, validateAll } from '../../utils/joiningSchema.ts';
 import { summarizeSections } from '../../utils/joiningView.js';
 import { FORMS, buildForm, openPrint } from '../../utils/joiningDocs.js';
 import { formatDate, formatDateTime } from '../../utils/format.js';
@@ -47,6 +47,7 @@ export default function JoiningReviewPage() {
   const { candidateId: caseId } = useParams(); // the onboarding case id
   const toast = useToast();
   const [caseRow, setCaseRow] = useState(null);
+  const [employee, setEmployee] = useState(null); // set once HR has created the employee record
   const [profile, setProfile] = useState(undefined); // undefined = loading, null = employee hasn't opened it
   const [events, setEvents] = useState([]);
   const [snapshots, setSnapshots] = useState([]);
@@ -55,25 +56,22 @@ export default function JoiningReviewPage() {
   const [busy, setBusy] = useState(false);
   const [remarkFor, setRemarkFor] = useState(null); // { key, action }
   const [reveal, setReveal] = useState(false);
-  const [hrDraft, setHrDraft] = useState({});
   const [queue, setQueue] = useState([]); // pending form corrections
   const [corrFor, setCorrFor] = useState(null);
   const [preview, setPreview] = useState(null);
   const [pdfs, setPdfs] = useState([]);
-  const [decRemarks, setDecRemarks] = useState('');
 
   const load = async () => {
     try {
-      const c = await getOnboardingCase(caseId);
+      const [c, p, emp] = await Promise.all([getOnboardingCase(caseId), getJoiningForCase(caseId), getEmployeeForCase(caseId).catch(() => null)]);
       setCaseRow(c);
-      const p = await getJoiningForCase(caseId);
+      setEmployee(emp);
       setProfile(p);
       if (p) {
         listJoiningPdfs(p.id).then((r) => setPdfs(r.versions || [])).catch(() => setPdfs([]));
         const [ev, snaps, items, cfg] = await Promise.all([listJoiningEvents(p.id), listJoiningSnapshots(p.id), listJoiningItems(p.id), listDocConfigRows().catch(() => [])]);
         setEvents(ev); setSnapshots(snaps); setItemRows(items);
         setCfgRows(cfg);
-        setHrDraft({ ...p.hr_fields });
       }
     } catch (e) {
       toast.error(e.message || 'Could not load the joining form.');
@@ -101,7 +99,7 @@ export default function JoiningReviewPage() {
     try {
       const res = await fn();
       if (okMsg) toast.success(okMsg);
-      await load();
+      load(); // refresh in the background so the button is free straight away
       return res;
     } catch (e) {
       toast.error(e.message || 'Could not complete that.');
@@ -126,12 +124,36 @@ export default function JoiningReviewPage() {
   const pid = profile.id;
   const latestSnap = snapshots[0];
   const printData = latestSnap?.data || data;
-  const printHr = latestSnap?.hr_fields || profile.hr_fields || {};
+  const printHr = {
+    designation: caseRow?.designation || '', department: caseRow?.department || '', dateOfJoining: String(caseRow?.joining_date || '').slice(0, 10),
+    ...(latestSnap?.hr_fields || {}), ...(profile.hr_fields || {}),
+    ...(employee?.employee_code ? { employeeCode: employee.employee_code } : {}),
+  };
   const caseInfo = { name: caseRow?.candidate_name, designation: caseRow?.designation, joiningDate: caseRow?.joining_date };
-  const hrGroups = [...new Set(HR_FIELDS.map((f) => f.group))];
   const docRows = units.flatMap((u) => u.members.map((m) => ({ ...m, unit: u }))).filter((m) => m.req.applicability !== 'not_applicable' || (m.req.dataOnly));
   const naRows = reqs.filter((r) => r.applicability === 'not_applicable' && !r.dataOnly);
   const openCorr = (profile.corrections || []).filter((c) => !c.resolved_at);
+
+  const submitted = !['not_started', 'in_progress', 'correction_required'].includes(st);
+
+  const downloadLatestPdf = async () => {
+    const r = await getJoiningPdfUrl(pid);
+    const link = document.createElement('a');
+    link.href = r.url; link.download = r.fileName;
+    document.body.appendChild(link); link.click(); link.remove();
+  };
+
+  const approveAndDownload = async () => {
+    if (!window.confirm('Approve the joining documentation? This creates the employee ID and completes the joining form.')) return;
+    const res = await run(() => approveDocumentation(pid));
+    if (!res) return; // run() has already shown the error
+    toast.success(`Approved. Employee ID ${res.employeeCode} created.`);
+    if (res.pdfVersion) {
+      try { await downloadLatestPdf(); } catch (e) { toast.error(e.message || 'Could not download the joining forms.'); }
+    } else {
+      toast.error('The employee ID was created, but the joining PDF could not be generated. Try the download below.');
+    }
+  };
 
   const openFile = async (key, name) => {
     setPreview({ url: null, fileName: null, title: name });
@@ -159,9 +181,9 @@ export default function JoiningReviewPage() {
           <span className="hr-cell-sub">Signed by <strong>{profile.signature?.name || '—'}</strong></span>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {['submitted', 'resubmitted'].includes(st) && <Button variant="ghost" disabled={busy} onClick={() => run(() => startReview(pid), 'Review started.')}>Start review</Button>}
-          {['submitted', 'resubmitted', 'under_review'].includes(st) && openCorr.length === 0 && <Button icon="Check" disabled={busy} onClick={() => run(() => verifyJoining(pid), 'Joining form verified.')}>Verify joining form</Button>}
-          {st === 'verified' && <Button icon="CheckCircle2" disabled={busy} onClick={() => run(() => completeJoining(pid), 'Joining form completed.')}>Mark completed</Button>}
+          {employee?.employee_code
+            ? <Tag tone="green">Employee ID {employee.employee_code}</Tag>
+            : <span className="hr-cell-sub">The employee ID is created when you approve the joining documentation below.</span>}
         </div>
         {openCorr.length > 0 && (
           <div className="hr-note hr-note--warn" style={{ marginTop: 10 }}>
@@ -246,9 +268,12 @@ export default function JoiningReviewPage() {
         )}
 
         <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button icon="CheckCircle2" disabled={busy || !summary.ready || !!profile.documents_approved_at} onClick={() => run(() => approveDocumentation(pid), 'Joining documentation approved.')}>
-            Approve joining documentation
+          <Button icon="CheckCircle2" disabled={busy || !summary.ready || !submitted || openCorr.length > 0 || (!!profile.documents_approved_at && !!employee)} onClick={approveAndDownload}>
+            {profile.documents_approved_at && !employee ? 'Create employee ID and download joining forms' : 'Approve joining documentation'}
           </Button>
+          {!submitted && <span className="hr-cell-sub">The employee hasn't submitted the joining form yet.</span>}
+          {submitted && openCorr.length > 0 && <span className="hr-cell-sub">Waiting for the employee to resubmit the corrected sections.</span>}
+          {profile.documents_approved_at && employee && <span className="hr-cell-sub">Approved. Employee ID {employee.employee_code} created — download the joining forms below.</span>}
           {!summary.ready && <span className="hr-cell-sub">Still to resolve: {summary.unresolved.join(', ')}</span>}
           {summary.ready && !profile.documents_approved_at && <span className="hr-cell-sub">Every applicable requirement is resolved — the rest of the reference checklist isn't needed.</span>}
         </div>
@@ -277,43 +302,6 @@ export default function JoiningReviewPage() {
             </table>
           </div>
         )}
-      </Card>
-
-      <div style={{ height: 14 }} />
-
-      <Card title="HR decision">
-        <p className="hr-cell-sub" style={{ marginBottom: 8 }}>Decisions are recorded with your name and time. Remarks are required for Approve with remarks and Reject.</p>
-        <textarea className="hr-input" rows={3} placeholder="HR remarks" value={decRemarks} onChange={(e) => setDecRemarks(e.target.value)} style={{ width: '100%', marginBottom: 10 }} />
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <Button icon="Check" disabled={busy || !['submitted', 'resubmitted', 'under_review'].includes(st) || openCorr.length > 0} onClick={() => { if (window.confirm('Approve this onboarding record?')) run(() => verifyJoining(pid), 'Approved.'); }}>Approve</Button>
-          <Button variant="ghost" disabled={busy || !decRemarks.trim() || !['submitted', 'resubmitted', 'under_review'].includes(st)} onClick={() => { if (window.confirm('Approve this onboarding record with remarks?')) run(() => decideJoining(pid, 'approve_with_remarks', decRemarks.trim()), 'Approved with remarks.').then(() => setDecRemarks('')); }}>Approve with remarks</Button>
-          <Button variant="ghost" disabled={busy || !['submitted', 'resubmitted', 'under_review'].includes(st)} onClick={() => { if (!queue.length) { toast.error('Add the correction(s) to the queue above first.'); return; } if (window.confirm('Request clarification from the employee?')) run(() => requestCorrection(pid, queue), 'Clarification requested.').then((r) => { if (r) setQueue([]); }); }}>Request clarification</Button>
-          <Button variant="danger" disabled={busy || !decRemarks.trim() || !['submitted', 'resubmitted', 'under_review'].includes(st)} onClick={() => { if (window.confirm('Reject this onboarding record? The employee will be notified.')) run(() => decideJoining(pid, 'reject', decRemarks.trim()), 'Rejected.').then(() => setDecRemarks('')); }}>Reject</Button>
-        </div>
-      </Card>
-
-      <div style={{ height: 14 }} />
-
-      <Card title="HR details (set by HR)" action={<Button disabled={busy} onClick={() => run(() => setHrFields(pid, hrDraft), 'HR details saved.')}>Save HR details</Button>}>
-        {hrGroups.map((g) => (
-          <div key={g} style={{ marginBottom: 10 }}>
-            <div className="hr-cell-strong" style={{ marginBottom: 6 }}>{g}</div>
-            <div className="hr-formgrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 10 }}>
-              {HR_FIELDS.filter((f) => f.group === g).map((f) => (
-                <label key={f.key} className="hr-field" style={{ margin: 0 }}>
-                  <span className="hr-field__label">{f.label}</span>
-                  {f.options ? (
-                    <select className="hr-input" value={hrDraft[f.key] || ''} onChange={(e) => setHrDraft((d) => ({ ...d, [f.key]: e.target.value }))}>
-                      <option value="">—</option>{f.options.map((o) => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                  ) : (
-                    <input className="hr-input" type={f.type === 'date' ? 'date' : 'text'} value={hrDraft[f.key] || ''} onChange={(e) => setHrDraft((d) => ({ ...d, [f.key]: e.target.value }))} />
-                  )}
-                </label>
-              ))}
-            </div>
-          </div>
-        ))}
       </Card>
 
       <div style={{ height: 14 }} />

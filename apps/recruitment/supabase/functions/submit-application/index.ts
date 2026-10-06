@@ -15,15 +15,14 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, isStaffRole, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
-import { extractResumeText } from "../_shared/resumeText.ts";
 import { computeAtsScore } from "../_shared/ats.ts";
+import { phoneOk } from "../_shared/phone.ts";
 
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Kept in sync by hand with src/utils/validation.js's PHONE_DIGITS_RE/NAME_RE —
 // Deno edge functions can't import from src/, so this is the one other place
 // these rules live. Frontend validation alone isn't enough since this
 // endpoint is reachable directly (curl, a modified client, etc).
-const phoneRe = /^(?:\+?91[\s-]?|0)?([6-9]\d{9})$/;
 const nameRe = /^[A-Za-z][A-Za-z.'-]*(?:\s+[A-Za-z][A-Za-z.'-]*)*$/;
 
 Deno.serve(async (req) => {
@@ -66,7 +65,7 @@ Deno.serve(async (req) => {
     fields.email = "This must match the email address you signed in with.";
   }
   if (!personal.mobile?.trim()) fields.mobile = "Phone number is required.";
-  else if (!phoneRe.test(personal.mobile)) fields.mobile = "Enter a valid phone number.";
+  else if (!phoneOk(String(personal.mobile))) fields.mobile = "Enter a valid phone number.";
   if (!body.resumePath) fields.resume = "A resume is required.";
   if (Object.keys(fields).length) {
     return fail("VALIDATION_ERROR", "Please complete the required fields.", 422, fields);
@@ -222,7 +221,7 @@ Deno.serve(async (req) => {
     try {
       const objectPath = (resumePath || "").replace(/^resumes\//, "");
       const { data: resumeFile } = await svc.storage.from("resumes").download(objectPath);
-      const resumeText = resumeFile ? await extractResumeText(new Uint8Array(await resumeFile.arrayBuffer()), objectPath) : "";
+      const resumeText = resumeFile ? await (await import("../_shared/resumeText.ts")).extractResumeText(new Uint8Array(await resumeFile.arrayBuffer()), objectPath) : "";
       atsScore = computeAtsScore({
         job: job as any,
         professional: body.professional ?? {},

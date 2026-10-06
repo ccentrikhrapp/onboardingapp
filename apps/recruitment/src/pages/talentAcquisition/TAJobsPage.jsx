@@ -39,6 +39,8 @@ export default function TAJobsPage() {
   const navigate = useNavigate();
   const toast = useToast();
   const { jobs, createJob, deleteJob, role } = useApp();
+  const isSuperAdmin = role === 'admin';
+  const [pickedJobs, setPickedJobs] = useState([]);
   // Every TA-workspace role can post a job; deleting a posting stays admin-tier
   // only (a Normal TA can create jobs but not remove or edit existing ones).
   const canCreateJobs = role === 'ta' || role === 'admin' || role === 'admin_ta';
@@ -111,6 +113,19 @@ export default function TAJobsPage() {
 
   const totalApplicants = rows.reduce((sum, r) => sum + r.applicants, 0);
 
+  const removeSelectedJobs = async () => {
+    const ids = [...pickedJobs];
+    if (!ids.length) return;
+    if (!window.confirm(`Delete ${ids.length} job${ids.length === 1 ? '' : 's'}? This can't be undone.`)) return;
+    let done = 0;
+    for (const id of ids) {
+      try { await deleteJob(id); done += 1; } catch { /* counted below */ }
+    }
+    setPickedJobs([]);
+    if (done === ids.length) toast.success(`${done} job${done === 1 ? '' : 's'} deleted.`);
+    else toast.error(`${done} of ${ids.length} deleted. The rest could not be deleted.`);
+  };
+
   const removeJob = async (job) => {
     const ok = window.confirm(`Delete "${job.title}"? This can't be undone.`);
     if (!ok) return;
@@ -141,8 +156,20 @@ export default function TAJobsPage() {
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
+      {isSuperAdmin && pickedJobs.length > 0 && (
+        <div className="ta-card" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+          <span className="ta-cell-strong">{pickedJobs.length} selected</span>
+          <Button variant="danger" icon="Trash2" onClick={removeSelectedJobs}>Delete selected</Button>
+          <Button variant="ghost" onClick={() => setPickedJobs([])}>Clear selection</Button>
+        </div>
+      )}
+
       <DataGrid
-        columns={COLUMNS}
+        columns={isSuperAdmin ? [{ key: '_pick', label: (
+          <input type="checkbox" aria-label="Select all on this page"
+            checked={view.rows.length > 0 && view.rows.every((j) => pickedJobs.includes(j.id))}
+            onChange={(e) => setPickedJobs(e.target.checked ? [...new Set([...pickedJobs, ...view.rows.map((j) => j.id)])] : pickedJobs.filter((id) => !view.rows.some((j) => j.id === id)))} />
+        ) }, ...COLUMNS] : COLUMNS}
         rows={view.rows}
         sort={view.sort}
         onSort={view.onSort}
@@ -150,6 +177,12 @@ export default function TAJobsPage() {
         empty={{ icon: 'Briefcase', title: 'No jobs found', message: 'Try a different search, or create a new job.' }}
         renderRow={(j) => (
           <tr key={j.id} onClick={() => navigate(`/ta/jobs/${j.id}`)} style={{ cursor: 'pointer' }}>
+            {isSuperAdmin && (
+              <td onClick={(e) => e.stopPropagation()}>
+                <input type="checkbox" aria-label={`Select ${j.title}`} checked={pickedJobs.includes(j.id)}
+                  onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))} />
+              </td>
+            )}
             <td>
               <span className="ta-cell-strong">{j.title}</span>
               {j.custom && <Tag tone="blue">New</Tag>}

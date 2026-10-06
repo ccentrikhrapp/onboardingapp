@@ -6,6 +6,8 @@ import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
+import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
+import { phoneError } from '../../utils/phone.js';
 import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember } from '../../api/team.js';
 
 const ROLE_LABEL = { admin: 'Super Admin', hr: 'HR' };
@@ -16,13 +18,7 @@ const ACCOUNT_TONE = { ACTIVE: 'green', INVITED: 'amber', DISABLED: 'grey' };
 const ACCOUNT_LABEL = { ACTIVE: 'Active', INVITED: 'Invited', DISABLED: 'Disabled' };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-// Optional, international formats allowed (+91 98765 43210) — mirrors team-invite.
-const phoneProblem = (p) => {
-  const v = p.trim();
-  if (!v) return '';
-  const digits = v.replace(/\D/g, '').length;
-  return /^\+?[0-9 ()-]+$/.test(v) && digits >= 7 && digits <= 15 ? '' : 'Enter a valid phone number.';
-};
+const phoneProblem = (p) => phoneError(p, { required: false });
 
 const COLUMNS = [
   { key: 'name', label: 'Name / Email' },
@@ -223,7 +219,7 @@ This removes their account, revokes their Google access and stops ${m.email} fro
         </div>
         <div className="hr-field hr-field--full">
           <label className="hr-field__label" htmlFor="tm-phone">Phone</label>
-          <input id="tm-phone" type="tel" className="hr-input" placeholder="+91 98765 43210" value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} />
+          <CountryPhoneInput id="tm-phone" value={form.phone} error={errors.phone} onChange={(v) => setForm((f) => ({ ...f, phone: v }))} />
           {errors.phone && <span className="hr-field__error">{errors.phone}</span>}
         </div>
         <div className="hr-field hr-field--full">

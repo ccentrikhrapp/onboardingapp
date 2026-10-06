@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase.js';
+import { activityStart, activityEnd } from '../lib/activity.js';
 
 /** Error carrying the backend's { code, message, fields } so forms can show it. */
 // Backend/library wording that must never reach a person's screen.
@@ -28,7 +29,7 @@ export function unwrap({ data, error }) {
  * API functions pass the candidate client explicitly (see lib/supabase.js for
  * why the two are never the same session).
  */
-export async function callFn(name, { body, method = 'POST', query } = {}, client = supabase) {
+async function callFnInner(name, { body, method = 'POST', query } = {}, client = supabase) {
   let path = name;
   if (query) path += `?${new URLSearchParams(query)}`;
 
@@ -70,4 +71,14 @@ export async function signedUrl(bucket, path, expiresIn = 300, client = supabase
   const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn);
   if (error) throw new ApiError(error.message, 'STORAGE_ERROR');
   return data.signedUrl;
+}
+
+// Every server action goes through here, so this is where the "working…" bar starts and stops.
+export async function callFn(...args) {
+  activityStart();
+  try {
+    return await callFnInner(...args);
+  } finally {
+    activityEnd();
+  }
 }
