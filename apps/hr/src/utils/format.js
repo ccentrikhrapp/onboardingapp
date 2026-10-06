@@ -29,22 +29,3 @@ export function timeAgo(value) {
   const days = Math.round(hrs / 24);
   return `${days}d ago`;
 }
-
-export function formatCurrencyINR(value) {
-  const n = Number(value);
-  if (!value || Number.isNaN(n)) return value || '—';
-  return `₹ ${n.toLocaleString('en-IN')}`;
-}
-
-export function initialsOf(name = '') {
-  return name
-    .split(' ')
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0].toUpperCase())
-    .join('');
-}
-
-export function todayISO() {
-  return new Date().toISOString().slice(0, 10);
-}

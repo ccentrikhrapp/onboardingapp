@@ -21,19 +21,34 @@ export function userClient(req: Request): SupabaseClient {
   });
 }
 
+// The "sub" (user id) written in a JWT, without verifying it — see currentProfile.
+function tokenSubject(token: string): string | null {
+  try {
+    const payload = token.split(".")[1].replace(/-/g, "+").replace(/_/g, "/");
+    const sub = JSON.parse(atob(payload)).sub;
+    return typeof sub === "string" && /^[0-9a-f-]{36}$/i.test(sub) ? sub : null;
+  } catch {
+    return null;
+  }
+}
+
 // Resolve the signed-in profile (id + role) or null.
 export async function currentProfile(req: Request) {
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) return null;
   const svc = serviceClient();
   const token = authHeader.replace("Bearer ", "");
-  const { data: userData, error } = await svc.auth.getUser(token);
-  if (error || !userData.user) return null;
-  const { data: profile } = await svc
-    .from("profiles")
-    .select("id, email, full_name, role, active, must_change_password")
-    .eq("id", userData.user.id)
-    .single();
+  // The token's user id is read first so the profile can be fetched while
+  // Supabase verifies the token — one round trip of waiting instead of two.
+  // Nothing is trusted from the unverified read: the profile is only used
+  // once getUser() has confirmed the token and that it is the same user.
+  const claimedId = tokenSubject(token);
+  if (!claimedId) return null;
+  const [{ data: userData, error }, { data: profile }] = await Promise.all([
+    svc.auth.getUser(token),
+    svc.from("profiles").select("id, email, full_name, role, active, must_change_password").eq("id", claimedId).maybeSingle(),
+  ]);
+  if (error || !userData.user || userData.user.id !== claimedId) return null;
   // A disabled account is treated as signed out by every function — the JWT
   // it already holds stays cryptographically valid until it expires, so this
   // is where "disabled users are rejected" is actually enforced server-side.

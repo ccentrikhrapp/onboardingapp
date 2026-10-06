@@ -11,28 +11,11 @@ export function listNotifications() {
     .then(unwrap);
 }
 
-export async function unreadCount() {
-  const { count, error } = await supabase
-    .from('notifications')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'unread');
-  if (error) throw error;
-  return count ?? 0;
-}
-
 export function markAllRead() {
   return supabase
     .from('notifications')
     .update({ status: 'read', read_at: new Date().toISOString() })
     .eq('status', 'unread')
-    .then(unwrap);
-}
-
-export function markRead(id) {
-  return supabase
-    .from('notifications')
-    .update({ status: 'read', read_at: new Date().toISOString() })
-    .eq('id', id)
     .then(unwrap);
 }
 

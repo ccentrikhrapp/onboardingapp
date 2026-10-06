@@ -51,8 +51,3 @@ export function submitOnboardingForm(applicationId, doc, candidateName, formValu
     },
   }, candidateSupabase);
 }
-
-/** Candidate views their own already-uploaded onboarding file. */
-export function onboardingDocumentUrl(storagePath) {
-  return signedUrl('onboarding-documents', storagePath.replace(/^onboarding-documents\//, ''), 300, candidateSupabase);
-}

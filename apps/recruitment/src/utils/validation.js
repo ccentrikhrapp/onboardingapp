@@ -76,11 +76,6 @@ export function phoneError(value, { required = false } = {}) {
   return '';
 }
 
-/** Person names: letters/spaces/., '-, at least one letter, no digits. */
-export function isValidName(value) {
-  const v = String(value ?? '').trim();
-  return v.length > 0 && v.length <= 60 && NAME_RE.test(v);
-}
 export function nameError(value, { required = false, label = 'name' } = {}) {
   const v = String(value ?? '').trim();
   if (!v) return required ? `Please enter a ${label}.` : '';
@@ -112,16 +107,6 @@ export function locationError(value, { required = false, label = 'location' } = 
   return '';
 }
 
-export function isValidPincode(value) {
-  return PIN_RE.test(String(value ?? '').trim());
-}
-export function pincodeError(value, { required = false } = {}) {
-  const v = String(value ?? '').trim();
-  if (!v) return required ? 'Please enter a PIN code.' : '';
-  if (!PIN_RE.test(v)) return 'Please enter a valid 6-digit PIN code.';
-  return '';
-}
-
 /** Non-negative whole/decimal number within an optional range. */
 export function numberError(value, { required = false, label = 'value', min, max, integer = false } = {}) {
   const v = String(value ?? '').trim();
@@ -134,18 +119,6 @@ export function numberError(value, { required = false, label = 'value', min, max
   return '';
 }
 
-/** A date string (yyyy-mm-dd from <input type="date">) that must not be in the future. */
-export function notFutureDateError(value, { required = false, label = 'date' } = {}) {
-  const v = String(value ?? '').trim();
-  if (!v) return required ? `Please select a ${label}.` : '';
-  const d = new Date(v);
-  if (Number.isNaN(d.getTime())) return `Please enter a valid ${label}.`;
-  const today = new Date();
-  today.setHours(23, 59, 59, 999);
-  if (d.getTime() > today.getTime()) return `${label} cannot be in the future.`;
-  return '';
-}
-
 /** A date string that must not be in the past (e.g. a joining/deadline date). */
 export function notPastDateError(value, { required = false, label = 'date' } = {}) {
   const v = String(value ?? '').trim();
@@ -155,14 +128,6 @@ export function notPastDateError(value, { required = false, label = 'date' } = {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   if (d.getTime() < today.getTime()) return `${label} cannot be in the past.`;
-  return '';
-}
-
-export function requiredError(value, label = 'field') {
-  const v = typeof value === 'string' ? value.trim() : value;
-  if (v === null || v === undefined || v === '' || (Array.isArray(v) && v.length === 0)) {
-    return `Please provide ${label}.`;
-  }
   return '';
 }
 

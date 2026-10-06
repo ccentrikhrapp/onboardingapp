@@ -10,17 +10,6 @@ export function getOffer(applicationId, client = supabase) {
   return client.from('offers').select('*').eq('application_id', applicationId).maybeSingle().then(unwrap);
 }
 
-/** TA uploads the actual offer letter file before composing the email. */
-export async function uploadOfferLetter(applicationId, file) {
-  const path = `${applicationId}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, '_')}`;
-  const { error } = await supabase.storage.from('offer-letters').upload(path, file, {
-    upsert: true,
-    contentType: file.type || undefined,
-  });
-  if (error) throw new ApiError(error.message, 'UPLOAD_FAILED');
-  return `offer-letters/${path}`;
-}
-
 export function sendOffer(payload) {
   return callFn('send-offer', { body: payload });
 }

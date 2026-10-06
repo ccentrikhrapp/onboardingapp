@@ -1,30 +1,32 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import HRLayout from '../layouts/HRLayout.jsx';
 import RoleRoute from '../components/routing/RoleRoute.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
-import LoginPage from '../pages/LoginPage.jsx';
-import SetPasswordPage from '../pages/SetPasswordPage.jsx';
-import HRTeamsPage from '../pages/hr/HRTeamsPage.jsx';
-import HRDashboard from '../pages/hr/HRDashboard.jsx';
-import VerificationQueuePage from '../pages/hr/VerificationQueuePage.jsx';
-import VerificationWorkspacePage from '../pages/hr/VerificationWorkspacePage.jsx';
-import HRCandidatesPage from '../pages/hr/HRCandidatesPage.jsx';
-import DocumentRulesPage from '../pages/hr/DocumentRulesPage.jsx';
-import SettingsLayout from '../pages/shared/SettingsLayout.jsx';
-import EmailSettingsPage from '../pages/shared/EmailSettingsPage.jsx';
-import JoiningReviewPage from '../pages/hr/JoiningReviewPage.jsx';
-import HRCandidateDetailPage from '../pages/hr/HRCandidateDetailPage.jsx';
-import HREmployeesPage from '../pages/hr/HREmployeesPage.jsx';
-import HRActivityPage from '../pages/hr/HRActivityPage.jsx';
-import SettingsPage from '../pages/shared/SettingsPage.jsx';
-import ProfilePage from '../pages/shared/ProfilePage.jsx';
+const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
+const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage.jsx'));
+const HRTeamsPage = lazy(() => import('../pages/hr/HRTeamsPage.jsx'));
+const HRDashboard = lazy(() => import('../pages/hr/HRDashboard.jsx'));
+const VerificationQueuePage = lazy(() => import('../pages/hr/VerificationQueuePage.jsx'));
+const VerificationWorkspacePage = lazy(() => import('../pages/hr/VerificationWorkspacePage.jsx'));
+const HRCandidatesPage = lazy(() => import('../pages/hr/HRCandidatesPage.jsx'));
+const DocumentRulesPage = lazy(() => import('../pages/hr/DocumentRulesPage.jsx'));
+const SettingsLayout = lazy(() => import('../pages/shared/SettingsLayout.jsx'));
+const EmailSettingsPage = lazy(() => import('../pages/shared/EmailSettingsPage.jsx'));
+const JoiningReviewPage = lazy(() => import('../pages/hr/JoiningReviewPage.jsx'));
+const HRCandidateDetailPage = lazy(() => import('../pages/hr/HRCandidateDetailPage.jsx'));
+const HREmployeesPage = lazy(() => import('../pages/hr/HREmployeesPage.jsx'));
+const HRActivityPage = lazy(() => import('../pages/hr/HRActivityPage.jsx'));
+const SettingsPage = lazy(() => import('../pages/shared/SettingsPage.jsx'));
+const ProfilePage = lazy(() => import('../pages/shared/ProfilePage.jsx'));
 
 export default function AppRoutes() {
   const { mustChangePassword } = useAuth();
   // First sign-in with the emailed temporary password: nothing else is reachable
   // until the person chooses their own password.
-  if (mustChangePassword) return <SetPasswordPage mode="temp" />;
+  if (mustChangePassword) return <Suspense fallback={null}><SetPasswordPage mode="temp" /></Suspense>;
   return (
+    <Suspense fallback={null}>
     <Routes>
       <Route path="/" element={<LoginPage />} />
       <Route path="/accept-invite" element={<SetPasswordPage mode="invite" />} />
@@ -55,5 +57,6 @@ export default function AppRoutes() {
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </Suspense>
   );
 }

@@ -21,19 +21,6 @@ export function trendPercent(current, previous) {
   return Math.round(((current - previous) / previous) * 1000) / 10;
 }
 
-/** Weekly counts for a sparkline: oldest week first, `weeks` buckets ending today. */
-export function weeklyCounts(items, dateKey, weeks = 8) {
-  const buckets = new Array(weeks).fill(0);
-  const now = Date.now();
-  items.forEach((it) => {
-    const t = new Date(it[dateKey]).getTime();
-    if (Number.isNaN(t)) return;
-    const weeksAgo = Math.floor((now - t) / (7 * DAY));
-    if (weeksAgo >= 0 && weeksAgo < weeks) buckets[weeks - 1 - weeksAgo] += 1;
-  });
-  return buckets;
-}
-
 /** Group items by a key function and return [{ key, count }] sorted by count, descending. */
 export function groupCounts(items, keyFn) {
   const map = new Map();

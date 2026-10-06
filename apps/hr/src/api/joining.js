@@ -31,11 +31,7 @@ export function listJoiningSnapshots(profileId) {
 }
 
 const act = (profileId, action, extra = {}) => callFn('joining-hr-action', { body: { profileId, action, ...extra } });
-export const setHrFields = (profileId, fields) => act(profileId, 'set_hr_fields', { fields });
 export const requestCorrection = (profileId, items) => act(profileId, 'request_correction', { items });
-export const startReview = (profileId) => act(profileId, 'start_review');
-export const verifyJoining = (profileId) => act(profileId, 'verify');
-export const completeJoining = (profileId) => act(profileId, 'complete');
 
 /* ---- document-level review ---- */
 export async function listJoiningItems(profileId) {
@@ -60,6 +56,5 @@ export function listDocConfigRows() {
 }
 
 /* ---- onboarding PDF + decisions ---- */
-export const decideJoining = (profileId, action, remarks) => act(profileId, action, { remarks });
 export const listJoiningPdfs = (profileId) => callFn('joining-pdf', { body: { profileId, action: 'list' } });
 export const getJoiningPdfUrl = (profileId, version) => callFn('joining-pdf', { body: { profileId, action: 'url', version } });

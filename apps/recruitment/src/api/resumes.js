@@ -47,7 +47,3 @@ export async function uploadResume(file, draftId, client = supabase) {
 export function parseResume(path, client = supabase) {
   return callFn('parse-resume', { body: { path } }, client);
 }
-
-export function resumeUrl(path, client = supabase) {
-  return signedUrl('resumes', path.replace(/^resumes\//, ''), 300, client);
-}

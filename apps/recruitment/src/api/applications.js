@@ -13,8 +13,11 @@ import { unwrap, callFn } from './client.js';
 // safe pattern already used for interview-invitation status.
 const LIST_COLUMNS =
   'id, application_code, status, source, current_version, submitted_at, created_at, ' +
-  'job_id, assigned_ta_id, personal, professional, education, additional, ats_score, ' +
+  'job_id, assigned_ta_id, personal, professional, additional, ats_score, ' +
   'jobs!left(title, job_code, department, interview_plan), candidates(candidate_code, first_name, last_name, email, phone)';
+
+// Lists don't show education, so only single-application reads fetch it.
+const DETAIL_COLUMNS = `${LIST_COLUMNS}, education`;
 
 async function enrichAssignedToNames(rows) {
   const ids = [...new Set((rows || []).map((r) => r.assigned_ta_id).filter(Boolean))];
@@ -44,7 +47,7 @@ export function claimApplication(applicationId) {
 export function listMyApplications() {
   return candidateSupabase
     .from('applications')
-    .select(LIST_COLUMNS)
+    .select(DETAIL_COLUMNS)
     .order('created_at', { ascending: false })
     .then(unwrap);
 }
@@ -55,7 +58,7 @@ export async function getApplication(id, client = supabase) {
   const row = await client
     .from('applications')
     .select(
-      `${LIST_COLUMNS}, autofilled, resume_path, resume_meta, ats_score, ` +
+      `${DETAIL_COLUMNS}, autofilled, resume_path, resume_meta, ` +
         'return_reason, reject_reason, application_link_id'
     )
     .eq('id', id)

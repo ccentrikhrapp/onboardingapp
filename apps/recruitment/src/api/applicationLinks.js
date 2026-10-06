@@ -59,14 +59,6 @@ export function listConfidentialInvites(jobId) {
     .then(unwrap);
 }
 
-export function listMyLinks() {
-  return supabase
-    .from('application_links')
-    .select('*, jobs(title, job_code)')
-    .order('created_at', { ascending: false })
-    .then(unwrap);
-}
-
 export function setLinkActive(id, active) {
   return supabase.from('application_links').update({ active }).eq('id', id).select('*').single().then(unwrap);
 }

@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { SkeletonPage } from '../components/common/States.jsx';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import TASidebar from '../components/navigation/TASidebar.jsx';
 import TATopbar from '../components/navigation/TATopbar.jsx';
@@ -48,7 +49,7 @@ export default function TALayout() {
         <TATopbar head={head} onMenu={() => setOpen(true)} />
         <ConnectGoogleBanner needCalendar settingsPath="/ta/settings" />
         <div className="ta-page" key={pathname}>
-          <Outlet context={ctx} />
+          <Suspense fallback={<SkeletonPage />}><Outlet context={ctx} /></Suspense>
         </div>
       </div>
 

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 
 function LegacyJobRedirect() {
@@ -10,43 +11,44 @@ import TALayout from '../layouts/TALayout.jsx';
 import RoleRoute from '../components/routing/RoleRoute.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
-import LoginPage from '../pages/LoginPage.jsx';
-import TALoginPage from '../pages/TALoginPage.jsx';
-import WelcomePage from '../pages/WelcomePage.jsx';
-import SetPasswordPage from '../pages/SetPasswordPage.jsx';
-import LegalPage from '../pages/LegalPage.jsx';
+const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
+const TALoginPage = lazy(() => import('../pages/TALoginPage.jsx'));
+const WelcomePage = lazy(() => import('../pages/WelcomePage.jsx'));
+const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage.jsx'));
+const LegalPage = lazy(() => import('../pages/LegalPage.jsx'));
 import RootGate from '../components/routing/RootGate.jsx';
 
-import LandingPage from '../pages/candidate/LandingPage.jsx';
-import JobsPage from '../pages/candidate/JobsPage.jsx';
-import JobDetailsPage from '../pages/candidate/JobDetailsPage.jsx';
-import ApplyPage from '../pages/candidate/ApplyPage.jsx';
-import ApplicationSuccessPage from '../pages/candidate/ApplicationSuccessPage.jsx';
-import MyApplicationPage from '../pages/candidate/MyApplicationPage.jsx';
-import JoiningFormPage from '../pages/candidate/JoiningFormPage.jsx';
-import CandidateProfilePage from '../pages/candidate/CandidateProfilePage.jsx';
+const LandingPage = lazy(() => import('../pages/candidate/LandingPage.jsx'));
+const JobsPage = lazy(() => import('../pages/candidate/JobsPage.jsx'));
+const JobDetailsPage = lazy(() => import('../pages/candidate/JobDetailsPage.jsx'));
+const ApplyPage = lazy(() => import('../pages/candidate/ApplyPage.jsx'));
+const ApplicationSuccessPage = lazy(() => import('../pages/candidate/ApplicationSuccessPage.jsx'));
+const MyApplicationPage = lazy(() => import('../pages/candidate/MyApplicationPage.jsx'));
+const JoiningFormPage = lazy(() => import('../pages/candidate/JoiningFormPage.jsx'));
+const CandidateProfilePage = lazy(() => import('../pages/candidate/CandidateProfilePage.jsx'));
 
-import TADashboard from '../pages/talentAcquisition/TADashboard.jsx';
-import TACandidatesPage from '../pages/talentAcquisition/TACandidatesPage.jsx';
-import TADocumentVerifyPage from '../pages/talentAcquisition/TADocumentVerifyPage.jsx';
-import TACandidateDetailPage from '../pages/talentAcquisition/TACandidateDetailPage.jsx';
-import TAJobsPage from '../pages/talentAcquisition/TAJobsPage.jsx';
-import TAJobDetailPage from '../pages/talentAcquisition/TAJobDetailPage.jsx';
-import TAManagementPage from '../pages/talentAcquisition/TAManagementPage.jsx';
-import CreateCandidatePage from '../pages/talentAcquisition/CreateCandidatePage.jsx';
-import BulkUploadCandidatesPage from '../pages/talentAcquisition/BulkUploadCandidatesPage.jsx';
-import PipelineCandidatesPage from '../pages/talentAcquisition/PipelineCandidatesPage.jsx';
-import PipelineBulkUploadPage from '../pages/talentAcquisition/PipelineBulkUploadPage.jsx';
+const TADashboard = lazy(() => import('../pages/talentAcquisition/TADashboard.jsx'));
+const TACandidatesPage = lazy(() => import('../pages/talentAcquisition/TACandidatesPage.jsx'));
+const TADocumentVerifyPage = lazy(() => import('../pages/talentAcquisition/TADocumentVerifyPage.jsx'));
+const TACandidateDetailPage = lazy(() => import('../pages/talentAcquisition/TACandidateDetailPage.jsx'));
+const TAJobsPage = lazy(() => import('../pages/talentAcquisition/TAJobsPage.jsx'));
+const TAJobDetailPage = lazy(() => import('../pages/talentAcquisition/TAJobDetailPage.jsx'));
+const TAManagementPage = lazy(() => import('../pages/talentAcquisition/TAManagementPage.jsx'));
+const CreateCandidatePage = lazy(() => import('../pages/talentAcquisition/CreateCandidatePage.jsx'));
+const BulkUploadCandidatesPage = lazy(() => import('../pages/talentAcquisition/BulkUploadCandidatesPage.jsx'));
+const PipelineCandidatesPage = lazy(() => import('../pages/talentAcquisition/PipelineCandidatesPage.jsx'));
+const PipelineBulkUploadPage = lazy(() => import('../pages/talentAcquisition/PipelineBulkUploadPage.jsx'));
 
-import SettingsPage from '../pages/shared/SettingsPage.jsx';
-import ProfilePage from '../pages/shared/ProfilePage.jsx';
+const SettingsPage = lazy(() => import('../pages/shared/SettingsPage.jsx'));
+const ProfilePage = lazy(() => import('../pages/shared/ProfilePage.jsx'));
 
 export default function AppRoutes() {
   const { mustChangePassword } = useAuth();
   // First sign-in with the emailed temporary password: nothing else is reachable
   // until the person chooses their own password.
-  if (mustChangePassword) return <SetPasswordPage mode="temp" />;
+  if (mustChangePassword) return <Suspense fallback={null}><SetPasswordPage mode="temp" /></Suspense>;
   return (
+    <Suspense fallback={null}>
     <Routes>
       {/* A visitor with no specific destination (typed the bare domain) picks
           candidate vs TA here — replaces the old ad-hoc "looking to apply?"
@@ -117,5 +119,6 @@ export default function AppRoutes() {
 
       <Route path="*" element={<Navigate to="/candidate" replace />} />
     </Routes>
+    </Suspense>
   );
 }

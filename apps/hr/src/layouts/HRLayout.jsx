@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { Suspense, useMemo, useState } from 'react';
+import { SkeletonPage } from '../components/kit/Skeleton.jsx';
 import { Outlet, useLocation } from 'react-router-dom';
 import HRSidebar from '../components/navigation/HRSidebar.jsx';
 import HRTopbar from '../components/navigation/HRTopbar.jsx';
@@ -35,7 +36,7 @@ export default function HRLayout() {
         <HRTopbar head={head} onMenu={() => setOpen(true)} />
         <ConnectGoogleBanner settingsPath="/hr/settings" />
         <div className="hr-page" key={pathname}>
-          <Outlet context={ctx} />
+          <Suspense fallback={<SkeletonPage />}><Outlet context={ctx} /></Suspense>
         </div>
       </div>
     </div>
