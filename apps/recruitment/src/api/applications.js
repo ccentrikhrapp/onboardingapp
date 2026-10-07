@@ -40,14 +40,31 @@ export function claimApplication(applicationId) {
   return callFn('claim-application', { body: { applicationId } }, candidateSupabase);
 }
 
-/** Candidate: my applications (RLS already limits this to me). No DRAFT
-    filter here — the self-apply flow never creates a DB-level draft row (it
-    inserts straight to SUBMITTED), so the only DRAFT a candidate will ever
-    see here is one a TA created for them and they haven't verified yet. */
-export function listMyApplications() {
+/** Candidate: my applications. No DRAFT filter here — the self-apply flow
+    never creates a DB-level draft row (it inserts straight to SUBMITTED),
+    so the only DRAFT a candidate will ever see here is one a TA created for
+    them and they haven't verified yet.
+ *
+    Explicitly scoped to the signed-in candidate's OWN record — this must
+    NOT rely on RLS alone to mean "mine". RLS on `applications` correctly
+    grants HR/Admin/TA full read access to every application, because the
+    TA/HR side of this app needs that. But a staff member who opens the
+    candidate portal with their own work Google account (applying to an
+    internal role, or just testing) authenticates through the exact same
+    Supabase project — there is no separate identity realm, only a separate
+    frontend session-storage key — so an unfiltered query here returned
+    EVERY application in the system to them, and the page displayed
+    whichever one sorted first. Confirmed live: an admin account saw another
+    candidate's full application under "My Application". */
+export async function listMyApplications() {
+  const { data: { user } } = await candidateSupabase.auth.getUser();
+  if (!user) return [];
+  const { data: cand } = await candidateSupabase.from('candidates').select('id').eq('profile_id', user.id).maybeSingle();
+  if (!cand) return [];
   return candidateSupabase
     .from('applications')
     .select(DETAIL_COLUMNS)
+    .eq('candidate_id', cand.id)
     .order('created_at', { ascending: false })
     .then(unwrap);
 }
