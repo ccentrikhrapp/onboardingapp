@@ -23,7 +23,11 @@ export function listAllJobs() {
 /** Accepts the UI job payload (camelCase) and stores it published. */
 export function createJob(payload) {
   const row = {
-    job_code: payload.jobCode || `JOB-${Date.now().toString().slice(-7)}`,
+    // Omitting the key (rather than sending a value) when not explicitly
+    // overridden lets the database's own sequence assign JOB-00001,
+    // JOB-00002, ... — it used to be stamped client-side from Date.now(),
+    // which was never a real sequence at all.
+    job_code: payload.jobCode || undefined,
     title: payload.title,
     department: payload.department || null,
     location: payload.location || null,
