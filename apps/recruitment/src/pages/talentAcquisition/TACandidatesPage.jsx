@@ -215,7 +215,7 @@ export default function TACandidatesPage() {
   if (sourceParam) initialFilters.source = sourceParam;
 
   const view = useCollectionView(rows, {
-    searchFields: ['name', 'email', 'phone', 'candidateCode', 'code', 'job'],
+    searchFields: ['name', 'email', 'phone', 'candidateCode', 'code', 'job', 'department', 'source', 'noticePeriod', 'assignedToName', 'status'],
     pageSize: 30,
     initialSort: { key: 'submittedAt', dir: 'desc' },
     initialFilters: Object.keys(initialFilters).length ? initialFilters : undefined,
@@ -279,6 +279,7 @@ export default function TACandidatesPage() {
       <TAHeader title="Job Candidates" subtitle="Manage and track candidates through the recruitment process for open jobs." />
 
       <Toolbar
+        search={{ value: view.query, onChange: view.setQuery, placeholder: 'Search by name, email, phone, Candidate ID, Application ID…' }}
         filters={[
           { label: 'Stage', value: stage, onChange: setStage, options: Object.entries(STAGE_GROUPS).map(([value, g]) => ({ value, label: g.label })) },
           { label: 'Job', value: activeJob, onChange: (v) => view.setFilter('job', v), options: jobOptions },

@@ -1038,6 +1038,11 @@
   .ta-toolbar__end { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
 .ta-search--wide { width: 320px; max-width: 100%; }
+.ta-searchresult {
+  display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
+  border: 0; background: transparent; border-radius: 8px; padding: 6px 8px; cursor: pointer;
+}
+.ta-searchresult:hover, .ta-searchresult:focus-visible { background: var(--ta-surface-2, #f4f5f7); outline: none; }
 .ta-select {
   appearance: none; -webkit-appearance: none;
   padding: 7px 30px 7px 14px; border-radius: 999px; border: 1px solid var(--ta-line);

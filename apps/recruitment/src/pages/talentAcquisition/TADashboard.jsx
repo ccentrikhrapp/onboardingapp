@@ -18,6 +18,7 @@ import {
 import { countInWindow, trendPercent, groupCounts, noticePeriodDays } from '../../utils/metrics.js';
 import { timeAgo } from '../../utils/format.js';
 import PipelineReminderPopup from '../../components/ta/PipelineReminderPopup.jsx';
+import UniversalSearch from '../../components/ta/UniversalSearch.jsx';
 import { SkeletonPage } from '../../components/common/States.jsx';
 
 /* Activity entries that come from the candidate's own actions — these are the
@@ -92,6 +93,12 @@ export default function TADashboard() {
             submittedAt: a.submittedAt || a.createdAt,
             source: a.source === 'ta_link' ? 'Referral' : 'Direct',
             jobId: a.jobId,
+            jobTitle: a.jobTitle,
+            name: a.candidateName || `${a.personal?.firstName || ''} ${a.personal?.lastName || ''}`.trim(),
+            email: a.candidateEmail,
+            phone: a.candidatePhone,
+            code: a.code,
+            candidateCode: a.candidateCode,
             personal: a.personal || {},
             professional: a.professional || {},
           }));
@@ -225,6 +232,8 @@ export default function TADashboard() {
   return (
     <>
       <TAHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
+
+      <UniversalSearch jobs={jobs} apps={apps} />
       <PipelineReminderPopup />
 
       <div className="ta-kpi-row">

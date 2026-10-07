@@ -65,7 +65,13 @@ export default function TAJobsPage() {
   );
 
   const view = useCollectionView(rows, {
-    searchFields: ['code', 'title', 'department', 'location'],
+    searchFields: [
+      'code', 'title', 'department', 'location', 'workMode', 'employmentType', 'experience', 'description',
+      (j) => (j.requiredSkills || []).join(' '),
+      (j) => (j.preferredSkills || []).join(' '),
+      (j) => (j.qualifications || []).join(' '),
+      (j) => (j.responsibilities || []).join(' '),
+    ],
     pageSize: 30,
     initialSort: { key: 'applicants', dir: 'desc' },
   });
