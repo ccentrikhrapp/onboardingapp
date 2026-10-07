@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import Icon from '../common/Icon.jsx';
 import Pager from './Pager.jsx';
 
-const MAX_INLINE_FILTERS = 4;
+const MAX_INLINE_FILTERS = 3;
 
 /* Filter selects in one row, with the active-filter chips below it.
    - `search`: { value, onChange, placeholder }   (optional)
