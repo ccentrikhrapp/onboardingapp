@@ -1,6 +1,7 @@
 import { Card } from '../../components/common/Card.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import EmailSettingsCard from '../../components/settings/EmailSettingsCard.jsx';
+import EmailLogCard from '../../components/settings/EmailLogCard.jsx';
 
 export default function SettingsPage() {
   const { profile } = useApp();
@@ -15,6 +16,7 @@ export default function SettingsPage() {
         </p>
       </Card>
       <EmailSettingsCard />
+      <EmailLogCard />
     </div>
   );
 }
