@@ -173,13 +173,13 @@ export default function JoiningFormPage() {
       <button className="ta-link" onClick={() => navigate('/candidate/application')} style={{ marginBottom: 12 }}>
         <Icon name="ArrowLeft" size={14} /> Back to my application
       </button>
-      <div className="cx-page__head" style={{ marginBottom: 12 }}>
+      <div className="cx-page__head" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <h1 className="cx-page__title" style={{ margin: 0 }}>Employee Joining Form</h1>
           <Tag tone={STATUS_TONE[status]}>{STATUS_LABEL[status]}</Tag>
         </div>
         <p className="cx-page__sub">Enter each detail once — PF, nominations, gratuity, background check and consents all use it. Your progress saves automatically.</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12, flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 200, maxWidth: 360 }}>
             <div className="cx-jobinfo__progress-top"><span>Joining completion</span><span>{overall.percent}%</span></div>
             <div className="cx-progress"><div style={{ width: `${overall.percent}%` }} /></div>
@@ -190,7 +190,7 @@ export default function JoiningFormPage() {
         </div>
       </div>
 
-      {banner && <div className={`ta-note ta-note--${banner[0]}`} style={{ marginBottom: 12 }}><Icon name={banner[0] === 'ok' ? 'CheckCircle2' : 'AlertTriangle'} size={15} /> <span>{banner[1]}</span></div>}
+      {banner && <div className={`ta-note ta-note--${banner[0]}`} style={{ marginBottom: 20 }}><Icon name={banner[0] === 'ok' ? 'CheckCircle2' : 'AlertTriangle'} size={15} /> <span>{banner[1]}</span></div>}
 
       <div className="jf-layout">
         <nav className="jf-steps" aria-label="Joining form steps">
@@ -211,24 +211,24 @@ export default function JoiningFormPage() {
 
         <div>
           <Card title={step.title}>
-            {step.blurb && <p className="ta-cell-sub" style={{ marginBottom: 12 }}>{step.blurb}</p>}
+            {step.blurb && <p className="ta-cell-sub" style={{ marginBottom: 18 }}>{step.blurb}</p>}
 
             {corrections.filter((c) => c.section === step.id).map((c) => (
-              <div key={c.id} className="ta-note ta-note--warn" style={{ marginBottom: 10 }}>
+              <div key={c.id} className="ta-note ta-note--warn" style={{ marginBottom: 16 }}>
                 <Icon name="AlertTriangle" size={14} /> <span><strong>HR asks:</strong> {c.remark}</span>
               </div>
             ))}
             {locked && section && status !== 'correction_required' && ['submitted', 'resubmitted', 'under_review', 'verified', 'completed'].includes(status) && (
-              <p className="ta-cell-sub" style={{ marginBottom: 10 }}>This step is locked while HR reviews it.</p>
+              <p className="ta-cell-sub" style={{ marginBottom: 14 }}>This step is locked while HR reviews it.</p>
             )}
             {locked && section && status === 'correction_required' && !corrections.some((c) => c.section === step.id) && (
-              <p className="ta-cell-sub" style={{ marginBottom: 10 }}>No correction was requested here, so this step is locked.</p>
+              <p className="ta-cell-sub" style={{ marginBottom: 14 }}>No correction was requested here, so this step is locked.</p>
             )}
 
             {ctx.length > 0 && (
-              <div style={{ background: 'var(--ta-blue-wash, #f3f6ff)', borderRadius: 10, padding: 12, marginBottom: 16 }}>
-                <div className="ta-cell-strong" style={{ marginBottom: 6 }}>Already on your profile — nothing to type again</div>
-                <div className="ta-info" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}>
+              <div style={{ background: 'var(--ta-blue-wash, #f3f6ff)', borderRadius: 12, padding: 18, marginBottom: 26 }}>
+                <div className="ta-cell-strong" style={{ marginBottom: 10 }}>Already on your profile — nothing to type again</div>
+                <div className="ta-info" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '10px 20px' }}>
                   {ctx.map((c) => (
                     <div className="ta-info__item" key={c.label}><span className="ta-info__label">{c.label}</span><span className="ta-info__value">{c.value}</span></div>
                   ))}
@@ -279,10 +279,10 @@ function ReviewStep({ data, overall, hr, caseInfo, status, onEdit, signName, set
   const sections = summarizeSections(data);
   const HRL = [['Employee code', hr.employeeCode], ['Date of joining', hr.dateOfJoining], ['Designation', hr.designation || caseInfo?.designation], ['Grade', hr.grade], ['Department', hr.department], ['Branch', hr.branchName]];
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div>
-        <h4 className="ta-card__title" style={{ margin: '0 0 6px' }}>Completion tracker — {overall.percent}%</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 4 }}>
+        <h4 className="ta-card__title" style={{ margin: '0 0 10px' }}>Completion tracker — {overall.percent}%</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 8 }}>
           {SECTIONS.map((s) => {
             const p = overall.sections[s.id];
             return (
@@ -301,17 +301,17 @@ function ReviewStep({ data, overall, hr, caseInfo, status, onEdit, signName, set
       </div>
 
       {sections.map((s) => (
-        <details key={s.id} open={false} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 10, padding: '8px 12px' }}>
+        <details key={s.id} open={false} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 12, padding: '14px 18px' }}>
           <summary style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontWeight: 600 }}>
             <span>{s.title}</span>
             <button type="button" className="ta-link" onClick={(e) => { e.preventDefault(); onEdit(s.id); }}>Edit</button>
           </summary>
-          <div style={{ marginTop: 8 }}>
+          <div style={{ marginTop: 14 }}>
             {s.groups.map((g) => (
-              <div key={g.id} style={{ marginBottom: 8 }}>
+              <div key={g.id} style={{ marginBottom: 14 }}>
                 {g.title && <div className="ta-cell-strong">{g.title}</div>}
                 {g.rows && <Rows rows={g.rows} />}
-                {g.items?.map((it) => <div key={it.title} style={{ marginTop: 6 }}><div className="ta-cell-sub">{it.title}</div><Rows rows={it.rows} /></div>)}
+                {g.items?.map((it) => <div key={it.title} style={{ marginTop: 10 }}><div className="ta-cell-sub">{it.title}</div><Rows rows={it.rows} /></div>)}
                 {g.items && g.items.length === 0 && <div className="ta-cell-sub">None added.</div>}
               </div>
             ))}
@@ -320,13 +320,13 @@ function ReviewStep({ data, overall, hr, caseInfo, status, onEdit, signName, set
       ))}
 
       {['not_started', 'in_progress', 'correction_required'].includes(status) ? (
-        <div style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 10, padding: 14 }}>
-          <h4 className="ta-card__title" style={{ margin: '0 0 8px' }}>Sign and submit</h4>
-          {!overall.complete && <p className="ta-cell-sub" style={{ marginBottom: 8 }}>Finish every required step (marked ✗ above) to submit. Nominee shares must total 100%.</p>}
+        <div style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 12, padding: 22 }}>
+          <h4 className="ta-card__title" style={{ margin: '0 0 12px' }}>Sign and submit</h4>
+          {!overall.complete && <p className="ta-cell-sub" style={{ marginBottom: 12 }}>Finish every required step (marked ✗ above) to submit. Nominee shares must total 100%.</p>}
           <Field label="Type your full name to sign" hint={expectedName ? `Must match: ${expectedName}` : undefined} error={submitErr || undefined}>
             <Input value={signName} onChange={(e) => setSignName(e.target.value)} disabled={!overall.complete} />
           </Field>
-          <div style={{ marginTop: 10 }}>
+          <div style={{ marginTop: 14 }}>
             <Button onClick={onSubmit} disabled={!readyToSubmit || submitting || !signName.trim()}>{submitting ? 'Submitting…' : status === 'correction_required' ? 'Resubmit' : 'Submit joining form'}</Button>
           </div>
         </div>
@@ -339,7 +339,7 @@ function ReviewStep({ data, overall, hr, caseInfo, status, onEdit, signName, set
 
 function Rows({ rows }) {
   return (
-    <div className="ta-info" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))' }}>
+    <div className="ta-info" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '8px 20px' }}>
       {rows.map((r) => <div className="ta-info__item" key={r.label}><span className="ta-info__label">{r.label}</span><span className="ta-info__value">{r.value}</span></div>)}
     </div>
   );

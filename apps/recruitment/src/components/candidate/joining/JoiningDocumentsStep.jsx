@@ -29,7 +29,7 @@ export default function JoiningDocumentsStep({ documents, applicationId, disable
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       <div className="ta-note ta-note--info">
         <Icon name="Info" size={14} />
         <span>
@@ -39,16 +39,16 @@ export default function JoiningDocumentsStep({ documents, applicationId, disable
       </div>
 
       <div>
-        <h4 className="ta-card__title" style={{ margin: '0 0 6px' }}>Joining documentation progress</h4>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+        <h4 className="ta-card__title" style={{ margin: '0 0 12px' }}>Joining documentation progress</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 12 }}>
           {tiles.map(([label, n]) => (
-            <div key={label} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 10, padding: '8px 10px' }}>
-              <div style={{ fontSize: 20, fontWeight: 700 }}>{n}</div>
+            <div key={label} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 12, padding: '14px 16px' }}>
+              <div style={{ fontSize: 22, fontWeight: 700 }}>{n}</div>
               <div className="ta-cell-sub">{label}</div>
             </div>
           ))}
         </div>
-        {documents.approvedAt && <div className="ta-note ta-note--ok" style={{ marginTop: 8 }}><Icon name="CheckCircle2" size={14} /> <span>HR has approved your joining documentation.</span></div>}
+        {documents.approvedAt && <div className="ta-note ta-note--ok" style={{ marginTop: 12 }}><Icon name="CheckCircle2" size={14} /> <span>HR has approved your joining documentation.</span></div>}
       </div>
 
       <div className={`ta-note ta-note--${identityResolved ? 'ok' : 'info'}`}>
@@ -58,8 +58,8 @@ export default function JoiningDocumentsStep({ documents, applicationId, disable
 
       {groups.map((g) => (
         <div key={g}>
-          <h4 className="ta-card__title" style={{ margin: '0 0 6px' }}>{g}</h4>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <h4 className="ta-card__title" style={{ margin: '0 0 12px' }}>{g}</h4>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {items.filter((i) => i.group === g && i.applicability !== 'not_applicable').map((it) => (
               <DocItem key={it.itemKey} item={it} applicationId={applicationId} disabled={disabled} onUpdated={onUpdated} identityResolved={identityResolved} />
             ))}
@@ -121,10 +121,10 @@ function DocItem({ item, applicationId, disabled, onUpdated, identityResolved })
   };
 
   return (
-    <div style={{ border: `1px solid ${attention ? 'var(--tag-red-fg, #dc2626)' : 'var(--ta-line, #e5e7eb)'}`, borderRadius: 10, padding: '10px 12px' }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+    <div style={{ border: `1px solid ${attention ? 'var(--tag-red-fg, #dc2626)' : 'var(--ta-line, #e5e7eb)'}`, borderRadius: 12, padding: '16px 18px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <Icon name="FileText" size={15} />
-        <strong style={{ flex: 1, minWidth: 180, fontSize: 13 }}>{item.name}</strong>
+        <strong style={{ flex: 1, minWidth: 180, fontSize: 13.5 }}>{item.name}</strong>
         {item.status !== 'awaiting' && <Tag tone={clsTone}>{clsLabel}</Tag>}
         <Tag tone={item.tone}>{item.anyOf && identityResolved && !item.resolved ? 'Not needed — identity satisfied' : item.label}</Tag>
       </div>

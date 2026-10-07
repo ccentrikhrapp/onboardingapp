@@ -856,40 +856,49 @@ button.stat-tile { text-align: left; font: inherit; cursor: pointer; }
   .route-view, .tabpanel, .fade-up { animation-duration: 120ms; }
 }
 
-/* Employee Joining Form — step list + layout */
-.jf-layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); gap: 16px; align-items: start; }
-.jf-steps { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 2px; background: #fff; border: 1px solid var(--ta-line, #e5e7eb); border-radius: 12px; padding: 6px; max-height: calc(100vh - 100px); overflow-y: auto; }
-.jf-step { display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; background: none; border: 0; border-radius: 8px; padding: 7px 8px; cursor: pointer; font-size: 12.5px; color: var(--ta-text, #1f2937); }
+/* Employee Joining Form — step list + layout. A standard, spacious enterprise
+   form: generous card padding, a clear two-column field grid, and real room
+   between sections instead of the dense single-screen layout this used to
+   force everything into. */
+.jf-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 28px; align-items: start; }
+.jf-steps { position: sticky; top: 76px; display: flex; flex-direction: column; gap: 4px; background: #fff; border: 1px solid var(--ta-line, #e5e7eb); border-radius: 14px; padding: 10px; max-height: calc(100vh - 100px); overflow-y: auto; }
+.jf-step { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none; border: 0; border-radius: 9px; padding: 11px 14px; cursor: pointer; font-size: 13.5px; color: var(--ta-text, #1f2937); }
 .jf-step:hover { background: var(--ta-blue-wash, #f3f6ff); }
 .jf-step.is-active { background: var(--ta-blue-wash, #eaf0ff); font-weight: 600; }
-.jf-step__num { width: 20px; height: 20px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11px; background: #eef0f3; color: #4b5563; flex-shrink: 0; }
+.jf-step__num { width: 23px; height: 23px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 11.5px; background: #eef0f3; color: #4b5563; flex-shrink: 0; }
 .jf-step__num.is-done { background: #16a34a; color: #fff; }
 .jf-step__num.is-flag { background: #dc2626; color: #fff; }
 .jf-step__label { flex: 1; min-width: 0; }
-.jf-step__pct { font-size: 11px; color: var(--ta-text-mute, #6b7280); }
+.jf-step__pct { font-size: 11.5px; color: var(--ta-text-mute, #6b7280); }
 @media (max-width: 900px) {
-  .jf-layout { grid-template-columns: 1fr; }
+  .jf-layout { grid-template-columns: 1fr; gap: 16px; }
   .jf-steps { position: static; flex-direction: row; overflow-x: auto; max-height: none; }
   .jf-step { width: auto; white-space: nowrap; }
 }
 
-/* Employee Joining Form — compact, scannable, laptop-first (layout only; logic unchanged) */
-.jf-sections { display: flex; flex-direction: column; gap: 12px; }
-.jf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; align-items: start; }
-.jf-grid .ta-field { margin-bottom: 0; gap: 4px; }
+/* Each field group gets real breathing room between it and the next, fields
+   sit in a standard two-up grid wide enough to read comfortably, and inputs
+   use the same touch-friendly padding as the rest of the app. */
+.jf-sections { display: flex; flex-direction: column; gap: 30px; }
+.jf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 18px 24px; align-items: start; }
+.jf-grid .ta-field { margin-bottom: 0; gap: 6px; }
 .jf-grid .ta-field--full { grid-column: 1 / -1; }
-.jf-grid .ta-field__label { font-size: 12.5px; }
-.jf-grid .ta-input, .jf-grid .ta-textarea { font-size: 14px; padding: 6px 10px; }
+.jf-grid .ta-field__label { font-size: 13px; }
+.jf-grid .ta-input, .jf-grid .ta-textarea { font-size: 14.5px; padding: 10px 13px; }
 .jf-actions {
-  position: sticky; bottom: 0; z-index: 5; margin: 14px -16px -16px; padding: 10px 16px;
-  display: flex; justify-content: space-between; gap: 8px; background: var(--card-bg, #fff);
+  position: sticky; bottom: 0; z-index: 5; margin: 20px -32px -28px; padding: 16px 32px;
+  display: flex; justify-content: space-between; gap: 10px; background: var(--card-bg, #fff);
   border-top: 1px solid var(--ta-line, #e5e7eb);
 }
-.jf-layout .ta-card__body { padding: 14px 16px; }
-.jf-layout .ta-card__title { font-size: 15px; }
-.cx-page:has(.jf-layout) { max-width: min(1240px, 100%); }
-@media (max-width: 1100px) { .jf-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
-@media (max-width: 640px) { .jf-grid { grid-template-columns: 1fr; } .jf-actions { flex-direction: column-reverse; } }
+.jf-layout .ta-card__body { padding: 28px 32px; }
+.jf-layout .ta-card__title { font-size: 17px; font-weight: 700; }
+.cx-page:has(.jf-layout) { max-width: min(1320px, 100%); }
+@media (max-width: 1100px) { .jf-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); } }
+@media (max-width: 640px) {
+  .jf-grid { grid-template-columns: 1fr; }
+  .jf-actions { flex-direction: column-reverse; margin: 16px -20px -20px; padding: 12px 20px; }
+  .jf-layout .ta-card__body { padding: 20px; }
+}
 
 /* Compact candidate / TA application forms (Apply + Add Candidate). Layout only. */
 .cx-compact .ta-formgrid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 8px 14px; }

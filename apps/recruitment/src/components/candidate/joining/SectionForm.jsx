@@ -24,7 +24,7 @@ export default function SectionForm({ section, data, onChange, disabled, sources
           const obj = seg[g.id] ?? {};
           return (
             <div key={g.id}>
-              {g.title && <h4 className="ta-card__title" style={{ margin: '0 0 8px' }}>{g.title}</h4>}
+              {g.title && <h4 className="ta-card__title" style={{ margin: '0 0 14px' }}>{g.title}</h4>}
               <FieldGrid>
                 {g.fields.filter((f) => fieldIsVisible(f, data)).map((f) => {
                   const path = `${section.id}.${g.id}.${f.key}`;
@@ -45,18 +45,18 @@ export default function SectionForm({ section, data, onChange, disabled, sources
         const listErr = errFor(`${section.id}.${g.id}`) || (showAll ? errors[`${section.id}.${g.id}`] : undefined);
         return (
           <div key={g.id}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <h4 className="ta-card__title" style={{ margin: 0 }}>{g.title || `${g.itemTitle}s`}</h4>
               {!disabled && <Button variant="ghost" icon="Plus" onClick={() => setGroup(g.id, [...rows, {}])}>{g.addLabel}</Button>}
             </div>
-            {g.hint && <p className="ta-cell-sub" style={{ marginBottom: 8 }}>{g.hint}</p>}
+            {g.hint && <p className="ta-cell-sub" style={{ marginBottom: 12 }}>{g.hint}</p>}
             {rows.length === 0 && <p className="ta-cell-sub">None added yet.</p>}
-            {listErr && <div className="ta-field__error" style={{ marginBottom: 8 }}><Icon name="AlertCircle" size={12} /> {listErr}</div>}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {listErr && <div className="ta-field__error" style={{ marginBottom: 12 }}><Icon name="AlertCircle" size={12} /> {listErr}</div>}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               {rows.map((row, i) => (
-                <div key={i} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 10, padding: 12 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <strong style={{ fontSize: 13 }}>{g.itemTitle} {i + 1}</strong>
+                <div key={i} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 12, padding: 20, background: 'var(--ta-bg-soft, #fafbfc)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                    <strong style={{ fontSize: 13.5 }}>{g.itemTitle} {i + 1}</strong>
                     {!disabled && (
                       <button type="button" className="ta-iconbtn" aria-label={`Remove ${g.itemTitle} ${i + 1}`} onClick={() => setGroup(g.id, rows.filter((_, j) => j !== i))}>
                         <Icon name="Trash2" size={15} />
