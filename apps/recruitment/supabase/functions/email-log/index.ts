@@ -15,8 +15,12 @@ Deno.serve(async (req) => {
   if (pre) return pre;
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
+  // currentProfile() returns successfully for ANY active profile, including
+  // role 'candidate' — it does no role filtering itself, so every caller must.
+  // This list is everyone who isn't a candidate (see mail-settings for the
+  // same check): a candidate must never see other candidates' email log.
   const me = await currentProfile(req);
-  if (!me) return fail("FORBIDDEN", "Staff access required.", 403);
+  if (!me || me.role === "candidate") return fail("FORBIDDEN", "Staff access required.", 403);
 
   let body: Record<string, any> = {};
   try { body = await req.json(); } catch { /* empty body is fine — defaults apply */ }
