@@ -14,7 +14,7 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { verifyServiceRequest } from "../_shared/serviceAuth.ts";
-import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
+import { addEvent, notify, queueEmail, siteUrl, staffContact } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 
 const VALID_STATUS = ["verified", "rejected", "revision_required"];
@@ -53,7 +53,7 @@ Deno.serve(async (req) => {
   try {
     const { data: doc } = await svc
       .from("onboarding_documents")
-      .select("id, application_id, requirement_name, applications(id, candidates(profile_id, email, first_name, last_name))")
+      .select("id, application_id, requirement_name, applications(id, assigned_ta_id, candidates(profile_id, email, first_name, last_name))")
       .eq("hr_document_id", body.hrDocumentId)
       .maybeSingle();
     if (!doc) throw new Error("onboarding_documents row not found");
@@ -76,6 +76,35 @@ Deno.serve(async (req) => {
       description: body.remarks ? `${doc.requirement_name}: ${body.remarks}` : `${doc.requirement_name} verified by HR.`,
       actor_label: body.reviewedBy ?? "HR",
     });
+
+    // TA gets told about every HR decision on an onboarding document — this
+    // app never notified TA at all for this stage before (only candidate
+    // corrections were surfaced).
+    const ta = await staffContact(svc, app?.assigned_ta_id);
+    if (ta) {
+      await notify(svc, {
+        recipient_profile_id: app.assigned_ta_id,
+        title: "HR reviewed an onboarding document",
+        message: `${candidateName || "Candidate"}: ${doc.requirement_name} — ${body.status === "verified" ? "verified" : body.status === "rejected" ? "rejected" : "correction requested"}.`,
+        type: "onboarding_document_status",
+        entity_type: "onboarding_document",
+        entity_id: doc.id,
+      });
+      const taMail = render("document_status_ta", {
+        ta_name: ta.name,
+        candidate_name: candidateName || "The candidate",
+        document_name: doc.requirement_name,
+        reviewed_by: body.reviewedBy ?? "HR",
+        status_label: body.status === "verified" ? "Verified" : body.status === "rejected" ? "Rejected" : "Correction required",
+        status_tone: body.status === "verified" ? "approved" : "rejected",
+        reason: body.status === "verified" ? null : body.remarks ?? null,
+        portal_link: siteUrl(`/ta/candidates/${doc.application_id}`),
+      });
+      await queueEmail(svc, {
+        recipient: ta.email, subject: taMail.subject, body_html: taMail.html, body_text: taMail.text,
+        template: "document_status_ta", entity_type: "onboarding_document", entity_id: doc.id,
+      });
+    }
 
     if (body.status === "revision_required" || body.status === "rejected") {
       await notify(svc, {

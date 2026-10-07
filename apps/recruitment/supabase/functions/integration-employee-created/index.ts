@@ -9,7 +9,8 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { verifyServiceRequest } from "../_shared/serviceAuth.ts";
-import { addEvent } from "../_shared/workflow.ts";
+import { addEvent, queueEmail, siteUrl } from "../_shared/workflow.ts";
+import { render } from "../_shared/emailTemplates.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -47,13 +48,13 @@ Deno.serve(async (req) => {
   try {
     const { data: app } = await svc
       .from("applications")
-      .select("id, status, additional")
+      .select("id, status, additional, personal, candidates(email, first_name, last_name)")
       .eq("id", body.sourceApplicationId)
       .maybeSingle();
     if (!app) throw new Error("application not found");
 
     // Idempotent on application state too — a retried delivery must not
-    // double-log the milestone if this already ran.
+    // double-log the milestone (or double-email) if this already ran.
     if (app.status !== "EMPLOYEE") {
       await svc
         .from("applications")
@@ -70,6 +71,26 @@ Deno.serve(async (req) => {
         description: `Employee record created (${body.employeeCode})${body.designation ? ` — ${body.designation}` : ""}. Welcome to the team!`,
         actor_label: body.reviewedBy ?? "HR",
       });
+
+      const candidate = app.candidates as any;
+      const candidateEmail = candidate?.email || app.personal?.email;
+      if (candidateEmail) {
+        const candidateName = `${candidate?.first_name ?? app.personal?.firstName ?? ""} ${candidate?.last_name ?? app.personal?.lastName ?? ""}`.trim();
+        const mail = render("employee_created", {
+          candidate_name: candidateName || "there",
+          employee_code: body.employeeCode,
+          designation: body.designation ?? "",
+          department: body.department ?? "",
+          joining_date: body.joiningDate
+            ? new Date(body.joiningDate).toLocaleDateString("en-IN", { dateStyle: "long", timeZone: "Asia/Kolkata" })
+            : "",
+          portal_link: siteUrl("/candidate/application"),
+        });
+        await queueEmail(svc, {
+          recipient: candidateEmail, subject: mail.subject, body_html: mail.html, body_text: mail.text,
+          template: "employee_created", entity_type: "application", entity_id: app.id,
+        });
+      }
     }
 
     await svc

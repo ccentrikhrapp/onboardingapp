@@ -108,6 +108,16 @@ export function istDateParts(d: Date) {
   return { day_of_month, month_short, year, weekday, date, time, when };
 }
 
+// Email + display name for a staff profile (TA, HR, ...), or null when there
+// is none to notify or it has no email on file — callers skip sending rather
+// than fail.
+export async function staffContact(svc: SupabaseClient, profileId: string | null | undefined) {
+  if (!profileId) return null;
+  const { data } = await svc.from("profiles").select("email, full_name").eq("id", profileId).maybeSingle();
+  if (!data?.email) return null;
+  return { email: data.email as string, name: (data.full_name as string) || "there" };
+}
+
 // Secure links inside candidate emails — no internal ids in the query string
 // beyond opaque codes the app already shows the candidate.
 export function siteUrl(path: string): string {

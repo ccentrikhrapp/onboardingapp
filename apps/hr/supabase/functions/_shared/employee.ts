@@ -94,6 +94,8 @@ export async function ensureEmployee(svc: SupabaseClient, caseId: string, actor:
           sourceApplicationId: c.source_application_id,
           employeeCode: employee.employee_code,
           designation,
+          department: employee.department ?? null,
+          joiningDate: employee.joining_date ?? null,
           reviewedBy: actor.label,
         }),
       });

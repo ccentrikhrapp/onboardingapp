@@ -9,7 +9,7 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { serviceClient } from "../_shared/supabase.ts";
 import { verifyServiceRequest } from "../_shared/serviceAuth.ts";
-import { addEvent, notify, queueEmail, siteUrl } from "../_shared/workflow.ts";
+import { addEvent, notify, queueEmail, siteUrl, staffContact } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { pushSummary } from "../_shared/preOffer.ts";
 
@@ -101,6 +101,19 @@ Deno.serve(async (req) => {
           application_id: doc.application_id, type: "documents", title: "Document Verification Completed",
           description: "Every applicable pre-offer requirement is resolved.", actor_label: "System",
         });
+        // The one point every required document has cleared — tell the
+        // candidate once here, not on every individual document.
+        const candidate = app?.candidates as any;
+        if (candidate?.email) {
+          const mail = render("documents_verified", {
+            candidate_name: `${candidate.first_name ?? ""} ${candidate.last_name ?? ""}`.trim(),
+            job_title: (app?.jobs as any)?.title ?? "your application",
+          });
+          await queueEmail(svc, {
+            recipient: candidate.email, subject: mail.subject, body_html: mail.html, body_text: mail.text,
+            template: "documents_verified", entity_type: "application", entity_id: doc.application_id,
+          });
+        }
       }
     }
 
@@ -153,6 +166,24 @@ Deno.serve(async (req) => {
           sender_email: body.reviewedByEmail ?? null,
         });
       }
+
+      const ta = await staffContact(svc, app?.assigned_ta_id);
+      if (ta) {
+        const taMail = render("document_status_ta", {
+          ta_name: ta.name,
+          candidate_name: candidateName || "The candidate",
+          document_name: requirementName,
+          reviewed_by: body.reviewedBy ?? "HR",
+          status_label: mapped === "rejected" ? "Rejected" : "Correction required",
+          status_tone: "rejected",
+          reason: body.remarks ?? null,
+          portal_link: siteUrl(`/ta/candidates/${doc.application_id}`),
+        });
+        await queueEmail(svc, {
+          recipient: ta.email, subject: taMail.subject, body_html: taMail.html, body_text: taMail.text,
+          template: "document_status_ta", entity_type: "application_document", entity_id: doc.id,
+        });
+      }
     } else if (app?.assigned_ta_id) {
       await notify(svc, {
         recipient_profile_id: app.assigned_ta_id,
@@ -162,6 +193,24 @@ Deno.serve(async (req) => {
         entity_type: "application_document",
         entity_id: doc.id,
       });
+      const ta = await staffContact(svc, app.assigned_ta_id);
+      if (ta) {
+        const candidate = app.candidates as any;
+        const taMail = render("document_status_ta", {
+          ta_name: ta.name,
+          candidate_name: `${candidate?.first_name ?? ""} ${candidate?.last_name ?? ""}`.trim() || "The candidate",
+          document_name: requirementName,
+          reviewed_by: body.reviewedBy ?? "HR",
+          status_label: "Verified",
+          status_tone: "approved",
+          reason: null,
+          portal_link: siteUrl(`/ta/candidates/${doc.application_id}`),
+        });
+        await queueEmail(svc, {
+          recipient: ta.email, subject: taMail.subject, body_html: taMail.html, body_text: taMail.text,
+          template: "document_status_ta", entity_type: "application_document", entity_id: doc.id,
+        });
+      }
     }
 
     // HR's own decision changes what is resolved — refresh HR's per-candidate summary too.

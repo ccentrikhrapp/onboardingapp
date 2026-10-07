@@ -257,6 +257,68 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
     text: `Hi ${v.candidate_name},\n\nAll your onboarding documents have been verified. HR will be in touch with next steps.\n\n— Ccentrik`,
   }),
 
+  // One reusable template for every HR decision on the Employee Joining Form
+  // (correction required, verified, approved with remarks, rejected,
+  // completed) — the integration handler supplies the wording per status so
+  // this doesn't need a separate template per status value.
+  // v.status_tone: 'approved' | 'pending' | 'info' | 'rejected'. v.reason is
+  // optional (shown as a highlighted note, same as a document correction).
+  joining_status_update: (v) => ({
+    subject: `${v.headline} — Employee Joining Form`,
+    html: shell(
+      v.headline,
+      `<p>Hi ${v.candidate_name},</p>
+       <p>${v.message}</p>
+       ${details([["Status", badge(v.status_label, v.status_tone)]])}
+       ${v.reason ? notice(v.reason) : ""}
+       ${v.next_steps ? `<p style="font-size:13px;color:#6B7280">${v.next_steps}</p>` : ""}
+       ${button("Open joining form", v.portal_link)}`,
+    ),
+    text: `Hi ${v.candidate_name},\n\n${v.message}\nStatus: ${v.status_label}${v.reason ? `\n\n${v.reason}` : ""}\n\n${v.portal_link}\n\n— Ccentrik`,
+  }),
+
+  // Candidate becomes an employee — the one event that closes recruitment
+  // and onboarding for good. v.employee_code is the system-generated ID
+  // (never typed by HR) — see create-employee / joining-hr-action in the HR app.
+  employee_created: (v) => ({
+    subject: `Welcome to Ccentrik — your Employee ID is ${v.employee_code}`,
+    html: shell(
+      "You're officially part of the team",
+      `<p>Hi ${v.candidate_name},</p>
+       <p>Your employee record has been created. Welcome to Ccentrik!</p>
+       ${details([
+         ["Employee ID", v.employee_code],
+         ["Designation", v.designation || "—"],
+         ["Department", v.department || "—"],
+         ...(v.joining_date ? [["Joining date", v.joining_date]] : []),
+       ])}
+       <p style="font-size:13px;color:#6B7280">Please keep your Employee ID for your records — HR will ask for it going forward.</p>
+       ${button("Open your profile", v.portal_link)}`,
+    ),
+    text: `Hi ${v.candidate_name},\n\nYour employee record has been created. Welcome to Ccentrik!\nEmployee ID: ${v.employee_code}\nDesignation: ${v.designation || "—"}\nDepartment: ${v.department || "—"}${v.joining_date ? `\nJoining date: ${v.joining_date}` : ""}\n\n${v.portal_link}\n\n— Ccentrik`,
+  }),
+
+  // TA-facing: HR's decision on a document the TA already passed on (pre-offer
+  // or onboarding stage — same wording either way). Reused by both
+  // integration-verification-status and integration-onboarding-document-status.
+  document_status_ta: (v) => ({
+    subject: `HR document review — ${v.document_name} — ${v.candidate_name}`,
+    html: shell(
+      "HR reviewed a document",
+      `<p>Hi ${v.ta_name},</p>
+       <p><strong>${v.candidate_name}</strong>'s <strong>${v.document_name}</strong> has been reviewed by HR.</p>
+       ${details([
+         ["Candidate", v.candidate_name],
+         ["Document", v.document_name],
+         ["Reviewed by", v.reviewed_by],
+         ["Status", badge(v.status_label, v.status_tone)],
+       ])}
+       ${v.reason ? notice(v.reason) : ""}
+       ${button("Open in TA portal", v.portal_link)}`,
+    ),
+    text: `Hi ${v.ta_name},\n\n${v.candidate_name}'s ${v.document_name} was reviewed by HR (${v.reviewed_by}).\nStatus: ${v.status_label}${v.reason ? `\n\n${v.reason}` : ""}\n\n${v.portal_link}\n\n— Ccentrik`,
+  }),
+
   // v.meeting_type: 'Virtual' | 'In-Person'. Virtual carries platform_label +
   // meeting_link; In-Person carries location + location_details.
   interview_scheduled: (v) => {
