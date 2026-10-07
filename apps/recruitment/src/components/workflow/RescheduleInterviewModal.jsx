@@ -67,7 +67,14 @@ export default function RescheduleInterviewModal({ open, onClose, round, busy, o
         scheduledAt: date && time ? new Date(`${date}T${time}`).toISOString() : undefined,
         durationMinutes: duration ? Number(duration) : undefined,
       });
-      setMeetingUrl(result.url);
+      // A placeholder link for Google Meet means this TA's Google account
+      // isn't connected — never hand the candidate a link that doesn't
+      // actually go anywhere; ask them to connect it instead.
+      if (result.mocked && value === 'google_meet') {
+        setLinkError('Your Google account isn’t connected, so a real Meet link can’t be created. Connect it in Settings → Email, then pick Google Meet again.');
+      } else {
+        setMeetingUrl(result.url);
+      }
     } catch (err) {
       setLinkError(err.message || 'Could not generate a meeting link. Try again.');
     } finally {

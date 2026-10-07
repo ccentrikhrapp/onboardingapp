@@ -76,6 +76,10 @@ Deno.serve(async (req) => {
       { roundName: round.name, scheduledAt: body.scheduledAt, durationMinutes: body.durationMinutes, actorEmail: profile.email ?? undefined },
       svc,
     );
+    // Same rule as schedule-interview: never let a fake Meet link through.
+    if (generated.mocked && body.meetingPlatform === "google_meet") {
+      return fail("GOOGLE_NOT_CONNECTED", "Your Google account isn't connected, so a real Meet link can't be created. Connect it in Settings → Email, then try again.", 422, { meetingPlatform: "Connect Google in Settings to use Meet." });
+    }
     meetingUrl = generated.url;
   }
 

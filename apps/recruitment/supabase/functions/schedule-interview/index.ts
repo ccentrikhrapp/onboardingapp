@@ -117,6 +117,13 @@ Deno.serve(async (req) => {
       { roundName: body.name.trim(), scheduledAt: body.scheduledAt, durationMinutes: body.durationMinutes, actorEmail: profile.email ?? undefined },
       svc,
     );
+    // A placeholder Google Meet link means this TA's Google isn't connected
+    // — the modal already blocks this case client-side; this is the same
+    // rule enforced again here, in case a round is ever submitted without
+    // going through it.
+    if (generated.mocked && body.meetingPlatform === "google_meet") {
+      return fail("GOOGLE_NOT_CONNECTED", "Your Google account isn't connected, so a real Meet link can't be created. Connect it in Settings → Email, then try again.", 422, { meetingPlatform: "Connect Google in Settings to use Meet." });
+    }
     meetingUrl = generated.url;
   }
 
