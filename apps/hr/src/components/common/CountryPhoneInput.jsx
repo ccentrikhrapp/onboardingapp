@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { COUNTRIES, DEFAULT_COUNTRY_ISO } from '../../constants/countries.js';
 import { joinPhone, splitPhone } from '../../utils/phone.js';
 
-/* Phone number with a searchable country-code picker. The value stays one
+/* Phone number with a country-code picker. The value stays one
    string ("+91 9876543210") so existing records and forms keep working; the
    country and the national number are only split apart for editing. */
 
@@ -17,19 +17,9 @@ function countryForDial(dial, preferredIso) {
 export default function CountryPhoneInput({ value, onChange, onBlur, error, disabled, id, placeholder = 'Mobile number', ...rest }) {
   const parsed = splitPhone(value || '');
   const [iso, setIso] = useState(() => countryForDial(parsed.dial || '91')?.iso || DEFAULT_COUNTRY_ISO);
-  const [query, setQuery] = useState('');
 
   // Keep the picked country in step when the value changes from outside.
   const current = byIso[iso]?.dial === parsed.dial ? byIso[iso] : countryForDial(parsed.dial || '91', iso);
-
-  const options = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    const list = q
-      ? COUNTRIES.filter((c) => c.name.toLowerCase().includes(q) || c.dial.includes(q.replace(/^\+/, '')) || c.iso.toLowerCase() === q)
-      : COUNTRIES;
-    // Keep the selected country visible even when the search hides it.
-    return list.some((c) => c.iso === current.iso) ? list : [current, ...list];
-  }, [query, current]);
 
   const pickCountry = (nextIso) => {
     setIso(nextIso);
@@ -43,31 +33,19 @@ export default function CountryPhoneInput({ value, onChange, onBlur, error, disa
   };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'minmax(150px, 210px) 1fr', gap: 6 }}>
-      <div style={{ display: 'grid', gap: 4 }}>
-        <input
-          type="search"
-          className="hr-input"
-          placeholder="Search country"
-          aria-label="Search country"
-          value={query}
-          disabled={disabled}
-          onChange={(e) => setQuery(e.target.value)}
-          style={{ padding: '4px 8px', fontSize: 12 }}
-        />
-        <select
-          className={`hr-input hr-input--select${error ? ' hr-input--error' : ''}`}
-          aria-label="Country code"
-          value={current.iso}
-          disabled={disabled}
-          size={1}
-          onChange={(e) => pickCountry(e.target.value)}
-        >
-          {options.map((c) => (
-            <option key={c.iso} value={c.iso}>{`${c.name} (+${c.dial})`}</option>
-          ))}
-        </select>
-      </div>
+    <div style={{ display: 'grid', gridTemplateColumns: "68px minmax(0, 1fr)", gap: 6, alignItems: 'center' }}>
+      <select
+        className={`hr-input hr-input--select${error ? ' hr-input--error' : ''}`}
+        aria-label="Country code"
+        title={`${current.name} (+${current.dial})`}
+        value={current.iso}
+        disabled={disabled}
+        onChange={(e) => pickCountry(e.target.value)}
+      >
+        {COUNTRIES.map((c) => (
+          <option key={c.iso} value={c.iso} title={`${c.name} (+${c.dial})`}>{`+${c.dial}`}</option>
+        ))}
+      </select>
       <input
         id={id}
         type="tel"

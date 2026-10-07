@@ -56,3 +56,15 @@ export function generateMeetingLink(platform, meta) {
 export function resendInterviewInvitation(roundId) {
   return callFn('resend-interview-invitation', { body: { roundId } });
 }
+
+/** After a candidate declines: pick a new time for the SAME round (new
+    invitation email, same round number) — see reschedule-interview-round. */
+export function rescheduleInterviewRound(payload) {
+  return callFn('reschedule-interview-round', { body: payload });
+}
+
+/** Put an application on a cooldown instead of rescheduling it (default 90
+    days). Pass days: 0 to lift an existing freeze. */
+export function freezeCandidate(payload) {
+  return callFn('freeze-candidate', { body: payload });
+}

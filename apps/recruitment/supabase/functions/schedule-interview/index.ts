@@ -21,7 +21,7 @@
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
-import { addEvent, deliverQueuedEmail, notify, queueEmail } from "../_shared/workflow.ts";
+import { addEvent, deliverQueuedEmail, istDateParts, notify, queueEmail } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { createMeetingLink } from "../_shared/meetingProviders.ts";
 
@@ -175,7 +175,8 @@ Deno.serve(async (req) => {
   const candidateName = `${app.personal?.firstName ?? ""} ${app.personal?.lastName ?? ""}`.trim();
   const jobTitle = (app.jobs as any)?.title ?? "the role";
   const scheduledDate = new Date(body.scheduledAt);
-  const when = scheduledDate.toLocaleString("en-IN", { dateStyle: "medium", timeStyle: "short" });
+  const ist = istDateParts(scheduledDate);
+  const when = ist.when;
   const meetingInfo = meetingType === "virtual" ? meetingUrl ?? "" : [body.location, body.locationDetails].filter(Boolean).join(" — ");
 
   await addEvent(svc, {
@@ -215,12 +216,12 @@ Deno.serve(async (req) => {
       candidate_name: candidateName,
       job_title: jobTitle,
       round_name: body.name,
-      day_of_month: String(scheduledDate.getDate()),
-      month_short: scheduledDate.toLocaleDateString("en-IN", { month: "short" }).toUpperCase(),
-      year: String(scheduledDate.getFullYear()),
-      weekday: scheduledDate.toLocaleDateString("en-IN", { weekday: "long" }),
-      date: scheduledDate.toLocaleDateString("en-IN", { dateStyle: "long" }),
-      time: scheduledDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+      day_of_month: ist.day_of_month,
+      month_short: ist.month_short,
+      year: ist.year,
+      weekday: ist.weekday,
+      date: ist.date,
+      time: ist.time,
       duration: body.durationMinutes ? `${body.durationMinutes} minutes` : "—",
       meeting_type: meetingType === "in_person" ? "In-Person" : "Virtual",
       platform_label: meetingType === "virtual" ? PLATFORM_LABEL[body.meetingPlatform] ?? "" : "",

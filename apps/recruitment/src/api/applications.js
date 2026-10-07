@@ -13,7 +13,7 @@ import { unwrap, callFn } from './client.js';
 // safe pattern already used for interview-invitation status.
 const LIST_COLUMNS =
   'id, application_code, status, source, current_version, submitted_at, created_at, ' +
-  'job_id, assigned_ta_id, personal, professional, additional, ats_score, ' +
+  'job_id, assigned_ta_id, personal, professional, additional, ats_score, cooldown_until, cooldown_reason, ' +
   'jobs!left(title, job_code, department, interview_plan), candidates(candidate_code, first_name, last_name, email, phone)';
 
 // Lists don't show education, so only single-application reads fetch it.

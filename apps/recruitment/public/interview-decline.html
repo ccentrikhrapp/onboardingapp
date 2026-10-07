@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex" />
+  <title>Decline interview</title>
+  <style>
+    body { margin: 0; background: #f4f5f7; padding: 40px 20px; font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; color: #1f2430; }
+    .card { max-width: 440px; margin: 0 auto; background: #fff; border: 1px solid #e6e8ec; border-radius: 12px; padding: 32px; }
+    .icon { width: 48px; height: 48px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; font-size: 24px; margin: 0 auto 16px; background: #dc26261a; color: #dc2626; }
+    h1 { margin: 0 0 8px; font-size: 18px; color: #0f1729; text-align: center; }
+    p.lead { margin: 0 0 18px; font-size: 14px; color: #6b7280; line-height: 1.5; text-align: center; }
+    label { display: block; font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 6px; }
+    textarea { width: 100%; box-sizing: border-box; min-height: 90px; border: 1px solid #d7dbe0; border-radius: 8px; padding: 10px 12px; font: inherit; font-size: 14px; resize: vertical; }
+    textarea:focus { outline: 2px solid #2563eb33; border-color: #2563eb; }
+    .err { color: #dc2626; font-size: 12.5px; margin-top: 6px; min-height: 16px; }
+    button { width: 100%; margin-top: 10px; border: 0; border-radius: 8px; padding: 12px; font-size: 14px; font-weight: 700; color: #fff; background: #dc2626; cursor: pointer; }
+    button:disabled { background: #d7dbe0; cursor: not-allowed; }
+    .hint { font-size: 12px; color: #9ca3af; margin-top: 14px; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">!</div>
+    <h1>Before you decline</h1>
+    <p class="lead">Please tell the recruiting team why this time doesn't work — this helps them reschedule you.</p>
+    <form id="form">
+      <label for="reason">Reason</label>
+      <textarea id="reason" maxlength="500" placeholder="For example: I have a scheduling conflict at this time." required></textarea>
+      <div class="err" id="err"></div>
+      <button type="submit" id="submit">Decline interview</button>
+    </form>
+    <p class="hint">Changed your mind? Just close this page — nothing is recorded until you submit.</p>
+  </div>
+  <script>
+    var API_BASE = "https://lshwigqlhbhsbrbrjiat.supabase.co/functions/v1/interview-response";
+    var token = new URLSearchParams(window.location.search).get("token");
+    var form = document.getElementById("form");
+    var reasonEl = document.getElementById("reason");
+    var errEl = document.getElementById("err");
+    var submitBtn = document.getElementById("submit");
+
+    if (!token) {
+      window.location.replace("interview-response.html?result=invalid");
+    }
+
+    form.addEventListener("submit", function (e) {
+      e.preventDefault();
+      var reason = reasonEl.value.trim();
+      if (reason.length < 3) {
+        errEl.textContent = "Please tell us why, in a few words.";
+        return;
+      }
+      errEl.textContent = "";
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Submitting…";
+      fetch(API_BASE, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token, action: "decline", reason: reason }),
+      })
+        .then(function (r) { return r.json().then(function (body) { return { status: r.status, body: body }; }); })
+        .then(function (res) {
+          if (res.body && res.body.fieldError) {
+            errEl.textContent = res.body.fieldError;
+            submitBtn.disabled = false;
+            submitBtn.textContent = "Decline interview";
+            return;
+          }
+          var result = (res.body && res.body.result) || "invalid";
+          window.location.replace("interview-response.html?result=" + encodeURIComponent(result));
+        })
+        .catch(function () {
+          errEl.textContent = "Something went wrong. Please try again.";
+          submitBtn.disabled = false;
+          submitBtn.textContent = "Decline interview";
+        });
+    });
+  </script>
+</body>
+</html>

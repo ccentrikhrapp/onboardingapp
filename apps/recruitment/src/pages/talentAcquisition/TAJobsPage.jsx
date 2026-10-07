@@ -14,6 +14,7 @@ import { listApplications } from '../../api/applications.js';
 import { formatDate } from '../../utils/format.js';
 
 const COLUMNS = [
+  { key: 'code', label: 'Job ID', sortable: true },
   { key: 'title', label: 'Job Title', sortable: true },
   { key: 'location', label: 'Location', sortable: true },
   { key: 'workMode', label: 'Mode', sortable: true },
@@ -64,7 +65,7 @@ export default function TAJobsPage() {
   );
 
   const view = useCollectionView(rows, {
-    searchFields: ['title', 'department', 'id', 'location'],
+    searchFields: ['code', 'title', 'department', 'location'],
     pageSize: 30,
     initialSort: { key: 'applicants', dir: 'desc' },
   });
@@ -142,6 +143,7 @@ export default function TAJobsPage() {
       <TAHeader title="Jobs" subtitle={`${jobs.length} open positions · ${totalApplicants} applicants in total`} />
 
       <Toolbar
+        search={{ value: view.query, onChange: view.setQuery, placeholder: 'Search by Job ID, title, department…' }}
         filters={[
           { label: 'Department', value: activeDept, onChange: (v) => view.setFilter('department', v), options: deptOptions },
           { label: 'Work mode', value: activeMode, onChange: (v) => view.setFilter('workMode', v), options: modeOptions },
@@ -183,6 +185,7 @@ export default function TAJobsPage() {
                   onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))} />
               </td>
             )}
+            <td className="ta-cell-mute">{j.code}</td>
             <td>
               <span className="ta-cell-strong">{j.title}</span>
               {j.custom && <Tag tone="blue">New</Tag>}

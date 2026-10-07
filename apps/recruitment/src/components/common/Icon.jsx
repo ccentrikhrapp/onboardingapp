@@ -10,7 +10,7 @@ import {
   RefreshCw, TrendingUp, Zap, Activity, CalendarClock, ListChecks, Target,
   Home, LifeBuoy, Moon, MessageSquare, Lightbulb, Play, Square, Bot,
   ShieldCheck, Globe, UserPlus, UserCheck,
-  StickyNote, MessagesSquare, UserRoundCog, Flag, ArrowRightLeft, ArchiveRestore, Archive, BellRing, UsersRound,
+  StickyNote, MessagesSquare, UserRoundCog, Flag, ArrowRightLeft, ArchiveRestore, Archive, BellRing, UsersRound, Snowflake,
 } from 'lucide-react';
 
 const REGISTRY = {
@@ -25,7 +25,7 @@ const REGISTRY = {
   RefreshCw, TrendingUp, Zap, Activity, CalendarClock, ListChecks, Target,
   Home, LifeBuoy, Moon, MessageSquare, Lightbulb, Play, Square, Bot,
   ShieldCheck, Globe, UserPlus, UserCheck,
-  StickyNote, MessagesSquare, UserRoundCog, Flag, ArrowRightLeft, ArchiveRestore, Archive, BellRing, UsersRound,
+  StickyNote, MessagesSquare, UserRoundCog, Flag, ArrowRightLeft, ArchiveRestore, Archive, BellRing, UsersRound, Snowflake,
 };
 
 /**

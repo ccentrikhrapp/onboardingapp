@@ -92,6 +92,22 @@ export function deliverQueuedEmail(svc: SupabaseClient, emailId: string): Promis
   );
 }
 
+// Interview times are always shown to the candidate in India time, regardless
+// of which time zone the server process itself runs in (date.getDate() etc.
+// otherwise reflect the SERVER's zone, not India's — that was producing the
+// wrong time/date in interview emails).
+const IST = "Asia/Kolkata";
+export function istDateParts(d: Date) {
+  const day_of_month = new Intl.DateTimeFormat("en-IN", { day: "numeric", timeZone: IST }).format(d);
+  const month_short = new Intl.DateTimeFormat("en-IN", { month: "short", timeZone: IST }).format(d).toUpperCase();
+  const year = new Intl.DateTimeFormat("en-IN", { year: "numeric", timeZone: IST }).format(d);
+  const weekday = new Intl.DateTimeFormat("en-IN", { weekday: "long", timeZone: IST }).format(d);
+  const date = new Intl.DateTimeFormat("en-IN", { dateStyle: "long", timeZone: IST }).format(d);
+  const time = new Intl.DateTimeFormat("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: IST }).format(d);
+  const when = new Intl.DateTimeFormat("en-IN", { dateStyle: "medium", timeStyle: "short", timeZone: IST }).format(d);
+  return { day_of_month, month_short, year, weekday, date, time, when };
+}
+
 // Secure links inside candidate emails — no internal ids in the query string
 // beyond opaque codes the app already shows the candidate.
 export function siteUrl(path: string): string {

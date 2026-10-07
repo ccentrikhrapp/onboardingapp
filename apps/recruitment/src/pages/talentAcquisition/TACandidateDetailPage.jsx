@@ -9,12 +9,13 @@ import EmptyState from '../../components/ta/EmptyState.jsx';
 import DangerButton from '../../components/common/Button.jsx';
 import ReasonModal from '../../components/workflow/ReasonModal.jsx';
 import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewModal.jsx';
+import RescheduleInterviewModal from '../../components/workflow/RescheduleInterviewModal.jsx';
 import InterviewFeedbackModal from '../../components/workflow/InterviewFeedbackModal.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { Field, Input } from '../../components/ta/Field.jsx';
 import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi, resendTaCandidateVerification, assignApplications, deleteApplication } from '../../api/applications.js';
-import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation } from '../../api/interviews.js';
+import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation, rescheduleInterviewRound, freezeCandidate } from '../../api/interviews.js';
 import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offers.js';
 import { listApplicationDocuments, documentFileUrl } from '../../api/documents.js';
 import { summarizeDocuments } from '../../utils/documentRules.js';
@@ -163,6 +164,8 @@ function adaptRemote(a, events) {
     assignedTo: a.assignedToName || (a.assignedTo ? 'Assigned' : null),
     returnReason: a.returnReason,
     rejectReason: a.rejectReason,
+    cooldownUntil: a.cooldownUntil,
+    cooldownReason: a.cooldownReason,
     personal: a.personal || {},
     professional: a.professional || {},
     education: a.education || [],
@@ -219,7 +222,10 @@ export default function TACandidateDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [app?.status]);
 
-  const [modal, setModal] = useState(null); // 'return' | 'reject' | 'schedule'
+  const [modal, setModal] = useState(null); // 'return' | 'reject' | 'schedule' | 'freeze'
+  const [reschedulingRound, setReschedulingRound] = useState(null);
+  const [rescheduling, setRescheduling] = useState(false);
+  const [freezing, setFreezing] = useState(false);
   const [showAllAct, setShowAllAct] = useState(false);
   const [tab, setTab] = useState('overview'); // overview | contact | experience | skills
   const [rounds, setRounds] = useState([]);
@@ -382,6 +388,40 @@ export default function TACandidateDetailPage() {
     }
   };
 
+  const doReschedule = async (payload) => {
+    setRescheduling(true);
+    try {
+      const result = await rescheduleInterviewRound(payload);
+      setReschedulingRound(null);
+      toast.success(
+        result.emailStatus === 'queued'
+          ? `Rescheduled. A new invitation is being sent to ${result.candidateEmail}.`
+          : 'Rescheduled, but the new invitation could not be sent. Use "Resend invitation" once fixed.'
+      );
+      reloadRounds();
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not reschedule this round.');
+    } finally {
+      setRescheduling(false);
+    }
+  };
+
+  const doFreeze = async (reason) => {
+    if (!app) return;
+    setFreezing(true);
+    try {
+      const result = await freezeCandidate({ applicationId: app.id, days: 90, reason });
+      setModal(null);
+      toast.success(`Candidate frozen until ${new Date(result.cooldownUntil).toLocaleDateString('en-IN', { dateStyle: 'medium' })}.`);
+      reloadRemote();
+    } catch (e) {
+      toast.error(e.message || 'Could not freeze this candidate.');
+    } finally {
+      setFreezing(false);
+    }
+  };
+
   const resendVerification = async () => {
     setResendingVerification(true);
     try {
@@ -472,6 +512,12 @@ export default function TACandidateDetailPage() {
       )}
       {rejected && (
         <div className="ta-note ta-note--err"><Icon name="XCircle" size={15} /> Application closed{app.rejectReason ? `: ${app.rejectReason}` : ''}</div>
+      )}
+      {app.cooldownUntil && new Date(app.cooldownUntil) > new Date() && (
+        <div className="ta-note ta-note--info" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
+          <div><Icon name="Snowflake" size={15} /> <strong>Candidate frozen</strong> until {new Date(app.cooldownUntil).toLocaleDateString('en-IN', { dateStyle: 'medium' })} — no interview can be rescheduled until then.</div>
+          {app.cooldownReason && <div className="ta-cell-sub">Reason: {app.cooldownReason}</div>}
+        </div>
       )}
 
       <AtsCard ats={app.atsScore} />
@@ -715,6 +761,22 @@ export default function TACandidateDetailPage() {
                         {feedback && (
                           <div className="ta-cell-sub" style={{ marginTop: 4 }}>Remarks: {feedback.remarks}</div>
                         )}
+                        {!feedback && r.candidate_response === 'declined' && (
+                          <div className="ta-note ta-note--warn" style={{ marginTop: 8, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                            <div>
+                              <Icon name="AlertTriangle" size={14} />{' '}
+                              {r.candidate_response_reason ? <>Candidate's reason: "{r.candidate_response_reason}"</> : 'No reason was given.'}
+                            </div>
+                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                              <Button
+                                variant="ghost" icon="CalendarClock" disabled={app?.cooldownUntil && new Date(app.cooldownUntil) > new Date()}
+                                title={app?.cooldownUntil && new Date(app.cooldownUntil) > new Date() ? 'This candidate is frozen — unfreeze before rescheduling.' : undefined}
+                                onClick={() => setReschedulingRound(r)}
+                              >Reschedule</Button>
+                              <Button variant="ghost" icon="Snowflake" onClick={() => setModal('freeze')}>Freeze candidate (90 days)</Button>
+                            </div>
+                          </div>
+                        )}
                         {!feedback && r.status === 'scheduled' && (
                           <div style={{ marginTop: 8 }}>
                             <Button variant="ghost" icon="ClipboardCheck" onClick={() => setFeedbackFor(r)}>Record feedback</Button>
@@ -864,6 +926,15 @@ export default function TACandidateDetailPage() {
       <InterviewFeedbackModal
         open={!!feedbackFor} onClose={() => setFeedbackFor(null)}
         round={feedbackFor} busy={busy} onSubmit={doFeedback}
+      />
+      <RescheduleInterviewModal
+        open={!!reschedulingRound} onClose={() => setReschedulingRound(null)}
+        round={reschedulingRound} busy={rescheduling} onReschedule={doReschedule}
+      />
+      <ReasonModal
+        open={modal === 'freeze'} onClose={() => setModal(null)}
+        title="Freeze candidate for 90 days" label="Why are you freezing this candidate?" confirmLabel={freezing ? 'Freezing…' : 'Freeze candidate'} tone="danger"
+        onSubmit={doFreeze}
       />
       <Modal
         open={modal === 'offer'}

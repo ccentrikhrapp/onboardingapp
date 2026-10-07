@@ -336,10 +336,11 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
        <div style="background:#EEF2FD;border:1px solid #DCE4FB;border-radius:8px;padding:12px 14px;font-size:14px">
          <div><strong>Response:</strong> ${v.response_label}</div>
          <div><strong>When:</strong> ${v.responded_at}</div>
+         ${v.reason_line ?? ""}
        </div>
        <p style="font-size:13px;color:#6B7280">Please follow up in the TA portal.</p>`,
     ),
-    text: `Hi ${v.ta_name},\n\n${v.candidate_name} responded to ${v.round_name} for ${v.job_title}.\nResponse: ${v.response_label}\nWhen: ${v.responded_at}\n\nPlease follow up in the TA portal.\n\n— Ccentrik`,
+    text: `Hi ${v.ta_name},\n\n${v.candidate_name} responded to ${v.round_name} for ${v.job_title}.\nResponse: ${v.response_label}\nWhen: ${v.responded_at}${v.reason_text ? `\nReason: ${v.reason_text}` : ""}\n\nPlease follow up in the TA portal.\n\n— Ccentrik`,
   }),
 
   interview_advance: (v) => ({

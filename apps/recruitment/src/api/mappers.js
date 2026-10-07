@@ -51,6 +51,8 @@ export function applicationFromDb(row) {
     atsScore: row.ats_score || null,
     returnReason: row.return_reason || null,
     rejectReason: row.reject_reason || null,
+    cooldownUntil: row.cooldown_until || null,
+    cooldownReason: row.cooldown_reason || null,
     candidateName: `${c.first_name || ''} ${c.last_name || ''}`.trim(),
     candidateEmail: c.email || row.personal?.email || '',
     candidatePhone: c.phone || row.personal?.mobile || '',

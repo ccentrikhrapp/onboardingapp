@@ -45,8 +45,12 @@ export async function createGoogleMeetEvent(
       body: JSON.stringify({
         summary: opts.summary,
         description: opts.description ?? "",
-        start: { dateTime: opts.startISO },
-        end: { dateTime: opts.endISO },
+        // startISO/endISO already carry their own offset (a "Z" UTC instant),
+        // so the event time itself is correct either way — timeZone is set so
+        // Calendar always labels it India time, not whatever zone the
+        // invitee's own calendar defaults to showing it in.
+        start: { dateTime: opts.startISO, timeZone: "Asia/Kolkata" },
+        end: { dateTime: opts.endISO, timeZone: "Asia/Kolkata" },
         conferenceData: {
           createRequest: {
             requestId: crypto.randomUUID(),

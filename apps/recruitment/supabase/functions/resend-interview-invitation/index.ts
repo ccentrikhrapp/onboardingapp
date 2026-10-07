@@ -8,6 +8,7 @@
 // Body: { roundId }
 
 import { fail, ok, preflight } from "../_shared/http.ts";
+import { istDateParts } from "../_shared/workflow.ts";
 import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { render } from "../_shared/emailTemplates.ts";
 
@@ -56,12 +57,7 @@ Deno.serve(async (req) => {
     candidate_name: candidateName,
     job_title: app.jobs?.title ?? "the role",
     round_name: round.name,
-    day_of_month: String(scheduledDate.getDate()),
-    month_short: scheduledDate.toLocaleDateString("en-IN", { month: "short" }).toUpperCase(),
-    year: String(scheduledDate.getFullYear()),
-    weekday: scheduledDate.toLocaleDateString("en-IN", { weekday: "long" }),
-    date: scheduledDate.toLocaleDateString("en-IN", { dateStyle: "long" }),
-    time: scheduledDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }),
+    ...istDateParts(scheduledDate),
     duration: round.duration_minutes ? `${round.duration_minutes} minutes` : "—",
     meeting_type: round.meeting_type === "in_person" ? "In-Person" : "Virtual",
     platform_label: round.meeting_platform ? PLATFORM_LABEL[round.meeting_platform] : "",
