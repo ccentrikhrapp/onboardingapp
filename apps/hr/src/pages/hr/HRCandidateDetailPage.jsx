@@ -281,7 +281,12 @@ export default function HRCandidateDetailPage() {
                             )}
                           </div>
                           {doc.hr_remarks && doc.status !== 'verified' && (
-                            <div className="hr-docrow__body hr-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>Your note: {doc.hr_remarks}</div>
+                            // "Your note" only when this is HR's own past correction request —
+                            // on a fresh/reused 'uploaded' doc, hr_remarks (if present) is the
+                            // system's reuse note, not something HR wrote.
+                            <div className="hr-docrow__body hr-cell-sub" style={{ color: 'var(--tag-amber-fg)' }}>
+                              {doc.status === 'uploaded' ? doc.hr_remarks : `Your note: ${doc.hr_remarks}`}
+                            </div>
                           )}
                           {doc.form_data && Array.isArray(doc.requirement?.field_schema) && (
                             <div className="hr-docrow__body hr-info">

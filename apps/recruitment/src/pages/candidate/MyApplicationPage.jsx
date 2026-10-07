@@ -735,8 +735,10 @@ export default function MyApplicationPage() {
                         </div>
                         <Tag tone={meta.tone}>{meta.label}</Tag>
                       </div>
-                      {d.status === 'revision_required' && d.hr_remarks && (
-                        <div className="ta-note ta-note--warn">Correction needed: {d.hr_remarks}</div>
+                      {d.hr_remarks && (
+                        <div className={`ta-note ${d.status === 'revision_required' ? 'ta-note--warn' : 'ta-note--info'}`}>
+                          {d.status === 'revision_required' ? `Correction needed: ${d.hr_remarks}` : d.hr_remarks}
+                        </div>
                       )}
                       {canAct ? (
                         <>
@@ -764,8 +766,10 @@ export default function MyApplicationPage() {
                     <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
                     <div className="grow" style={{ minWidth: 0 }}>
                       <div className="ta-cell-strong">{d.requirement_name}{d.required && <span className="cx-req" title="Required"> *</span>}</div>
-                      {d.status === 'revision_required' && d.hr_remarks && (
-                        <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)' }}>Correction needed: {d.hr_remarks}</div>
+                      {d.hr_remarks && (
+                        <div className="ta-cell-sub" style={d.status === 'revision_required' ? { color: 'var(--tag-red-fg)' } : undefined}>
+                          {d.status === 'revision_required' ? `Correction needed: ${d.hr_remarks}` : d.hr_remarks}
+                        </div>
                       )}
                     </div>
                     <Tag tone={meta.tone}>{meta.label}</Tag>

@@ -228,9 +228,10 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
          ["Next step", "Open your checklist and complete each item"],
          ["Status", badge("Onboarding pending", "pending")],
        ])}
+       ${v.reuse_note ? notice(v.reuse_note) : ""}
        ${button("Open onboarding checklist", v.onboarding_link)}`,
     ),
-    text: `Hi ${v.candidate_name},\n\nPlease submit your onboarding documents for ${v.job_title}:\n${v.onboarding_link}\n\n— Ccentrik`,
+    text: `Hi ${v.candidate_name},\n\nPlease submit your onboarding documents for ${v.job_title}:\n${v.onboarding_link}${v.reuse_note ? `\n\n${v.reuse_note}` : ""}\n\n— Ccentrik`,
   }),
 
   onboarding_document_correction_required: (v) => ({

@@ -61,15 +61,17 @@ Deno.serve(async (req) => {
       .maybeSingle();
     if (!doc) throw new Error("onboarding document not found");
 
-    const patch: Record<string, unknown> = { status: "uploaded", hr_remarks: null };
+    const patch: Record<string, unknown> = { status: "uploaded", hr_remarks: body.reused ? (body.reuseNote ?? "Reused from the candidate's original application.") : null };
     if (body.formData) patch.form_data = body.formData;
     const { error } = await svc.from("onboarding_documents").update(patch).eq("id", doc.id);
     if (error) throw new Error(error.message);
 
     await svc.from("notifications").insert({
       recipient_role: "hr",
-      title: "Onboarding document uploaded",
-      message: `${body.candidate?.name ?? "A candidate"} uploaded "${(doc.requirement as any)?.name ?? "a document"}".`,
+      title: body.reused ? "Onboarding document reused from application" : "Onboarding document uploaded",
+      message: body.reused
+        ? `"${(doc.requirement as any)?.name ?? "A document"}" for ${body.candidate?.name ?? "a candidate"} was carried over from their application — already verified, no new upload.`
+        : `${body.candidate?.name ?? "A candidate"} uploaded "${(doc.requirement as any)?.name ?? "a document"}".`,
       type: "onboarding_document_submitted",
       entity_type: "onboarding_document",
       entity_id: doc.id,
