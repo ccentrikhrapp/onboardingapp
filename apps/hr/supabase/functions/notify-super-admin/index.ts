@@ -40,7 +40,7 @@ Deno.serve(async (req) => {
 
   const { data: task } = await svc.from("onboarding_tasks").select("*").eq("employee_id", body.employeeId).eq("key", "email_setup").maybeSingle();
 
-  const results: { adminId: string; email: string; sent: boolean; error?: string }[] = [];
+  const results: { adminId: string; email: string; sent: boolean; skipped?: boolean; error?: string }[] = [];
   for (const admin of admins) {
     if (!admin.email) continue;
     const mail = render("employee_onboarded_super_admin", {
@@ -50,16 +50,22 @@ Deno.serve(async (req) => {
       attention_summary: null, profile_link: profileLink,
     });
     // A deliberate "Resend" bypasses the usual dedupe; an ordinary click
-    // for someone already notified is a safe no-op, not a second email.
+    // for someone already notified is a safe no-op, not a second email —
+    // sendStaffMail reports that as { sent: true, skipped: true } (sent, in
+    // the sense that one genuinely did go out earlier), which is why
+    // res.skipped must be checked BEFORE res.sent below: otherwise every
+    // repeat click logs and reports a fresh "sent", even though nothing new
+    // was actually emailed this time — indistinguishable from a real send
+    // to whoever's reading the activity log or the toast.
     const res = await sendStaffMail(svc, {
       to: admin.email, subject: mail.subject, html: mail.html, text: mail.text,
       template: "employee_onboarded_super_admin", entityType: "employee", entityId: body.employeeId,
       actorEmail: me.email, idempotencyKey: body.resend ? undefined : `super-admin-request-${body.employeeId}-${admin.id}`,
     });
-    results.push({ adminId: admin.id, email: admin.email, sent: res.sent, error: res.error });
+    results.push({ adminId: admin.id, email: admin.email, sent: res.sent, skipped: res.skipped, error: res.error });
     await svc.from("employee_onboarding_events").insert({
       employee_id: body.employeeId, kind: "notification", actor_profile_id: me.id, actor_label: me.full_name ?? me.email,
-      remark: `Super Admin request to ${admin.full_name || admin.email}: ${res.sent ? "sent" : res.skipped ? "already sent — use Resend to send again" : `failed — ${res.error}`}`,
+      remark: `Super Admin request to ${admin.full_name || admin.email}: ${res.skipped ? "already sent earlier — no new email (use Resend to send again)" : res.sent ? "sent" : `failed — ${res.error}`}`,
     });
   }
 

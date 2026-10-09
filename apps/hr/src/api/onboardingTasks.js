@@ -43,7 +43,7 @@ export function listOnboardingEvents(employeeId) {
 export function listEmployeesWithTasks() {
   return supabase
     .from('employees')
-    .select('*, onboarding_tasks(id, category, status, required)')
+    .select('*, onboarding_tasks(id, key, category, status, required)')
     .order('created_at', { ascending: false })
     .then(unwrap);
 }

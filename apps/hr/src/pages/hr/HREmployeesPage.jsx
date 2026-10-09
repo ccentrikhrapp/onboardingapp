@@ -41,7 +41,14 @@ const READINESS_META = {
   completed: { label: 'Ready', tone: 'green' },
   blocked: { label: 'Blocked', tone: 'red' },
 };
-function deriveReadiness(tasks) {
+// Same five-activity set EmployeeDetailPage/OnboardingTasksPage render —
+// an employee hired before the workflow was simplified can still have task
+// rows for a since-deactivated template (kept for history, never shown),
+// which would otherwise leave their readiness permanently stuck on a item
+// nobody can act on anymore.
+const KEPT_KEYS = new Set(['email_setup', 'laptop_allocation', 'id_card_creation', 'welcome_kit', 'lunch_arrangement']);
+function deriveReadiness(allTasks) {
+  const tasks = allTasks.filter((t) => KEPT_KEYS.has(t.key));
   if (!tasks.length) return 'employee_created';
   if (tasks.some((t) => t.status === 'blocked')) return 'blocked';
   const required = tasks.filter((t) => t.required);

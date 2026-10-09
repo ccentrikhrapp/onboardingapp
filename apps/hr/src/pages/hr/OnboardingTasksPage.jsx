@@ -21,6 +21,16 @@ const STATUS_META = {
 const CATEGORY_LABEL = { accounts_it: 'Accounts & IT', joining_arrangements: 'Joining arrangements' };
 const STATUS_OPTIONS = Object.entries(STATUS_META);
 
+// The onboarding workflow was simplified to exactly five activities
+// (organisational account, laptop allocation, ID card creation, welcome
+// kit, lunch) — their templates are the only ones still active, but
+// employees created before that simplification still have task rows for
+// the templates since deactivated (peripherals, software_access, etc.).
+// Those rows are intentionally kept for history (see
+// 20261009120000_onboarding_workflow_simplify.sql), just never shown —
+// same filter EmployeeDetailPage.jsx applies, kept in sync here.
+const KEPT_KEYS = new Set(['email_setup', 'laptop_allocation', 'id_card_creation', 'welcome_kit', 'lunch_arrangement']);
+
 /* "My Onboarding Tasks" — Accounts, IT and Office Administration land here
    (their only real page in this app). admin/hr see every task for
    oversight; everyone else sees only what's assigned to their own role. */
@@ -34,7 +44,7 @@ export default function OnboardingTasksPage() {
 
   const load = () => {
     listOnboardingTasks()
-      .then((tasks) => setState({ loading: false, tasks: tasks || [] }))
+      .then((tasks) => setState({ loading: false, tasks: (tasks || []).filter((t) => KEPT_KEYS.has(t.key)) }))
       .catch((e) => { toast.error(e.message || 'Could not load your tasks.'); setState({ loading: false, tasks: [] }); });
   };
   useEffect(load, []);

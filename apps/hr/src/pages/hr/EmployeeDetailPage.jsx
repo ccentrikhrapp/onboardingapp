@@ -30,7 +30,13 @@ const OVERALL_META = {
   blocked: { label: 'Blocked / requires attention', tone: 'red' },
 };
 const resolved = (s) => s === 'completed' || s === 'not_required';
-function deriveOverallStatus(tasks) {
+// Same five-activity set rendered below — an employee hired before the
+// workflow was simplified can still have task rows for a since-deactivated
+// template (kept for history, never shown), which would otherwise leave
+// this permanently stuck on an item nobody can act on anymore.
+const KEPT_TASK_KEYS = new Set(['email_setup', 'laptop_allocation', 'id_card_creation', 'welcome_kit', 'lunch_arrangement']);
+function deriveOverallStatus(allTasks) {
+  const tasks = allTasks.filter((t) => KEPT_TASK_KEYS.has(t.key));
   if (!tasks.length) return 'employee_created';
   if (tasks.some((t) => t.status === 'blocked')) return 'blocked';
   const required = tasks.filter((t) => t.required);
@@ -287,6 +293,10 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
   const [fields, setFields] = useState({ name: '', mobile: '', designation: '' });
   const [adminId, setAdminId] = useState('');
   const [sending, setSending] = useState(false);
+  // Set after a confirm turns out to be a deduped repeat (same admin,
+  // already notified) — gives a persistent, explicit way to force a fresh
+  // copy out, instead of only a toast that disappears in a few seconds.
+  const [canForceResend, setCanForceResend] = useState(false);
 
   if (!task) return null;
   const meta = TASK_STATUS_META[task.status];
@@ -296,6 +306,7 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
   const openForm = () => {
     setFields({ name: employee.full_name || '', mobile: employee.phone || '', designation: employee.designation || '' });
     setAdminId('');
+    setCanForceResend(false);
     setStage('form');
   };
   const reviewAndSend = () => {
@@ -303,14 +314,20 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
     if (!adminId) { toast.error('Choose which Super Admin should receive this request.'); return; }
     setStage('confirm');
   };
-  const confirmSend = async () => {
+  const confirmSend = async (resend = false) => {
     setSending(true);
     try {
-      const res = await notifySuperAdmin(employeeId, adminId, fields);
-      const sent = res.results.some((r) => r.sent);
-      if (sent) toast.success(`Account creation request sent to ${selectedAdmin?.name || 'the Super Admin'}.`);
+      const res = await notifySuperAdmin(employeeId, adminId, fields, resend);
+      const who = selectedAdmin?.name || 'the Super Admin';
+      const freshlySent = res.results.some((r) => r.sent && !r.skipped);
+      const alreadySent = res.results.some((r) => r.skipped);
+      // A repeat click to the same admin for the same employee is
+      // correctly deduped (no duplicate email) — but it must not be
+      // reported the same way as a genuine fresh send, or every retry
+      // looks like success while nothing new actually goes out.
+      if (freshlySent) { toast.success(`Account creation request sent to ${who}.`); setStage('idle'); }
+      else if (alreadySent) { toast.info(`Already sent to ${who} earlier — no new email was sent this time.`); setCanForceResend(true); setStage('form'); }
       else toast.error(res.results[0]?.error || 'Could not send the request. You can try again.');
-      setStage('idle');
       onSent();
     } catch (e) { toast.error(e.message || 'Could not send the request.'); }
     finally { setSending(false); }
@@ -339,8 +356,17 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
               {admins.map((a) => <option key={a.id} value={a.id}>{a.name} — {a.email}</option>)}
             </select>
           </label>
+          {canForceResend && (
+            <div className="hr-note hr-note--warn" style={{ marginBottom: 16 }}>
+              <Icon name="Info" size={14} />
+              <span>{selectedAdmin?.name || 'This Super Admin'} was already sent this request and hasn't been resent since. Use Resend below to send a fresh copy.</span>
+            </div>
+          )}
           <div style={{ display: 'flex', gap: 10, paddingTop: 20, borderTop: '1px solid var(--hr-line, #eef0f3)' }}>
             <Button onClick={reviewAndSend}>Review &amp; send</Button>
+            {canForceResend && (
+              <Button variant="ghost" icon="RefreshCw" disabled={sending} onClick={() => confirmSend(true)}>{sending ? 'Resending…' : 'Resend now'}</Button>
+            )}
             <Button variant="ghost" onClick={() => setStage('idle')}>Cancel</Button>
           </div>
         </div>

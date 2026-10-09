@@ -67,7 +67,7 @@ Deno.serve(async (req) => {
     photoLink = signed?.signedUrl;
   }
 
-  const results: { email: string; sent: boolean; error?: string }[] = [];
+  const results: { email: string; sent: boolean; skipped?: boolean; error?: string }[] = [];
   for (const r of recipients) {
     const mail = render("onboarding_task_request", {
       subject_line: `${meta.subjectPrefix} — ${emp.full_name} | ${emp.employee_code}`,
@@ -86,10 +86,14 @@ Deno.serve(async (req) => {
       template: "onboarding_task_request", entityType: "employee", entityId: body.employeeId,
       actorEmail: me.email, idempotencyKey: body.resend ? undefined : `accounts-it-${requestType}-${body.employeeId}-${r.email}`,
     });
-    results.push({ email: r.email, sent: res.sent, error: res.error });
+    results.push({ email: r.email, sent: res.sent, skipped: res.skipped, error: res.error });
+    // res.skipped checked before res.sent — a deduped repeat reports
+    // sent:true too (one genuinely did go out earlier), so checking sent
+    // first would log "sent" on every repeat click even though nothing new
+    // was actually emailed that time. See notify-super-admin for the same fix.
     await svc.from("employee_onboarding_events").insert({
       employee_id: body.employeeId, task_id: task.id, kind: "notification", actor_profile_id: me.id, actor_label: me.full_name ?? me.email,
-      remark: `${meta.heading} to ${r.email}: ${res.sent ? "sent" : res.skipped ? "already sent — use Resend to send again" : `failed — ${res.error}`}`,
+      remark: `${meta.heading} to ${r.email}: ${res.skipped ? "already sent earlier — no new email (use Resend to send again)" : res.sent ? "sent" : `failed — ${res.error}`}`,
     });
   }
 
