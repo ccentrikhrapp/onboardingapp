@@ -7,7 +7,7 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { sendStaffMail } from "../_shared/notify.ts";
-import { employeeMailContext } from "../_shared/onboardingWorkflow.ts";
+import { employeeMailContext, markTaskInProgressOnSend } from "../_shared/onboardingWorkflow.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -31,12 +31,21 @@ Deno.serve(async (req) => {
   catch (e) { return fail("NOT_FOUND", (e as Error).message, 404); }
   const { emp, designation, department, joiningDate, location, mobile, officialEmail, profileLink } = ctx;
 
+  // Section 1: the request form shows only Name/Mobile/Designation,
+  // prepopulated but editable — HR's corrected values (if any) are what
+  // actually goes in the email, never silently re-read from the record.
+  const employeeName = typeof body.name === "string" && body.name.trim() ? body.name.trim() : emp.full_name;
+  const employeeMobile = typeof body.mobile === "string" && body.mobile.trim() ? body.mobile.trim() : mobile;
+  const employeeDesignation = typeof body.designation === "string" && body.designation.trim() ? body.designation.trim() : designation;
+
+  const { data: task } = await svc.from("onboarding_tasks").select("*").eq("employee_id", body.employeeId).eq("key", "email_setup").maybeSingle();
+
   const results: { adminId: string; email: string; sent: boolean; error?: string }[] = [];
   for (const admin of admins) {
     if (!admin.email) continue;
     const mail = render("employee_onboarded_super_admin", {
-      employee_name: emp.full_name, employee_code: emp.employee_code, designation, department,
-      mobile, official_email: officialEmail, joining_date: joiningDate, location, hr_name: me.full_name ?? me.email,
+      employee_name: employeeName, employee_code: emp.employee_code, designation: employeeDesignation, department,
+      mobile: employeeMobile, official_email: officialEmail, joining_date: joiningDate, location, hr_name: me.full_name ?? me.email,
       confirmed_at: new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Kolkata" }),
       attention_summary: null, profile_link: profileLink,
     });
@@ -52,6 +61,13 @@ Deno.serve(async (req) => {
       employee_id: body.employeeId, kind: "notification", actor_profile_id: me.id, actor_label: me.full_name ?? me.email,
       remark: `Super Admin request to ${admin.full_name || admin.email}: ${res.sent ? "sent" : res.skipped ? "already sent — use Resend to send again" : `failed — ${res.error}`}`,
     });
+  }
+
+  // Section 6: email sent successfully → automatically In Progress. Never
+  // on a failed send — that's a FORBIDDEN outcome the spec calls out
+  // explicitly, not just an omission.
+  if (task && results.some((r) => r.sent)) {
+    await markTaskInProgressOnSend(svc, task, { label: "System" });
   }
 
   await audit(svc, {

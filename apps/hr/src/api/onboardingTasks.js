@@ -54,11 +54,19 @@ export function listSuperAdmins() {
   return callFn('list-super-admins', { body: {} }).then((r) => r.admins);
 }
 
-/** Sends the organisational-account-creation request to the Super Admin(s)
-    HR picked. `resend: true` bypasses the duplicate-notification guard for
+/** Sends the organisational-account-creation request to the one Super Admin
+    HR selected, with the name/mobile/designation HR reviewed and confirmed
+    on the request form (not necessarily the stored record, if HR corrected
+    a value). `resend: true` bypasses the duplicate-notification guard for
     an intentional resend. */
-export function notifySuperAdmins(employeeId, adminIds, resend = false) {
-  return callFn('notify-super-admin', { body: { employeeId, adminIds, resend } });
+export function notifySuperAdmin(employeeId, adminId, fields, resend = false) {
+  return callFn('notify-super-admin', { body: { employeeId, adminIds: [adminId], ...fields, resend } });
+}
+
+/** Sends the laptop-allocation or ID-card-creation request to the Accounts/
+    IT team. `requestType`: 'laptop_allocation' | 'id_card_creation'. */
+export function notifyAccountsIt(employeeId, requestType, resend = false) {
+  return callFn('notify-accounts-it', { body: { employeeId, requestType, resend } });
 }
 
 /** Completes/updates joining details on an EXISTING employee record — never

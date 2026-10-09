@@ -95,8 +95,12 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
       `Location: ${v.location || "—"}\nConfirmed by: ${v.hr_name} at ${v.confirmed_at}\n\n${v.profile_link}\n\n— Ccentrik HR Portal`,
   }),
 
-  // Sections 4 & 5 — one reusable template for both Accounts/IT and Joining
+  // Sections 4 & 5 — one reusable template for Accounts/IT and Joining
   // Arrangements requests; only the heading, checklist and link differ.
+  // blood_group/address/phone/photo_link are additional, all-optional rows
+  // (filtered out by details() when absent) — used only by the ID card
+  // creation request, which needs a few more employee details than the
+  // generic laptop-allocation/joining-arrangements ones do.
   onboarding_task_request: (v) => ({
     subject: v.subject_line || `Action Required: New Employee Joining Setup — ${v.employee_name} | ${v.employee_code}`,
     html: shell(
@@ -109,16 +113,22 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
          ["Joining Date", v.joining_date],
          ["Work Location", v.location],
          ["Reporting Manager", v.reporting_manager],
+         ["Phone", v.phone],
+         ["Blood Group", v.blood_group],
+         ["Address", v.address],
          ["Status", badge(v.status_label || "Action required", "pending")],
        ])}
        <p style="font-size:13.5px;font-weight:600;color:#1F2937;margin:18px 0 0">Checklist</p>
        ${checklist((v.checklist_items || "").split("|||").filter(Boolean))}
+       ${v.photo_link ? button("View employee photo", v.photo_link) : ""}
        ${button("Open onboarding request", v.task_link)}`,
     ),
     text: `${v.heading || "New employee joining setup required"}\n\n${v.employee_name} (${v.employee_code}) is joining Ccentrik.\n` +
       `Designation: ${v.designation || "—"}\nDepartment: ${v.department || "—"}\nJoining date: ${v.joining_date || "—"}\n` +
-      `Location: ${v.location || "—"}\nReporting manager: ${v.reporting_manager || "—"}\n\n` +
-      `Checklist:\n${(v.checklist_items || "").split("|||").filter(Boolean).map((i) => `- ${i}`).join("\n")}\n\n${v.task_link}\n\n— Ccentrik HR Portal`,
+      `Location: ${v.location || "—"}\nReporting manager: ${v.reporting_manager || "—"}` +
+      `${v.phone ? `\nPhone: ${v.phone}` : ""}${v.blood_group ? `\nBlood Group: ${v.blood_group}` : ""}${v.address ? `\nAddress: ${v.address}` : ""}\n\n` +
+      `Checklist:\n${(v.checklist_items || "").split("|||").filter(Boolean).map((i) => `- ${i}`).join("\n")}\n\n` +
+      `${v.photo_link ? `Employee photo: ${v.photo_link}\n\n` : ""}${v.task_link}\n\n— Ccentrik HR Portal`,
   }),
 };
 

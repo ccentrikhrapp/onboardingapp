@@ -23,7 +23,7 @@ import { appBaseUrl } from "./teamInvite.ts";
 const log = async (svc: SupabaseClient, employeeId: string, row: Record<string, unknown>) =>
   svc.from("employee_onboarding_events").insert({ employee_id: employeeId, ...row });
 
-async function activeTeamEmails(svc: SupabaseClient, roles: string[]): Promise<{ email: string; name: string }[]> {
+export async function activeTeamEmails(svc: SupabaseClient, roles: string[]): Promise<{ email: string; name: string }[]> {
   const { data } = await svc.from("profiles").select("email, full_name").in("role", roles).eq("active", true);
   return (data ?? []).filter((p) => p.email).map((p) => ({ email: p.email as string, name: (p.full_name as string) || "there" }));
 }
@@ -100,6 +100,27 @@ export async function initializeOnboarding(
       });
     }
   }
+}
+
+/** Section 6 — "email sent successfully → automatically set status to In
+    Progress", for the three request types that send an email (organisational
+    account, laptop allocation, ID card creation). Never downgrades a task
+    that's already in_progress/completed/blocked — a resend of an
+    already-moving request doesn't reset its progress. Logs the same way
+    onboarding-task-update does, so this shows up in the activity history
+    exactly like a manual status change would. */
+export async function markTaskInProgressOnSend(
+  svc: SupabaseClient,
+  task: { id: string; employee_id: string; label: string; status: string },
+  actor: { label: string },
+) {
+  if (task.status !== "not_started") return;
+  await svc.from("onboarding_tasks").update({ status: "in_progress", updated_at: new Date().toISOString() }).eq("id", task.id);
+  await svc.from("employee_onboarding_events").insert({
+    employee_id: task.employee_id, task_id: task.id, kind: "task_update", actor_label: actor.label,
+    old_value: { status: task.status }, new_value: { status: "in_progress" },
+    remark: `${task.label}: status: not_started → in_progress (request email sent)`,
+  });
 }
 
 /** Overall onboarding status — always computed from the actual task rows,
