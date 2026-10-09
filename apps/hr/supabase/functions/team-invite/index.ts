@@ -15,8 +15,11 @@ import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { appBaseUrl, deliverInvitation, generateTempPassword, hashToken, INVITATION_EXPIRY_DAYS, invitationEmail, randomToken } from "../_shared/teamInvite.ts";
 
 const APP_NAME = "HR Portal";
-const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR" };
-const INVITABLE: Record<string, string[]> = { admin: ["admin", "hr"] };
+const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR", accounts: "Accounts", it: "IT", office_admin: "Office Administration" };
+// Only Super Admin invites — onboarding (Section 10) needs real logins for
+// Accounts/IT/Office Admin too, so they can update their own assigned tasks
+// directly instead of HR doing it on their behalf.
+const INVITABLE: Record<string, string[]> = { admin: ["admin", "hr", "accounts", "it", "office_admin"] };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Optional. Accepts international formats (+91 98765 43210, (022) 1234 5678...).
 

@@ -12,7 +12,10 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
   const { role } = useAuth();
   const [counts, setCounts] = useState({ verification: 0, onboarding: 0 });
 
+  const isHrStaff = role === 'admin' || role === 'hr';
+
   useEffect(() => {
+    if (!isHrStaff) return;
     Promise.all([listVerifications(), listOnboardingCases()])
       .then(([verifications, cases]) => {
         setCounts({
@@ -21,16 +24,22 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
         });
       })
       .catch(() => {});
-  }, []);
+  }, [isHrStaff]);
 
-  const nav = [
+  // Accounts/IT/Office Admin only have their own assigned tasks and their
+  // profile in this app — not the rest of the HR workflow.
+  const nav = isHrStaff ? [
     { to: '/hr', label: 'Dashboard', icon: 'Home', end: true },
     { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
     { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
+    { to: '/hr/employee-onboarding', label: 'Employee onboarding', icon: 'ListChecks' },
     { to: '/hr/activity', label: 'Activity', icon: 'History' },
     ...(role === 'admin' ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
     { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
+  ] : [
+    { to: '/hr/tasks', label: 'My onboarding tasks', icon: 'ListChecks', end: true },
+    { to: '/hr/profile', label: 'Profile', icon: 'UserRound' },
   ];
 
   return (

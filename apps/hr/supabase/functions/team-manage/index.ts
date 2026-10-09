@@ -7,8 +7,8 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 
-const TEAM_ROLES = ["admin", "hr"];
-const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR" };
+const TEAM_ROLES = ["admin", "hr", "accounts", "it", "office_admin"];
+const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR", accounts: "Accounts", it: "IT", office_admin: "Office Administration" };
 
 Deno.serve(async (req) => {
   const pre = preflight(req);

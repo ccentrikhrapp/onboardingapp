@@ -10,8 +10,8 @@ import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import { phoneError } from '../../utils/phone.js';
 import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember } from '../../api/team.js';
 
-const ROLE_LABEL = { admin: 'Super Admin', hr: 'HR' };
-const ROLE_TONE = { admin: 'green', hr: 'blue' };
+const ROLE_LABEL = { admin: 'Super Admin', hr: 'HR', accounts: 'Accounts', it: 'IT', office_admin: 'Office Administration' };
+const ROLE_TONE = { admin: 'green', hr: 'blue', accounts: 'amber', it: 'teal', office_admin: 'grey' };
 const INVITATION_TONE = { pending: 'amber', accepted: 'blue', active: 'green', expired: 'red', disabled: 'grey' };
 const INVITATION_LABEL = { pending: 'Pending', accepted: 'Accepted', active: 'Active', expired: 'Expired', disabled: 'Disabled' };
 const ACCOUNT_TONE = { ACTIVE: 'green', INVITED: 'amber', DISABLED: 'grey' };

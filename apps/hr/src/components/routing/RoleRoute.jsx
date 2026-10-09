@@ -1,10 +1,12 @@
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext.jsx';
-import { ROLES } from '../../constants/roles.js';
+import { HR_STAFF_ROLES } from '../../constants/roles.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../kit/Skeleton.jsx';
 
-/* Every real route in this app requires an hr/admin session. */
-export default function RoleRoute({ allow, children }) {
+/* `allow`: the roles permitted here, as an array — defaults to hr/admin
+   (every existing route keeps working unchanged). Accounts/IT/Office Admin
+   only reach routes that explicitly list them (e.g. /hr/tasks). */
+export default function RoleRoute({ allow = HR_STAFF_ROLES, children }) {
   const { configured, role, loading } = useAuth();
 
   if (!configured) {
@@ -17,9 +19,6 @@ export default function RoleRoute({ allow, children }) {
   if (loading) {
     return <SkeletonPage />;
   }
-  if (!role || ![ROLES.HR, ROLES.ADMIN].includes(role)) return <Navigate to="/" replace />;
-  // allow="admin": Super Admin only (e.g. Teams) — the team-* edge functions
-  // enforce the same rule server-side.
-  if (allow === 'admin' && role !== ROLES.ADMIN) return <Navigate to="/hr" replace />;
+  if (!role || !allow.includes(role)) return <Navigate to="/" replace />;
   return children;
 }

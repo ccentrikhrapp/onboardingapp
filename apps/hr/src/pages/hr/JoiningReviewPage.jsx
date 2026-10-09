@@ -6,6 +6,7 @@ import Tag from '../../components/kit/Tag.jsx';
 import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
+import { Modal } from '../../components/common/Modal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { getOnboardingCase, getEmployeeForCase } from '../../api/onboarding.js';
 import {
@@ -60,6 +61,7 @@ export default function JoiningReviewPage() {
   const [corrFor, setCorrFor] = useState(null);
   const [preview, setPreview] = useState(null);
   const [pdfs, setPdfs] = useState([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = async () => {
     try {
@@ -143,8 +145,19 @@ export default function JoiningReviewPage() {
     document.body.appendChild(link); link.click(); link.remove();
   };
 
+  // Section 1 of the onboarding workflow: an explicit review screen, with
+  // the details that matter, before this irreversible action runs — not a
+  // bare window.confirm().
+  const joiningConfirmFields = [
+    ['Name', caseRow?.candidate_name], ['Email', caseRow?.candidate_email], ['Phone', caseRow?.candidate_phone],
+    ['Designation', caseRow?.designation], ['Department', caseRow?.department],
+    ['Joining date', caseRow?.joining_date ? formatDate(caseRow.joining_date) : null], ['Location', caseRow?.location],
+  ];
+  const missingMandatory = ['Name', 'Designation', 'Department', 'Joining date']
+    .filter((label) => !joiningConfirmFields.find(([l]) => l === label)?.[1]);
+
   const approveAndDownload = async () => {
-    if (!window.confirm('Approve the joining documentation? This creates the employee ID and completes the joining form.')) return;
+    setConfirmOpen(false);
     const res = await run(() => approveDocumentation(pid));
     if (!res) return; // run() has already shown the error
     toast.success(`Approved. Employee ID ${res.employeeCode} created.`);
@@ -268,8 +281,8 @@ export default function JoiningReviewPage() {
         )}
 
         <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-          <Button icon="CheckCircle2" disabled={busy || !summary.ready || !submitted || openCorr.length > 0 || (!!profile.documents_approved_at && !!employee)} onClick={approveAndDownload}>
-            {profile.documents_approved_at && !employee ? 'Create employee ID and download joining forms' : 'Approve joining documentation'}
+          <Button icon="CheckCircle2" disabled={busy || !summary.ready || !submitted || openCorr.length > 0 || (!!profile.documents_approved_at && !!employee)} onClick={() => setConfirmOpen(true)}>
+            {profile.documents_approved_at && !employee ? 'Confirm Joining & Create Employee' : 'Approve joining documentation'}
           </Button>
           {!submitted && <span className="hr-cell-sub">The employee hasn't submitted the joining form yet.</span>}
           {submitted && openCorr.length > 0 && <span className="hr-cell-sub">Waiting for the employee to resubmit the corrected sections.</span>}
@@ -366,6 +379,32 @@ export default function JoiningReviewPage() {
       </Card>
 
       <DocumentPreviewModal open={!!preview} onClose={() => setPreview(null)} url={preview?.url} fileName={preview?.fileName} title={preview?.title} parts={[]} activePart={0} />
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm joining & create employee">
+        <p className="hr-cell-sub" style={{ marginBottom: 14 }}>
+          This creates the employee record and cannot be undone from here. Review the details below before confirming.
+        </p>
+        <div className="hr-info" style={{ marginBottom: missingMandatory.length ? 14 : 20 }}>
+          {joiningConfirmFields.map(([label, value]) => (
+            <div className="hr-info__item" key={label}>
+              <span className="hr-info__label">{label}</span>
+              <span className="hr-info__value">{value || '—'}</span>
+            </div>
+          ))}
+        </div>
+        {missingMandatory.length > 0 && (
+          <div className="hr-note hr-note--warn" style={{ marginBottom: 20 }}>
+            <Icon name="AlertTriangle" size={14} />
+            <span>Missing required information before you can confirm: {missingMandatory.join(', ')}. Add it to the candidate's record first.</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button icon="CheckCircle2" disabled={busy || missingMandatory.length > 0} onClick={approveAndDownload}>
+            {busy ? 'Creating…' : 'Confirm Joining & Create Employee'}
+          </Button>
+          <Button variant="ghost" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+        </div>
+      </Modal>
     </>
   );
 }

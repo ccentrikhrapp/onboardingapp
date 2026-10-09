@@ -18,6 +18,7 @@ import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { HR_FIELDS, SECTIONS, fieldError } from "../_shared/joiningSchema.ts";
 import { buildDocuments } from "../_shared/joiningDocs.ts";
 import { ensureEmployee } from "../_shared/employee.ts";
+import { initializeOnboarding } from "../_shared/onboardingWorkflow.ts";
 
 const SECTION_IDS = new Set(SECTIONS.map((s) => s.id));
 const DOC_ACTIONS = ["doc_approve", "doc_clarify", "doc_reject", "doc_mark_na", "doc_mark_applicable", "approve_documentation"];
@@ -133,6 +134,18 @@ Deno.serve(async (req) => {
       } catch (e) {
         return fail("EMPLOYEE_FAILED", (e as Error).message || "Could not create the employee record.", 500);
       }
+
+      // Checklist tasks + Super Admin / Accounts-IT / Joining-Arrangements
+      // notifications (Sections 1/3/4/5). Safe to call on every approval,
+      // including a retry of an already-approved one: onboarding_tasks'
+      // unique(employee_id, key) and sendStaffMail's idempotency key both
+      // make this a no-op the second time. Never allowed to fail the
+      // request or the already-created employee record — a notification
+      // failure is recorded (Section 9), not thrown.
+      afterResponse(
+        initializeOnboarding(svc, { employeeId: employee.id, onboardingCaseId: p.onboarding_case_id, actor: { id: me.id, label: actor, email: me.email } })
+          .catch((e) => console.error("onboarding init", String(e).slice(0, 300))),
+      );
 
       if (p.status !== "completed") {
         await svc.from("joining_profiles").update({ status: "completed", verified_at: p.verified_at ?? now, completed_at: now, decided_by: actor, decided_at: now }).eq("id", p.id);

@@ -8,9 +8,10 @@
 //
 // Body: { onboardingCaseId, joiningDate?, department?, designation? }
 
-import { fail, ok, preflight } from "../_shared/http.ts";
+import { afterResponse, fail, ok, preflight } from "../_shared/http.ts";
 import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { ensureEmployee } from "../_shared/employee.ts";
+import { initializeOnboarding } from "../_shared/onboardingWorkflow.ts";
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -55,6 +56,14 @@ Deno.serve(async (req) => {
     const { employee, syncedToRecruitment } = await ensureEmployee(svc, onboardingCase.id,
       { id: profile.id, label: profile.full_name ?? profile.email },
       { joiningDate: body.joiningDate, department: body.department, designation: body.designation });
+
+    // Same onboarding kickoff as the joining-form approval path — see that
+    // function's comment for why this is safe to call unconditionally.
+    afterResponse(
+      initializeOnboarding(svc, { employeeId: employee.id, onboardingCaseId: onboardingCase.id, actor: { id: profile.id, label: profile.full_name ?? profile.email, email: profile.email } })
+        .catch((e) => console.error("onboarding init", String(e).slice(0, 300))),
+    );
+
     return ok({ employee, syncedToRecruitment });
   } catch (e) {
     return fail("DB_ERROR", (e as Error).message || "Could not create the employee record.", 500);

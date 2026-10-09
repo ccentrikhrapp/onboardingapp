@@ -17,7 +17,7 @@ export async function ensureEmployee(svc: SupabaseClient, caseId: string, actor:
 
   const { data: c } = await svc
     .from("onboarding_cases")
-    .select("id, status, source_application_id, candidate_name, candidate_email, department, designation, joining_date")
+    .select("id, status, source_application_id, candidate_name, candidate_email, department, designation, joining_date, location")
     .eq("id", caseId)
     .maybeSingle();
   if (!c) throw new Error("Onboarding case not found.");
@@ -45,6 +45,9 @@ export async function ensureEmployee(svc: SupabaseClient, caseId: string, actor:
       department: overrides.department || c.department,
       designation,
       joining_date: overrides.joiningDate || c.joining_date,
+      office_location: c.location,
+      created_by: actor.id,
+      created_by_name: actor.label,
     })
     .select("*")
     .single();
