@@ -4,27 +4,41 @@ import Icon from '../common/Icon.jsx';
 import logo from '../../assets/ccentrik-logo.png';
 import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases } from '../../api/onboarding.js';
+import { listOnboardingTasks } from '../../api/onboardingTasks.js';
 import { useAuth } from '../../context/AuthContext.jsx';
 
 const ACTIVE_ONBOARDING = new Set(['onboarding_initiated', 'documents_pending', 'documents_submitted', 'verification_in_progress', 'formalities_pending']);
 
 export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
   const { role } = useAuth();
-  const [counts, setCounts] = useState({ verification: 0, onboarding: 0 });
+  const [counts, setCounts] = useState({ verification: 0, onboarding: 0, requests: 0 });
 
   const isHrStaff = role === 'admin' || role === 'hr';
+  const isSuperAdmin = role === 'admin';
 
   useEffect(() => {
     if (!isHrStaff) return;
     Promise.all([listVerifications(), listOnboardingCases()])
       .then(([verifications, cases]) => {
-        setCounts({
+        setCounts((c) => ({
+          ...c,
           verification: (verifications || []).filter((v) => ['pending', 'under_review'].includes(v.status)).length,
-          onboarding: (cases || []).filter((c) => ACTIVE_ONBOARDING.has(c.status)).length,
-        });
+          onboarding: (cases || []).filter((c2) => ACTIVE_ONBOARDING.has(c2.status)).length,
+        }));
       })
       .catch(() => {});
   }, [isHrStaff]);
+
+  // A Super Admin's own in-app signal that an organisational account
+  // request is waiting on them — email can fail to arrive (spam filters,
+  // a sender's connected account not set up yet), so this doesn't depend
+  // on it: it's a direct read of the same task row the email is about.
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    listOnboardingTasks()
+      .then((tasks) => setCounts((c) => ({ ...c, requests: (tasks || []).filter((t) => t.key === 'email_setup' && t.status === 'in_progress').length })))
+      .catch(() => {});
+  }, [isSuperAdmin]);
 
   // Accounts/IT/Office Admin only have their own assigned tasks and their
   // profile in this app — not the rest of the HR workflow.
@@ -33,8 +47,9 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
     { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
     { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
+    ...(isSuperAdmin ? [{ to: '/hr/tasks', label: 'Account requests', icon: 'Mail', count: counts.requests, end: true }] : []),
     { to: '/hr/activity', label: 'Activity', icon: 'History' },
-    ...(role === 'admin' ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
+    ...(isSuperAdmin ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
     { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
   ] : [
     { to: '/hr/tasks', label: 'My onboarding tasks', icon: 'ListChecks', end: true },

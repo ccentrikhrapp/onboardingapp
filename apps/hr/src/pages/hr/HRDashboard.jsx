@@ -10,6 +10,7 @@ import Icon from '../../components/common/Icon.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases, listEmployees } from '../../api/onboarding.js';
+import { listOnboardingTasks } from '../../api/onboardingTasks.js';
 import { statusMeta } from '../../constants/statuses.js';
 import { timeAgo } from '../../utils/format.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
@@ -19,8 +20,9 @@ const ACTIVE_ONBOARDING = new Set(['onboarding_initiated', 'documents_pending', 
 
 export default function HRDashboard() {
   const navigate = useNavigate();
-  const { profile } = useAuth();
+  const { profile, role } = useAuth();
   const [remote, setRemote] = useState({ loading: true, verifications: [], cases: [], employees: [] });
+  const [pendingRequests, setPendingRequests] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +33,19 @@ export default function HRDashboard() {
       .catch(() => !cancelled && setRemote({ loading: false, verifications: [], cases: [], employees: [] }));
     return () => { cancelled = true; };
   }, []);
+
+  // A Super Admin's own in-app signal that an organisational account
+  // request is waiting — doesn't depend on the request email actually
+  // arriving (spam filters, a sender's account not connected yet): it's a
+  // direct read of the same task row the email is about.
+  useEffect(() => {
+    if (role !== 'admin') return undefined;
+    let cancelled = false;
+    listOnboardingTasks()
+      .then((tasks) => !cancelled && setPendingRequests((tasks || []).filter((t) => t.key === 'email_setup' && t.status === 'in_progress').length))
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [role]);
 
   if (remote.loading) return <SkeletonPage />;
 
@@ -107,6 +122,13 @@ export default function HRDashboard() {
   return (
     <>
       <HRHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
+
+      {role === 'admin' && pendingRequests > 0 && (
+        <div className="hr-note hr-note--warn" style={{ justifyContent: 'space-between', marginBottom: 16, cursor: 'pointer' }} onClick={() => navigate('/hr/tasks')}>
+          <span><Icon name="Mail" size={14} /> {pendingRequests} organisational account creation request{pendingRequests > 1 ? 's' : ''} waiting on you</span>
+          <span className="hr-link">Review <Icon name="ChevronRight" size={13} /></span>
+        </div>
+      )}
 
       <div className="hr-kpi-row">
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}
