@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import Card from '../../components/ta/Card.jsx';
 import Tag from '../../components/ta/Tag.jsx';
@@ -18,18 +18,29 @@ const ACTIONS = [
   { value: 'reupload_required', label: 'Return for correction', needsRemark: true },
   { value: 'reject', label: 'Reject', needsRemark: true },
 ];
+const GROUPS = [
+  ['Identity proof', ['pan_card', 'aadhaar', 'passport']],
+  ['Education', ['tenth_cert', 'twelfth_cert', 'degree_marksheets']],
+  ['Address proof', ['address_proof', 'address_proof_permanent']],
+  ['Employment', ['prev_offer_letter', 'prev_appointment_letter', 'prev_relieving_letter', 'payslips_3m', 'increment_letter', 'employment_history']],
+  ['Other joining documents', ['passport_photos', 'cancelled_cheque', 'current_offer_letter', 'name_change_proof']],
+];
 const isImage = (name = '') => /\.(png|jpe?g|gif|webp)$/i.test(name);
 
-/* Full-page verification of ONE candidate document. The document gets most of
-   the screen; the decision panel sits beside it. Each action calls the same
-   verify-application-document endpoint the inline review uses — nothing new on
-   the backend, no change to statuses or permissions. */
+/* Dedicated, full-page document verification — the candidate's whole
+   checklist on the left (so TA can move through every document without
+   losing context or going back to the candidate page each time), a large
+   preview in the middle sized to the viewport, and the decision panel on
+   the right so it never competes with the document itself for space. Same
+   verify-application-document endpoint every path already used — no new
+   statuses, no new permissions, nothing on the backend changed. */
 export default function TADocumentVerifyPage() {
-  const { candidateId, documentId } = useParams(); // candidateId = application id (as on the candidate page)
+  const { candidateId, documentId } = useParams();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const toast = useToast();
   const [app, setApp] = useState(null);
-  const [doc, setDoc] = useState(null);
+  const [docs, setDocs] = useState([]);
   const [fileIdx, setFileIdx] = useState(0);
   const [url, setUrl] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,20 +48,34 @@ export default function TADocumentVerifyPage() {
   const [remarks, setRemarks] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
+  const [listOpen, setListOpen] = useState(false); // mobile: document list drawer
 
-  const load = async () => {
-    setLoading(true);
+  const load = async (keepFileIdx = false) => {
+    if (!keepFileIdx) setLoading(true);
     try {
-      const [a, docs] = await Promise.all([getApplication(candidateId), listApplicationDocuments(candidateId)]);
+      const [a, d] = await Promise.all([getApplication(candidateId), listApplicationDocuments(candidateId)]);
       setApp(a);
-      setDoc(docs.find((d) => d.id === documentId) || null);
+      setDocs(d || []);
     } catch (e) {
       toast.error(e.message || 'Could not load this document.');
     } finally { setLoading(false); }
   };
-  useEffect(() => { load(); /* eslint-disable-next-line */ }, [candidateId, documentId]);
+  useEffect(() => { load(); setFileIdx(0); /* eslint-disable-next-line */ }, [candidateId, documentId]);
 
+  const doc = docs.find((d) => d.id === documentId) || null;
+  const req = doc?.document_requirements || {};
+  const slots = doc ? requiredSlots(req) : [];
   const files = (doc?.document_files || []).filter((f) => f.is_current);
+
+  // Deep-link from the candidate page's "View" on a specific slot/file.
+  useEffect(() => {
+    const slot = searchParams.get('slot');
+    if (!slot || !files.length) return;
+    const i = files.findIndex((f) => f.slot === slot);
+    if (i >= 0) setFileIdx(i);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [documentId, files.length]);
+
   const current = files[fileIdx] || null;
   useEffect(() => {
     setUrl(null);
@@ -60,6 +85,17 @@ export default function TADocumentVerifyPage() {
   }, [current?.storage_path]);
 
   const back = () => navigate(`/ta/candidates/${candidateId}`);
+  const openDoc = (id) => { navigate(`/ta/candidates/${candidateId}/documents/${id}/verify`); setListOpen(false); };
+
+  const grouped = useMemo(() => {
+    const out = [];
+    for (const [title, keys] of GROUPS) {
+      const rows = docs.filter((d) => keys.includes(d.document_requirements?.key) && d.status !== 'not_applicable')
+        .sort((a, b) => (a.document_requirements?.display_order || 0) - (b.document_requirements?.display_order || 0));
+      if (rows.length) out.push([title, rows]);
+    }
+    return out;
+  }, [docs]);
 
   if (loading) return <div className="ta-page"><SkeletonPage /></div>;
   if (!doc) return (
@@ -69,9 +105,7 @@ export default function TADocumentVerifyPage() {
     </div>
   );
 
-  const req = doc.document_requirements || {};
   const meta = docStatusMeta(doc);
-  const slots = requiredSlots(req);
   const reviewable = ['uploaded', 'cannot_provide'].includes(doc.status);
   const chosen = ACTIONS.find((a) => a.value === action);
   const canSubmit = reviewable && !busy && (!chosen.needsRemark || remarks.trim().length > 0);
@@ -81,7 +115,7 @@ export default function TADocumentVerifyPage() {
     try {
       await reviewDocument(doc.id, action, chosen.needsRemark ? remarks.trim() : undefined);
       toast.success(action === 'approve' ? 'Approved — sent to HR for final sign-off.' : action === 'reject' ? 'Document rejected.' : 'Sent back to the candidate for correction.');
-      await load();
+      await load(true);
       setRemarks('');
     } catch (e) {
       setErr(e.message || 'Could not save that decision.');
@@ -90,17 +124,45 @@ export default function TADocumentVerifyPage() {
 
   return (
     <>
-      <TAHeader title="Document verification" subtitle={app ? `${app.candidateName || 'Candidate'} · ${app.code || ''}` : ''} />
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
-        <button className="ta-link" onClick={back}><Icon name="ArrowLeft" size={14} /> Back to candidate documents</button>
+      <TAHeader title="Document verification" subtitle={app ? `${app.candidateName || 'Candidate'} · ${app.code || ''}${app.jobTitle ? ` · ${app.jobTitle}` : ''}` : ''} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 12, flexWrap: 'wrap' }}>
+        <button className="ta-link" onClick={back}><Icon name="ArrowLeft" size={14} /> Back to candidate</button>
+        <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm tadv-listtoggle" onClick={() => setListOpen((v) => !v)}>
+          <Icon name="Files" size={14} /> Documents
+        </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: 14, alignItems: 'start' }} className="tadv-layout">
-        {/* viewer */}
+      <div className="tadv-layout">
+        {/* ---------- document list ---------- */}
+        <div className={`tadv-list${listOpen ? ' is-open' : ''}`}>
+          <Card title="Checklist" bodyStyle={{ padding: 10, maxHeight: '78vh', overflowY: 'auto' }}>
+            {grouped.map(([title, rows]) => (
+              <div key={title} style={{ marginBottom: 10 }}>
+                <div className="ta-cell-sub" style={{ fontWeight: 700, padding: '4px 6px', textTransform: 'uppercase', fontSize: 11, letterSpacing: '.03em' }}>{title}</div>
+                {rows.map((d) => {
+                  const m = docStatusMeta(d);
+                  const active = d.id === documentId;
+                  return (
+                    <button
+                      key={d.id} type="button" onClick={() => openDoc(d.id)}
+                      className={`tadv-docitem${active ? ' is-active' : ''}`}
+                    >
+                      <Icon name="FileText" size={14} />
+                      <span className="tadv-docitem__label">{d.document_requirements?.name}{d.employer_label ? ` — ${d.employer_label}` : ''}</span>
+                      <Tag tone={m.tone}>{m.label}</Tag>
+                    </button>
+                  );
+                })}
+              </div>
+            ))}
+          </Card>
+        </div>
+
+        {/* ---------- preview ---------- */}
         <Card
           title={req.name || 'Document'}
           action={files.length > 1 ? (
-            <div style={{ display: 'flex', gap: 6 }}>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {files.map((f, i) => (
                 <button key={f.id || i} type="button" className={`ta-btn ta-btn--sm${i === fileIdx ? '' : ' ta-btn--ghost'}`} onClick={() => setFileIdx(i)}>
                   {slots.length ? slotLabel(req, f.slot || slots[i]) : (f.file_name || `File ${i + 1}`)}
@@ -114,17 +176,17 @@ export default function TADocumentVerifyPage() {
           ) : !url ? (
             <div className="ta-cell-sub">Loading file…</div>
           ) : isImage(current.file_name) ? (
-            <div style={{ display: 'flex', justifyContent: 'center', background: 'var(--ta-bg-soft, #f6f7f9)', borderRadius: 10, padding: 8 }}>
-              <img src={url} alt={current.file_name || 'Document'} style={{ maxWidth: '100%', maxHeight: '74vh', objectFit: 'contain' }} />
+            <div className="tadv-preview">
+              <img src={url} alt={current.file_name || 'Document'} />
             </div>
           ) : (
-            <iframe src={url} title={current.file_name || 'Document'} style={{ width: '100%', height: '74vh', border: 0, borderRadius: 10, background: '#fff' }} />
+            <iframe className="tadv-preview-frame" src={url} title={current.file_name || 'Document'} />
           )}
-          {url && <div style={{ marginTop: 8 }}><a className="ta-link" href={url} target="_blank" rel="noopener noreferrer">Open in a new tab</a></div>}
+          {url && <div style={{ marginTop: 8 }}><a className="ta-link" href={url} target="_blank" rel="noopener noreferrer"><Icon name="ArrowRight" size={12} /> Open in a new tab</a></div>}
         </Card>
 
-        {/* decision panel */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* ---------- decision panel ---------- */}
+        <div className="tadv-side">
           <Card title="Candidate & document">
             <div className="ta-info">
               <div className="ta-info__item"><span className="ta-info__label">Candidate</span><span className="ta-info__value">{app?.candidateName || '—'}</span></div>
@@ -167,7 +229,7 @@ export default function TADocumentVerifyPage() {
           </Card>
         </div>
       </div>
-      <style>{`@media (max-width: 960px) { .tadv-layout { grid-template-columns: 1fr !important; } }`}</style>
+      {listOpen && <div className="overlay tadv-list-overlay" onClick={() => setListOpen(false)} />}
     </>
   );
 }

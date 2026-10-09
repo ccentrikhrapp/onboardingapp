@@ -12,12 +12,11 @@ import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewM
 import RescheduleInterviewModal from '../../components/workflow/RescheduleInterviewModal.jsx';
 import InterviewFeedbackModal from '../../components/workflow/InterviewFeedbackModal.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
-import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { Field, Input } from '../../components/ta/Field.jsx';
 import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi, resendTaCandidateVerification, assignApplications, deleteApplication } from '../../api/applications.js';
 import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation, rescheduleInterviewRound, freezeCandidate } from '../../api/interviews.js';
 import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offers.js';
-import { listApplicationDocuments, documentFileUrl } from '../../api/documents.js';
+import { listApplicationDocuments } from '../../api/documents.js';
 import { summarizeDocuments } from '../../utils/documentRules.js';
 import TADocumentReview from '../../components/ta/TADocumentReview.jsx';
 import { applicationFromDb } from '../../api/mappers.js';
@@ -249,7 +248,6 @@ export default function TACandidateDetailPage() {
   const [offer, setOffer] = useState(null);
   const [docs, setDocs] = useState([]);
   const [acceptingOffer, setAcceptingOffer] = useState(false);
-  const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
   const [assignedRole, setAssignedRole] = useState('');
   const [assignedRoleError, setAssignedRoleError] = useState('');
 
@@ -264,19 +262,13 @@ export default function TACandidateDetailPage() {
   useEffect(reloadDocs, [candidateId]);
 
   // `file` picks one part of a multi-file document (e.g. Aadhaar back side).
-  const viewDoc = async (d, file = null, part = '') => {
-    const files = d.document_files || [];
-    const current = file || files.find((f) => f.is_current) || files[files.length - 1];
-    if (!current) return;
-    const title = part ? `${d.document_requirements?.name} — ${part}` : d.document_requirements?.name;
-    setPreview({ url: null, fileName: current.file_name, title });
-    try {
-      const url = await documentFileUrl(current.storage_path);
-      setPreview({ url, fileName: current.file_name, title });
-    } catch (e) {
-      setPreview(null);
-      toast.error(e.message || 'Could not open this document.');
-    }
+  // Previously opened a small popup (DocumentPreviewModal, max-width 960px) —
+  // now goes straight to the dedicated full-page verification screen instead,
+  // landing on the specific file/slot that was clicked, same as "Verify" does
+  // but pre-selecting which part to show first.
+  const viewDoc = (d, file = null) => {
+    const slot = file?.slot;
+    navigate(`/ta/candidates/${candidateId}/documents/${d.id}/verify${slot ? `?slot=${encodeURIComponent(slot)}` : ''}`);
   };
 
   const reloadOffer = () => {
@@ -967,10 +959,6 @@ export default function TACandidateDetailPage() {
           />
         </Field>
       </Modal>
-      <DocumentPreviewModal
-        open={!!preview} onClose={() => setPreview(null)}
-        url={preview?.url} fileName={preview?.fileName} title={preview?.title}
-      />
     </>
   );
 }
