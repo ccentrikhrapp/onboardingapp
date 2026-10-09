@@ -1180,6 +1180,24 @@
 }
 .tadv-list-overlay { z-index: 105; }
 
+/* ---------- Premium parity for generic shared UI, scoped to the TA shell ----------
+   Modal/EmptyState/Skeleton/Toast come from the app's older, pre-redesign
+   index.css (shared with the public candidate pages, which this redesign
+   must not touch). Re-skinning them app-wide would change the candidate
+   portal too, so every rule here is scoped under .ta-shell (or, for the
+   toast — rendered at the app root, outside any page layout — under
+   .toast-container--ta, a class added only while on a /ta/* route) and
+   only touches radius/shadow/surface, never structure or behaviour. */
+.ta-shell .modal, .ta-shell .drawer {
+  border-radius: var(--ta-radius); box-shadow: var(--ta-shadow-hover); background: var(--ta-surface);
+}
+.ta-shell .modal__header, .ta-shell .drawer__header,
+.ta-shell .modal__footer, .ta-shell .drawer__footer { border-color: var(--ta-line); }
+.ta-shell .empty-state__icon { border-radius: 10px; background: var(--ta-blue-wash); color: var(--ta-blue); }
+.ta-shell .skeleton-card { border-color: var(--ta-line); border-radius: var(--ta-radius); }
+.ta-shell .icon-btn:hover { background: var(--ta-bg); color: var(--ta-text); }
+.toast-container--ta .toast { background: var(--ta-text); box-shadow: var(--ta-shadow-hover); border-radius: 10px; }
+
 .ta-round { border: 1px solid var(--ta-line); border-radius: 11px; padding: 12px; }
 .ta-round__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 3px; }
 
