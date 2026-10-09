@@ -8,7 +8,6 @@ import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import { Field, FieldGrid, Input, Select } from '../../components/ta/Field.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
-import CommonButton from '../../components/common/Button.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { taWorkloadCounts } from '../../api/staff.js';
 import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember, updateMemberDetails } from '../../api/team.js';
@@ -278,8 +277,8 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
         title="Edit Details"
         footer={
           <>
-            <CommonButton variant="secondary" onClick={() => setEditing(null)} disabled={saving}>Cancel</CommonButton>
-            <CommonButton onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</CommonButton>
+            <Button variant="ghost" onClick={() => setEditing(null)} disabled={saving}>Cancel</Button>
+            <Button onClick={saveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save Changes'}</Button>
           </>
         }
       >
@@ -322,8 +321,8 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
         title="Invite Team Member"
         footer={
           <>
-            <CommonButton variant="secondary" onClick={() => setInviteOpen(false)} disabled={inviting}>Cancel</CommonButton>
-            <CommonButton onClick={submitInvite} disabled={inviting}>{inviting ? 'Sending…' : 'Send Invitation'}</CommonButton>
+            <Button variant="ghost" onClick={() => setInviteOpen(false)} disabled={inviting}>Cancel</Button>
+            <Button onClick={submitInvite} disabled={inviting}>{inviting ? 'Sending…' : 'Send Invitation'}</Button>
           </>
         }
       >

@@ -6,7 +6,6 @@ import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
-import DangerButton from '../../components/common/Button.jsx';
 import ReasonModal from '../../components/workflow/ReasonModal.jsx';
 import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewModal.jsx';
 import RescheduleInterviewModal from '../../components/workflow/RescheduleInterviewModal.jsx';
@@ -941,7 +940,7 @@ export default function TACandidateDetailPage() {
         title="Mark offer as sent"
         footer={
           <>
-            <Button variant="secondary" onClick={() => { setModal(null); setAssignedRole(''); setAssignedRoleError(''); }}>Cancel</Button>
+            <Button variant="ghost" onClick={() => { setModal(null); setAssignedRole(''); setAssignedRoleError(''); }}>Cancel</Button>
             <Button onClick={doSendOffer} disabled={busy}>{busy ? 'Saving…' : 'Mark offer as sent'}</Button>
           </>
         }

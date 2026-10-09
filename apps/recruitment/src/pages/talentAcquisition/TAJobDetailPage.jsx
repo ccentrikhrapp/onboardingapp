@@ -6,7 +6,6 @@ import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
-import DangerButton from '../../components/common/Button.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -213,7 +212,7 @@ export default function TAJobDetailPage() {
       <div className="ta-page-actions">
         <Button icon="Users" onClick={() => navigate(`/ta/candidates?job=${encodeURIComponent(job.title)}`)}>View applicants</Button>
         {canManageJobs && (
-          <DangerButton variant="danger" icon="Trash2" onClick={removeJob}>Delete job</DangerButton>
+          <Button variant="danger" icon="Trash2" onClick={removeJob}>Delete job</Button>
         )}
       </div>
 

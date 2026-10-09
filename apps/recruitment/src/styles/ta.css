@@ -281,6 +281,13 @@
 }
 .ta-btn--ghost:hover { border-color: #dbe4fb; background-position: 45% 0; }
 .ta-btn--ghost:active { background-position: 0 0; }
+.ta-btn--danger {
+  color: #fff;
+  background-image: linear-gradient(115deg, var(--tag-red-fg) 0%, #e0655a 26%, var(--tag-red-fg) 52%, #a5291f 100%);
+  background-size: 260% 100%; background-position: 100% 0;
+}
+.ta-btn--danger:hover { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(192, 57, 47, 0.5); }
+.ta-btn--danger:active { background-position: 0 0; }
 
 /* ---------- Cards ---------- */
 .ta-card {
@@ -1197,6 +1204,53 @@
 .ta-shell .skeleton-card { border-color: var(--ta-line); border-radius: var(--ta-radius); }
 .ta-shell .icon-btn:hover { background: var(--ta-bg); color: var(--ta-text); }
 .toast-container--ta .toast { background: var(--ta-text); box-shadow: var(--ta-shadow-hover); border-radius: 10px; }
+/* The interview-scheduling dialogs (ScheduleInterviewModal, RescheduleInterviewModal,
+   InterviewFeedbackModal, ReasonModal, CreateJobDrawer) and the generic Modal's own
+   default footer buttons use components/common/Button.jsx — never migrated to the
+   premium ta/Button.jsx. Their fields already are (ta/Field.jsx), so only the
+   buttons need to catch up; same scoping rationale as above. */
+.ta-shell .btn {
+  border-radius: 10px; font-weight: 650;
+  transition: background-position 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s, border-color 0.15s, transform 0.08s;
+}
+.ta-shell .btn--primary, .ta-shell .btn--success {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(115deg, var(--ta-blue) 0%, #6b9bff 26%, var(--ta-blue) 52%, var(--ta-blue-ink) 100%);
+  background-size: 260% 100%; background-position: 100% 0;
+}
+.ta-shell .btn--primary:hover:not(:disabled), .ta-shell .btn--success:hover:not(:disabled) { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(59, 110, 245, 0.6); }
+.ta-shell .btn--secondary, .ta-shell .btn--ghost {
+  color: var(--ta-text); border-color: var(--ta-line); background: var(--ta-surface);
+}
+.ta-shell .btn--secondary:hover:not(:disabled), .ta-shell .btn--ghost:hover:not(:disabled) { border-color: #dbe4fb; background: var(--ta-blue-wash); }
+.ta-shell .btn--danger {
+  color: #fff; border-color: transparent;
+  background: linear-gradient(115deg, var(--tag-red-fg) 0%, #e0655a 26%, var(--tag-red-fg) 52%, #a5291f 100%);
+  background-size: 260% 100%; background-position: 100% 0;
+}
+.ta-shell .btn--danger:hover:not(:disabled) { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(192, 57, 47, 0.5); }
+
+/* ReasonModal and CreateJobDrawer use components/common/Field.jsx (built for
+   the candidate apply form's "extracted from resume" styling) instead of
+   ta/Field.jsx — same fix, scoped the same way, for its .input/.select/.textarea. */
+.ta-shell .field__label { color: var(--ta-text-soft); }
+.ta-shell .field__hint, .ta-shell .field__error { color: var(--ta-text-mute); }
+.ta-shell .field__error { color: var(--tag-red-fg); }
+.ta-shell .input, .ta-shell .select, .ta-shell .textarea {
+  border-radius: 10px; border-color: var(--ta-line); background: var(--ta-surface); color: var(--ta-text);
+}
+.ta-shell .input:focus, .ta-shell .select:focus, .ta-shell .textarea:focus {
+  border-color: var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash);
+}
+.ta-shell .input--error, .ta-shell .select--error, .ta-shell .textarea--error { border-color: var(--tag-red-fg); }
+.ta-shell .chips-input { border-radius: 10px; border-color: var(--ta-line); }
+.ta-shell .chips-input:focus-within { border-color: var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash); }
+.ta-shell .chip { background: var(--ta-blue-wash); color: var(--ta-blue-ink); border-radius: 999px; }
+/* CreateJobDrawer's form-grid is a fixed 2-column grid with no responsive
+   collapse (unlike ta-formgrid) — on a narrow drawer/viewport this is the
+   one place fields could crowd or overflow, so it gets the same auto-fit
+   behaviour here instead of a fixed column count. */
+.ta-shell .form-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 0 20px; }
 
 .ta-round { border: 1px solid var(--ta-line); border-radius: 11px; padding: 12px; }
 .ta-round__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 3px; }
