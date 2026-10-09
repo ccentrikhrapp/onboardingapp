@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { Fragment, Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import TAHeader from '../../components/ta/TAHeader.jsx';
@@ -18,6 +18,9 @@ import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offe
 import { listApplicationDocuments } from '../../api/documents.js';
 import { summarizeDocuments } from '../../utils/documentRules.js';
 import TADocumentReview from '../../components/ta/TADocumentReview.jsx';
+// docx-preview (~150KB) only needs to load once the TA actually opens this
+// tab — not on every candidate page view.
+const ResumeViewer = lazy(() => import('../../components/ta/ResumeViewer.jsx'));
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
@@ -522,6 +525,7 @@ export default function TACandidateDetailPage() {
                 ['contact', 'Contact', 'Mail'],
                 ['experience', 'Experience', 'Briefcase'],
                 ['skills', 'Skills & education', 'GraduationCap'],
+                ['resume', 'Full resume', 'FileText'],
               ].map(([k, label, icon]) => (
                 <button
                   key={k}
@@ -604,6 +608,12 @@ export default function TACandidateDetailPage() {
                   </div>
                 ))}
               </>
+            )}
+
+            {tab === 'resume' && (
+              <Suspense fallback={<div className="ta-cell-sub" style={{ padding: 16 }}>Loading resume…</div>}>
+                <ResumeViewer resumePath={app.resumePath} resumeMeta={app.resumeMeta} />
+              </Suspense>
             )}
           </Card>
 

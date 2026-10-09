@@ -47,3 +47,12 @@ export async function uploadResume(file, draftId, client = supabase) {
 export function parseResume(path, client = supabase) {
   return callFn('parse-resume', { body: { path } }, client);
 }
+
+/** Short-lived signed URL to the candidate's current resume file (TA: "staff
+    read" RLS policy on the resumes bucket; see 20260910094000_storage.sql —
+    no DB change needed to view it). `forDownload` sets Content-Disposition
+    so the browser saves the file instead of trying to navigate to it. */
+export function resumeUrl(resumePath, forDownload = false) {
+  const objectPath = resumePath.replace(/^resumes\//, '');
+  return signedUrl('resumes', objectPath, 300, supabase, forDownload ? { download: true } : {});
+}

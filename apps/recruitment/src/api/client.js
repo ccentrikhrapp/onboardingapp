@@ -66,9 +66,11 @@ async function callFnInner(name, { body, method = 'POST', query } = {}, client =
   return data?.data ?? data;
 }
 
-/** Short-lived signed URL for a private file. See `callFn` for what `client` means. */
-export async function signedUrl(bucket, path, expiresIn = 300, client = supabase) {
-  const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn);
+/** Short-lived signed URL for a private file. See `callFn` for what `client` means.
+    `options` is passed straight through to createSignedUrl — e.g. { download: true }
+    to force the browser to save the file instead of navigating to it. */
+export async function signedUrl(bucket, path, expiresIn = 300, client = supabase, options = {}) {
+  const { data, error } = await client.storage.from(bucket).createSignedUrl(path, expiresIn, options);
   if (error) throw new ApiError(error.message, 'STORAGE_ERROR');
   return data.signedUrl;
 }
