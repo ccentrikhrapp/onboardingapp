@@ -551,6 +551,13 @@ export default function TACandidateDetailPage() {
                 </div>
                 <dl className="ta-snapshot__list">
                   {[
+                    // Section 8 of the onboarding workflow: once HR converts
+                    // this candidate, the Employee ID and when it happened
+                    // must be visible here — not just in the HR app.
+                    app.additional?.employeeCode ? ['Employee ID', app.additional.employeeCode] : null,
+                    app.additional?.employeeCode
+                      ? ['Converted on', formatDate(app.events.find((e) => e.title === 'Employee ID Created')?.at)]
+                      : null,
                     ['Current role', pr.currentJobTitle ? `${pr.currentJobTitle}${pr.currentCompany ? ` @ ${pr.currentCompany}` : ''}` : null],
                     ['Experience', pr.totalExperience ? `${pr.totalExperience} yrs` : null],
                     // Notice period only makes sense for someone currently employed —
