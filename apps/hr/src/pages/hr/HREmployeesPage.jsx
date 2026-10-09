@@ -7,19 +7,20 @@ import DataGrid from '../../components/kit/DataGrid.jsx';
 import Toolbar from '../../components/kit/Toolbar.jsx';
 import Tag from '../../components/kit/Tag.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
-import { listEmployees, listOnboardingCases } from '../../api/onboarding.js';
+import { listOnboardingCases } from '../../api/onboarding.js';
+import { listEmployeesWithTasks } from '../../api/onboardingTasks.js';
 import { formatDate } from '../../utils/format.js';
-import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
+import { SkeletonPage } from '../../components/kit/Skeleton.jsx';
 
 const COLUMNS = [
   { key: 'full_name', label: 'Employee', sortable: true },
   { key: 'designation', label: 'Position', sortable: true },
   { key: 'department', label: 'Department', sortable: true },
   { key: 'joining_date', label: 'Joined', sortable: true },
+  { key: 'readiness', label: 'Joining readiness' },
   { key: 'actions', label: 'Actions' },
 ];
 
-/* Give each department a stable colour so the table scans by team at a glance. */
 const DEPT_TONES = ['blue', 'violet', 'teal', 'green', 'amber'];
 function deptTone(name = '') {
   let h = 0;
@@ -32,19 +33,40 @@ function daysUntil(dateStr) {
   return Math.round((new Date(dateStr) - Date.now()) / 86400000);
 }
 
+const resolved = (s) => s === 'completed' || s === 'not_required';
+const READINESS_META = {
+  employee_created: { label: 'Not started', tone: 'grey' },
+  awaiting_accounts_it: { label: 'Awaiting Accounts/IT', tone: 'amber' },
+  partially_completed: { label: 'In progress', tone: 'blue' },
+  completed: { label: 'Ready', tone: 'green' },
+  blocked: { label: 'Blocked', tone: 'red' },
+};
+function deriveReadiness(tasks) {
+  if (!tasks.length) return 'employee_created';
+  if (tasks.some((t) => t.status === 'blocked')) return 'blocked';
+  const required = tasks.filter((t) => t.required);
+  const isDone = (list) => list.length === 0 || list.every((t) => resolved(t.status));
+  const accountsItDone = isDone(required.filter((t) => t.category === 'accounts_it'));
+  const arrangementsDone = isDone(required.filter((t) => t.category === 'joining_arrangements'));
+  if (accountsItDone && arrangementsDone) return 'completed';
+  if (!accountsItDone && !arrangementsDone) return 'awaiting_accounts_it';
+  return 'partially_completed';
+}
+
 export default function HREmployeesPage() {
   const navigate = useNavigate();
   const [remote, setRemote] = useState({ loading: true, employees: [], cases: [] });
 
   useEffect(() => {
     let cancelled = false;
-    Promise.all([listEmployees(), listOnboardingCases()])
+    Promise.all([listEmployeesWithTasks(), listOnboardingCases()])
       .then(([employees, cases]) => !cancelled && setRemote({ loading: false, employees: employees || [], cases: cases || [] }))
       .catch(() => !cancelled && setRemote({ loading: false, employees: [], cases: [] }));
     return () => { cancelled = true; };
   }, []);
 
-  const { employees, cases } = remote;
+  const employees = useMemo(() => remote.employees.map((e) => ({ ...e, readiness: deriveReadiness(e.onboarding_tasks || []) })), [remote.employees]);
+  const { cases } = remote;
   const joiningPending = useMemo(
     () => cases.filter((c) => ['ready_for_joining', 'joining_confirmed'].includes(c.status)),
     [cases]
@@ -57,8 +79,8 @@ export default function HREmployeesPage() {
       return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
     }).length;
   }, [employees]);
-  const departmentCount = useMemo(
-    () => new Set(employees.map((e) => e.department).filter(Boolean)).size,
+  const missingDetails = useMemo(
+    () => employees.filter((e) => !e.joining_date || !e.department || !e.designation || !e.phone || !e.blood_group).length,
     [employees]
   );
 
@@ -73,20 +95,23 @@ export default function HREmployeesPage() {
 
   const [dept, setDept] = useState('all');
   const [position, setPosition] = useState('all');
+  const [readiness, setReadiness] = useState('all');
 
   const applyDept = (v) => { setDept(v); view.setFilter('department', v); };
   const applyPosition = (v) => { setPosition(v); view.setFilter('designation', v); };
+  const applyReadiness = (v) => { setReadiness(v); view.setFilter('readiness', v); };
 
   const chips = [
     dept !== 'all' && { key: 'dept', label: dept, onRemove: () => applyDept('all') },
     position !== 'all' && { key: 'position', label: position, onRemove: () => applyPosition('all') },
+    readiness !== 'all' && { key: 'readiness', label: READINESS_META[readiness]?.label || readiness, onRemove: () => applyReadiness('all') },
   ].filter(Boolean);
 
   const kpis = [
     { icon: 'UserRoundCheck', accent: 'green', label: 'Onboarded', value: employees.length },
     { icon: 'CalendarClock', accent: 'amber', label: 'Joining soon', value: joiningPending.length },
     { icon: 'CalendarPlus', accent: 'blue', label: 'Joined this month', value: joinedThisMonth },
-    { icon: 'Building2', accent: 'violet', label: 'Departments', value: departmentCount },
+    { icon: 'AlertTriangle', accent: 'red', label: 'Missing joining details', value: missingDetails },
   ];
 
   if (remote.loading) return <SkeletonPage />;
@@ -118,9 +143,10 @@ export default function HREmployeesPage() {
         filters={[
           { label: 'Department', value: dept, onChange: applyDept, options: departments.map((d) => ({ value: d, label: d })) },
           { label: 'Position', value: position, onChange: applyPosition, options: positions.map((p) => ({ value: p, label: p })) },
+          { label: 'Readiness', value: readiness, onChange: applyReadiness, options: Object.entries(READINESS_META).map(([v, m]) => ({ value: v, label: m.label })) },
         ]}
         chips={chips}
-        onClearAll={chips.length > 0 ? () => { applyDept('all'); applyPosition('all'); } : undefined}
+        onClearAll={chips.length > 0 ? () => { applyDept('all'); applyPosition('all'); applyReadiness('all'); } : undefined}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
@@ -132,7 +158,7 @@ export default function HREmployeesPage() {
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
         empty={{ icon: 'UserRoundCheck', title: 'No employees onboarded yet', message: 'Employees appear here once joining is confirmed from a candidate’s page.' }}
         renderRow={(e) => (
-          <tr key={e.id} onClick={() => e.onboarding_case_id && navigate(`/hr/candidates/${e.onboarding_case_id}`)} style={{ cursor: e.onboarding_case_id ? 'pointer' : 'default' }}>
+          <tr key={e.id} onClick={() => navigate(`/hr/employees/${e.id}`)} style={{ cursor: 'pointer' }}>
             <td>
               <span className="hr-cell-strong">{e.full_name}</span><br />
               <span className="hr-cell-sub">{e.employee_code}</span>
@@ -140,15 +166,8 @@ export default function HREmployeesPage() {
             <td className="hr-cell-strong">{e.designation || '—'}</td>
             <td>{e.department ? <Tag tone={deptTone(e.department)}>{e.department}</Tag> : <span className="hr-cell-mute">—</span>}</td>
             <td className="hr-cell-mute"><Icon name="CalendarCheck" size={13} /> {formatDate(e.joining_date)}</td>
-            <td>
-              {e.onboarding_case_id && (
-                <span onClick={(ev) => ev.stopPropagation()}>
-                  <button className="hr-iconbtn" onClick={() => navigate(`/hr/candidates/${e.onboarding_case_id}`)} aria-label="Open profile">
-                    <Icon name="ChevronRight" size={17} />
-                  </button>
-                </span>
-              )}
-            </td>
+            <td><Tag tone={READINESS_META[e.readiness].tone}>{READINESS_META[e.readiness].label}</Tag></td>
+            <td><Icon name="ChevronRight" size={17} /></td>
           </tr>
         )}
       />

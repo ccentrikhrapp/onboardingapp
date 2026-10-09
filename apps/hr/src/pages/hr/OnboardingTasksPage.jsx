@@ -16,6 +16,7 @@ const STATUS_META = {
   in_progress: { label: 'In progress', tone: 'blue' },
   blocked: { label: 'Blocked', tone: 'red' },
   completed: { label: 'Completed', tone: 'green' },
+  not_required: { label: 'Not required', tone: 'grey' },
 };
 const CATEGORY_LABEL = { accounts_it: 'Accounts & IT', joining_arrangements: 'Joining arrangements' };
 const STATUS_OPTIONS = Object.entries(STATUS_META);

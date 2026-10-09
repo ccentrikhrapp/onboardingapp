@@ -13,7 +13,7 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 
-const STATUSES = ["not_started", "in_progress", "blocked", "completed"];
+const STATUSES = ["not_started", "in_progress", "blocked", "completed", "not_required"];
 const HR_STAFF = ["admin", "hr"];
 
 Deno.serve(async (req) => {

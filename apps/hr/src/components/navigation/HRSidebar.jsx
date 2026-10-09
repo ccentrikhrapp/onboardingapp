@@ -33,7 +33,6 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
     { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
     { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
-    { to: '/hr/employee-onboarding', label: 'Employee onboarding', icon: 'ListChecks' },
     { to: '/hr/activity', label: 'Activity', icon: 'History' },
     ...(role === 'admin' ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
     { to: '/hr/settings', label: 'Settings', icon: 'Settings' },

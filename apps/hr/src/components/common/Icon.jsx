@@ -7,7 +7,7 @@ import {
   ClipboardCheck, UserPlus, ArrowRightLeft, FileCheck2, CalendarCheck2,
   AlertTriangle, CalendarCheck, Menu, Rocket, Activity, CalendarClock, CalendarPlus, FileSearch, History,
   ShieldCheck, UserCheck, Trash2,
-  Printer, Info, ListChecks, Pencil,
+  Printer, Info, ListChecks, Pencil, CreditCard, Laptop,
 } from 'lucide-react';
 
 const REGISTRY = {
@@ -19,7 +19,7 @@ const REGISTRY = {
   Send, Building2, GraduationCap, RefreshCw, Home, AlertCircle, Inbox, ClipboardList,
   ClipboardCheck, UserPlus, ArrowRightLeft, FileCheck2, CalendarCheck2,
   AlertTriangle, CalendarCheck, Menu, Rocket, Activity, CalendarClock, CalendarPlus, FileSearch, History,
-  ShieldCheck, UserCheck, Trash2, ListChecks, Pencil,
+  ShieldCheck, UserCheck, Trash2, ListChecks, Pencil, CreditCard, Laptop,
 };
 
 /**

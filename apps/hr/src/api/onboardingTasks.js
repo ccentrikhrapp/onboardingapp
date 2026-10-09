@@ -38,11 +38,49 @@ export function listOnboardingEvents(employeeId) {
     .then(unwrap);
 }
 
-/** Every employee + its tasks, for the HR Onboarding dashboard. */
+/** Every employee + its tasks, for the Employees list page's readiness
+    columns and summary cards. */
 export function listEmployeesWithTasks() {
   return supabase
     .from('employees')
     .select('*, onboarding_tasks(id, category, status, required)')
     .order('created_at', { ascending: false })
     .then(unwrap);
+}
+
+/** Active Super Admins for the searchable selector — a dedicated endpoint
+    (not a direct table read) since it returns phone numbers. */
+export function listSuperAdmins() {
+  return callFn('list-super-admins', { body: {} }).then((r) => r.admins);
+}
+
+/** Sends the organisational-account-creation request to the Super Admin(s)
+    HR picked. `resend: true` bypasses the duplicate-notification guard for
+    an intentional resend. */
+export function notifySuperAdmins(employeeId, adminIds, resend = false) {
+  return callFn('notify-super-admin', { body: { employeeId, adminIds, resend } });
+}
+
+/** Completes/updates joining details on an EXISTING employee record — never
+    recreates it. */
+export function updateEmployeeDetails(employeeId, patch) {
+  return callFn('update-employee-details', { body: { employeeId, ...patch } });
+}
+
+/** Uploads an employee's photo to the private employee-photos bucket and
+    returns the storage path to save via updateEmployeeDetails. */
+export async function uploadEmployeePhoto(employeeId, file) {
+  const ext = (file.name.split('.').pop() || 'jpg').toLowerCase();
+  const path = `${employeeId}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from('employee-photos').upload(path, file, { upsert: true, contentType: file.type || undefined });
+  if (error) throw new Error('Could not upload the photo. Please try again.');
+  return path;
+}
+
+/** Short-lived signed URL for an employee's photo. */
+export async function getEmployeePhotoUrl(photoPath) {
+  if (!photoPath) return null;
+  const { data, error } = await supabase.storage.from('employee-photos').createSignedUrl(photoPath, 300);
+  if (error) return null;
+  return data.signedUrl;
 }
