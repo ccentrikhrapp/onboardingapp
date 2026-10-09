@@ -6,7 +6,7 @@ import EmptyState from '../../components/ta/EmptyState.jsx';
 import { useCandidateAuth } from '../../context/CandidateAuthContext.jsx';
 import { listMyApplications } from '../../api/applications.js';
 import { applicationFromDb } from '../../api/mappers.js';
-import { initialsOf, formatCurrencyINR } from '../../utils/format.js';
+import { initialsOf, formatDate } from '../../utils/format.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 function Info({ label, value }) {
@@ -74,8 +74,9 @@ export default function CandidateProfilePage() {
           <Info label="Phone" value={p.mobile} />
           <Info label="Current location" value={p.currentLocation} />
           <Info label="Total experience" value={pr.totalExperience ? `${pr.totalExperience} years` : '—'} />
+          <Info label="Relevant experience" value={pr.relevantExperience ? `${pr.relevantExperience} years` : '—'} />
           <Info label="Notice period" value={pr.noticePeriod} />
-          <Info label="Expected salary" value={formatCurrencyINR(pr.expectedCTC)} />
+          <Info label="Last working day" value={pr.lastWorkingDay ? formatDate(pr.lastWorkingDay) : '—'} />
         </div>
       </Card>
 

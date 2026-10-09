@@ -21,7 +21,7 @@ import { getOffer } from '../../api/offers.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { initialsOf, formatDate } from '../../utils/format.js';
 import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
-import { nameError, emailError, phoneError, locationError, urlError, numberError } from '../../utils/validation.js';
+import { nameError, emailError, phoneError, locationError, urlError, numberError, notPastDateError } from '../../utils/validation.js';
 import { NOTICE_OPTIONS } from '../../utils/candidateForm.js';
 import { summarizeDocuments } from '../../utils/documentRules.js';
 import PreOfferDocuments from '../../components/candidate/PreOfferDocuments.jsx';
@@ -111,11 +111,12 @@ function formFromApp(app) {
     experience: app.professional.totalExperience
       ? (EXP_OPTIONS.find((o) => expToNumber(o) === String(app.professional.totalExperience)) || '')
       : '',
+    relevantExperience: app.professional.relevantExperience || '',
     currentCompany: app.professional.currentCompany || '', currentJobTitle: app.professional.currentJobTitle || '',
     portfolio: app.additional.portfolio || '',
     highestQualification: app.education?.[0]?.qualification || '',
     noticePeriod: app.professional.noticePeriod || '',
-    expectedSalary: app.professional.expectedCTC || '',
+    lastWorkingDay: app.professional.lastWorkingDay || '',
   };
 }
 
@@ -381,7 +382,8 @@ export default function MyApplicationPage() {
   const validateVerify = (f) => {
     const e = validateForm(f);
     if (Number(expToNumber(f.experience)) > 0 && !f.noticePeriod) e.noticePeriod = 'Notice period is required.';
-    const sal = numberError(f.expectedSalary, { required: false, label: 'expected salary', min: 0 }); if (sal) e.expectedSalary = sal;
+    const rel = numberError(f.relevantExperience, { required: false, label: 'relevant experience', min: 0, max: 60 }); if (rel) e.relevantExperience = rel;
+    const lwd = notPastDateError(f.lastWorkingDay, { required: false, label: 'last working day' }); if (lwd) e.lastWorkingDay = lwd;
     return e;
   };
 
@@ -420,7 +422,7 @@ export default function MyApplicationPage() {
     try {
       await verifyTaCandidate(app.id, {
         personal: { ...app.personal, firstName: form.firstName, lastName: form.lastName, email: form.email, mobile: form.phone, currentLocation: form.currentLocation },
-        professional: { ...app.professional, totalExperience: expToNumber(form.experience), currentCompany: form.currentCompany, currentJobTitle: form.currentJobTitle, noticePeriod: form.noticePeriod, expectedCTC: form.expectedSalary },
+        professional: { ...app.professional, totalExperience: expToNumber(form.experience), relevantExperience: form.relevantExperience, currentCompany: form.currentCompany, currentJobTitle: form.currentJobTitle, noticePeriod: form.noticePeriod, lastWorkingDay: form.lastWorkingDay },
         education: [{ ...(app.education?.[0] || {}), qualification: form.highestQualification }],
         additional: { ...app.additional, portfolio: form.portfolio },
       });
@@ -468,6 +470,9 @@ export default function MyApplicationPage() {
             <Field label="Total experience" required error={formErrors.experience}>
               <Select value={form.experience} error={formErrors.experience} placeholder="Select" options={EXP_OPTIONS} onChange={(e) => setForm((f) => ({ ...f, experience: e.target.value }))} />
             </Field>
+            <Field label="Relevant experience (years)" hint="Optional" error={formErrors.relevantExperience}>
+              <Input type="number" min="0" value={form.relevantExperience} error={formErrors.relevantExperience} onChange={(e) => setForm((f) => ({ ...f, relevantExperience: e.target.value }))} />
+            </Field>
             <Field label="Current company">
               <Input value={form.currentCompany} onChange={(e) => setForm((f) => ({ ...f, currentCompany: e.target.value }))} />
             </Field>
@@ -480,8 +485,8 @@ export default function MyApplicationPage() {
             <Field label="Notice period" required={Number(expToNumber(form.experience)) > 0} error={formErrors.noticePeriod}>
               <Select value={form.noticePeriod} error={formErrors.noticePeriod} placeholder="Select" options={NOTICE_OPTIONS} onChange={(e) => setForm((f) => ({ ...f, noticePeriod: e.target.value }))} />
             </Field>
-            <Field label="Expected salary (₹ / year)" hint="Optional" error={formErrors.expectedSalary} full>
-              <Input type="number" min="0" value={form.expectedSalary} error={formErrors.expectedSalary} onChange={(e) => setForm((f) => ({ ...f, expectedSalary: e.target.value }))} />
+            <Field label="Last working day" hint="Optional — if you already know it" error={formErrors.lastWorkingDay}>
+              <Input type="date" value={form.lastWorkingDay} error={formErrors.lastWorkingDay} onChange={(e) => setForm((f) => ({ ...f, lastWorkingDay: e.target.value }))} />
             </Field>
             <Field label="Portfolio / LinkedIn URL" hint="Optional" error={formErrors.portfolio} full>
               <Input value={form.portfolio} error={formErrors.portfolio} placeholder="https://" onChange={(e) => setForm((f) => ({ ...f, portfolio: e.target.value }))} />

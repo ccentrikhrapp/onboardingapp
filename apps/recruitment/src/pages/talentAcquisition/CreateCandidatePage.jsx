@@ -21,8 +21,8 @@ const SOURCES = ['TA Sourced', 'Referral', 'Agency', 'Internal Referral', 'Other
 function blank() {
   return {
     candidateSource: 'TA Sourced', jobId: '',
-    firstName: '', lastName: '', email: '', phone: '', currentLocation: '', experience: '',
-    currentCompany: '', currentJobTitle: '', highestQualification: '', noticePeriod: '', expectedSalary: '',
+    firstName: '', lastName: '', email: '', phone: '', currentLocation: '', experience: '', relevantExperience: '',
+    currentCompany: '', currentJobTitle: '', highestQualification: '', noticePeriod: '', lastWorkingDay: '',
     coverNote: '', portfolio: '', source: '',
     resume: null, resumePath: null, skills: [], autofilled: [],
   };
@@ -275,6 +275,13 @@ export default function CreateCandidatePage() {
             <Field label="Total experience" required error={errors.experience} extracted={isAuto('experience')}>
               <Select value={form.experience} error={errors.experience} placeholder="Select" options={EXP_OPTIONS} onChange={(e) => setAndValidate('experience', e.target.value)} />
             </Field>
+            <Field label="Relevant experience (years)" hint="Optional" error={errors.relevantExperience}>
+              <Input
+                type="number" min="0" value={form.relevantExperience} error={errors.relevantExperience}
+                onChange={(e) => setAndValidate('relevantExperience', e.target.value)}
+                onBlur={(e) => validateField('relevantExperience', e.target.value)}
+              />
+            </Field>
           </FieldGrid>
         </Card>
       </div>
@@ -298,11 +305,11 @@ export default function CreateCandidatePage() {
             <Field label="Notice period" required={isRequired('noticePeriod')} error={errors.noticePeriod}>
               <Select value={form.noticePeriod} error={errors.noticePeriod} placeholder="Select" options={NOTICE_OPTIONS} onChange={(e) => setAndValidate('noticePeriod', e.target.value)} />
             </Field>
-            <Field label="Expected salary (₹ / year)" hint="Optional" full error={errors.expectedSalary}>
+            <Field label="Last working day" hint="Optional — if you already know it" error={errors.lastWorkingDay}>
               <Input
-                type="number" min="0" value={form.expectedSalary} error={errors.expectedSalary}
-                onChange={(e) => setAndValidate('expectedSalary', e.target.value)}
-                onBlur={(e) => validateField('expectedSalary', e.target.value)}
+                type="date" value={form.lastWorkingDay} error={errors.lastWorkingDay}
+                onChange={(e) => setAndValidate('lastWorkingDay', e.target.value)}
+                onBlur={(e) => validateField('lastWorkingDay', e.target.value)}
               />
             </Field>
           </FieldGrid>

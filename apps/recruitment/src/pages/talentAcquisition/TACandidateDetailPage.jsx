@@ -30,7 +30,7 @@ import {
   stageIndexForStatus,
   stageBadgeForStatus,
 } from '../../constants/statuses.js';
-import { formatDate, formatCurrencyINR } from '../../utils/format.js';
+import { formatDate } from '../../utils/format.js';
 
 const IN_INTERVIEW = [
   APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS,
@@ -556,7 +556,7 @@ export default function TACandidateDetailPage() {
                     // Notice period only makes sense for someone currently employed —
                     // never shown here for a fresher (0 years experience).
                     Number(pr.totalExperience) > 0 ? ['Notice period', pr.noticePeriod || 'Not specified'] : null,
-                    ['Expected CTC', pr.expectedCTC ? formatCurrencyINR(pr.expectedCTC) : null],
+                    ['Last working day', pr.lastWorkingDay ? formatDate(pr.lastWorkingDay) : null],
                     ['Location', p.currentLocation ? `${p.currentLocation}${p.preferredLocation && p.preferredLocation !== p.currentLocation ? ` → ${p.preferredLocation}` : ''}` : null],
                     ['Application', app.isGeneral ? 'General' : 'Specific vacancy'],
                     ['Source', app.source || null],
@@ -590,7 +590,7 @@ export default function TACandidateDetailPage() {
                 <Info label="Total experience" value={pr.totalExperience ? `${pr.totalExperience} years` : '—'} />
                 <Info label="Relevant experience" value={pr.relevantExperience ? `${pr.relevantExperience} years` : '—'} />
                 <Info label="Notice period" value={pr.noticePeriod} />
-                <Info label="Expected CTC" value={formatCurrencyINR(pr.expectedCTC)} />
+                <Info label="Last working day" value={pr.lastWorkingDay ? formatDate(pr.lastWorkingDay) : '—'} />
               </div>
             )}
 

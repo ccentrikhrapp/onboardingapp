@@ -1,5 +1,5 @@
 import { uid } from './ids.js';
-import { nameError, emailError, phoneError, locationError, urlError, numberError } from './validation.js';
+import { nameError, emailError, phoneError, locationError, urlError, numberError, notPastDateError } from './validation.js';
 
 /* The candidate application form's fields, options, validation and mapping —
    shared by the Job Portal form (ApplyPage) and the TA "Add Candidate" form so
@@ -36,7 +36,8 @@ export const FIELD_VALIDATORS = {
   phone: (v, req) => phoneError(v, { required: req }),
   currentLocation: (v, req) => locationError(v, { required: req, label: 'current location' }),
   portfolio: (v) => urlError(v, { required: false, label: 'portfolio/LinkedIn URL' }),
-  expectedSalary: (v) => numberError(v, { required: false, label: 'expected salary', min: 0 }),
+  relevantExperience: (v) => numberError(v, { required: false, label: 'relevant experience', min: 0, max: 60 }),
+  lastWorkingDay: (v) => notPastDateError(v, { required: false, label: 'last working day' }),
 };
 
 // Notice period only makes sense for someone leaving a current job — a fresher
@@ -96,9 +97,9 @@ export function formToApplicationBlocks(form) {
     },
     professional: {
       currentJobTitle: form.currentJobTitle, currentCompany: form.currentCompany,
-      totalExperience: expToNumber(form.experience), relevantExperience: '',
+      totalExperience: expToNumber(form.experience), relevantExperience: form.relevantExperience || '',
       employmentStatus: form.currentCompany ? 'Employed' : '', currentCTC: '',
-      expectedCTC: form.expectedSalary, noticePeriod: form.noticePeriod,
+      expectedCTC: '', noticePeriod: form.noticePeriod, lastWorkingDay: form.lastWorkingDay || '',
       preferredJobLocation: form.currentLocation,
       skills: form.skills, certifications: [], languages: [],
     },

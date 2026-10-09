@@ -12,15 +12,15 @@ import { validateFormFields } from '../../utils/candidateForm.js';
 import { emailError, phoneError } from '../../utils/validation.js';
 
 const TEMPLATE_HEADERS = [
-  'First Name', 'Last Name', 'Email', 'Phone', 'Current Location', 'Experience (Years)',
-  'Notice Period', 'Current Company', 'Current Job Title', 'Highest Qualification',
-  'Expected Salary', 'Portfolio/LinkedIn URL', 'Job Title',
+  'First Name', 'Last Name', 'Email', 'Phone', 'Current Location', 'Experience (Years)', 'Relevant Experience (Years)',
+  'Notice Period', 'Last Working Day', 'Current Company', 'Current Job Title', 'Highest Qualification',
+  'Portfolio/LinkedIn URL', 'Job Title',
 ];
 const TEMPLATE_EXAMPLE = {
   'First Name': 'Asha', 'Last Name': 'Verma', 'Email': 'asha.verma@example.com', 'Phone': '9876543210',
-  'Current Location': 'Bengaluru', 'Experience (Years)': '3', 'Notice Period': '30 Days',
-  'Current Company': 'Acme Pvt Ltd', 'Current Job Title': 'Software Engineer',
-  'Highest Qualification': 'B.Tech', 'Expected Salary': '1200000',
+  'Current Location': 'Bengaluru', 'Experience (Years)': '3', 'Relevant Experience (Years)': '2', 'Notice Period': '30 Days',
+  'Last Working Day': '2026-11-15', 'Current Company': 'Acme Pvt Ltd', 'Current Job Title': 'Software Engineer',
+  'Highest Qualification': 'B.Tech',
   'Portfolio/LinkedIn URL': '', 'Job Title': '',
 };
 const MAX_ROWS = 500;
@@ -41,9 +41,10 @@ function rowToForm(r) {
     firstName: r['First Name'] || '', lastName: r['Last Name'] || '', email: r['Email'] || '',
     phone: r['Phone'] || '', currentLocation: r['Current Location'] || '',
     experience: expBucketFromYears(r['Experience (Years)']),
+    relevantExperience: r['Relevant Experience (Years)'] || '',
     noticePeriod: r['Notice Period'] || '', currentCompany: r['Current Company'] || '',
     currentJobTitle: r['Current Job Title'] || '', highestQualification: r['Highest Qualification'] || '',
-    expectedSalary: r['Expected Salary'] || '', portfolio: r['Portfolio/LinkedIn URL'] || '',
+    lastWorkingDay: r['Last Working Day'] || '', portfolio: r['Portfolio/LinkedIn URL'] || '',
     coverNote: '', source: '',
   };
 }
@@ -178,9 +179,9 @@ export default function BulkUploadCandidatesPage() {
           },
           professional: {
             currentJobTitle: f.currentJobTitle, currentCompany: f.currentCompany,
-            totalExperience: String(next[i].data['Experience (Years)'] || '0'), relevantExperience: '',
+            totalExperience: String(next[i].data['Experience (Years)'] || '0'), relevantExperience: f.relevantExperience || '',
             employmentStatus: f.currentCompany ? 'Employed' : '', currentCTC: '',
-            expectedCTC: f.expectedSalary, noticePeriod: f.noticePeriod, preferredJobLocation: f.currentLocation,
+            expectedCTC: '', noticePeriod: f.noticePeriod, lastWorkingDay: f.lastWorkingDay || '', preferredJobLocation: f.currentLocation,
             skills: [], certifications: [], languages: [],
           },
           education: [{ qualification: f.highestQualification, university: '', specialization: '', year: '', grade: '' }],
