@@ -326,20 +326,20 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
       )}
 
       {stage === 'form' && (
-        <div style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 10, padding: 18, display: 'flex', flexDirection: 'column', gap: 18, maxWidth: 680 }}>
-          <div className="hr-formgrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '18px 20px' }}>
+        <div style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 12, padding: '28px 32px', maxWidth: 960, margin: '0 auto' }}>
+          <div className="hr-formgrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '22px 28px', marginBottom: 26 }}>
             <FieldInput label="Name" value={fields.name} onChange={(v) => setFields((f) => ({ ...f, name: v }))} />
             <FieldInput label="Mobile number" value={fields.mobile} onChange={(v) => setFields((f) => ({ ...f, mobile: v }))} />
             <FieldInput label="Designation" value={fields.designation} onChange={(v) => setFields((f) => ({ ...f, designation: v }))} />
           </div>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5, fontWeight: 600, color: 'var(--hr-text-soft)' }}>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: 7, fontSize: 12.5, fontWeight: 600, color: 'var(--hr-text-soft)', marginBottom: 28 }}>
             Send to
-            <select className="hr-input" value={adminId} onChange={(e) => setAdminId(e.target.value)}>
+            <select className="hr-input" style={{ width: '100%', maxWidth: 420 }} value={adminId} onChange={(e) => setAdminId(e.target.value)}>
               <option value="">Select a Super Admin…</option>
               {admins.map((a) => <option key={a.id} value={a.id}>{a.name} — {a.email}</option>)}
             </select>
           </label>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 20, borderTop: '1px solid var(--hr-line, #eef0f3)' }}>
             <Button onClick={reviewAndSend}>Review &amp; send</Button>
             <Button variant="ghost" onClick={() => setStage('idle')}>Cancel</Button>
           </div>
@@ -365,9 +365,9 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
 
 function FieldInput({ label, value, onChange }) {
   return (
-    <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12.5, fontWeight: 600, color: 'var(--hr-text-soft)' }}>
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 7, fontSize: 12.5, fontWeight: 600, color: 'var(--hr-text-soft)' }}>
       {label}
-      <input className="hr-input" value={value} onChange={(e) => onChange(e.target.value)} />
+      <input className="hr-input" style={{ width: '100%' }} value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   );
 }
