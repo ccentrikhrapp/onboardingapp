@@ -8,6 +8,7 @@ import Tag from '../../components/kit/Tag.jsx';
 import EmptyState from '../../components/kit/EmptyState.jsx';
 import StepTitle from '../../components/kit/StepTitle.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
+import { Modal } from '../../components/common/Modal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { getOnboardingCase, createEmployee, activityForCase } from '../../api/onboarding.js';
 import {
@@ -71,6 +72,7 @@ export default function HRCandidateDetailPage() {
   const [showAllAct, setShowAllAct] = useState(false);
   const [step, setStep] = useState(null);
   const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const load = () => {
     getOnboardingCase(candidateId)
@@ -151,7 +153,18 @@ export default function HRCandidateDetailPage() {
     }
   };
 
+  // Section 1 of the onboarding workflow: review the details, and check the
+  // mandatory ones are actually there, before this irreversible action runs.
+  const joiningConfirmFields = [
+    ['Name', item?.candidate_name], ['Email', item?.candidate_email], ['Phone', item?.candidate_phone],
+    ['Designation', item?.designation], ['Department', item?.department],
+    ['Joining date', item?.joining_date ? formatDate(item.joining_date) : null], ['Location', item?.location],
+  ];
+  const missingMandatory = ['Name', 'Designation', 'Department', 'Joining date']
+    .filter((label) => !joiningConfirmFields.find(([l]) => l === label)?.[1]);
+
   const confirmJoining = async () => {
+    setConfirmOpen(false);
     setBusy(true);
     try {
       // create-employee (edge function) re-checks document verification
@@ -317,8 +330,8 @@ export default function HRCandidateDetailPage() {
                 ) : item.status === 'ready_for_joining' ? (
                   <>
                     <p className="hr-cell-sub" style={{ marginBottom: 12 }}>All required documents are verified. Confirm joining to create the employee record.</p>
-                    <Button icon="UserRoundCheck" disabled={busy} onClick={confirmJoining}>
-                      {busy ? 'Confirming…' : 'Confirm joining & create employee record'}
+                    <Button icon="UserRoundCheck" disabled={busy} onClick={() => setConfirmOpen(true)}>
+                      {busy ? 'Confirming…' : 'Confirm Joining & Create Employee'}
                     </Button>
                   </>
                 ) : (
@@ -380,6 +393,32 @@ export default function HRCandidateDetailPage() {
         open={!!preview} onClose={() => setPreview(null)}
         url={preview?.url} fileName={preview?.fileName} title={preview?.title}
       />
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Confirm joining & create employee">
+        <p className="hr-cell-sub" style={{ marginBottom: 14 }}>
+          This creates the employee record and cannot be undone from here. Review the details below before confirming.
+        </p>
+        <div className="hr-info" style={{ marginBottom: missingMandatory.length ? 14 : 20 }}>
+          {joiningConfirmFields.map(([label, value]) => (
+            <div className="hr-info__item" key={label}>
+              <span className="hr-info__label">{label}</span>
+              <span className="hr-info__value">{value || '—'}</span>
+            </div>
+          ))}
+        </div>
+        {missingMandatory.length > 0 && (
+          <div className="hr-note hr-note--warn" style={{ marginBottom: 20 }}>
+            <Icon name="AlertTriangle" size={14} />
+            <span>Missing required information before you can confirm: {missingMandatory.join(', ')}. Add it to the candidate's record first.</span>
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <Button icon="CheckCircle2" disabled={busy || missingMandatory.length > 0} onClick={confirmJoining}>
+            {busy ? 'Creating…' : 'Confirm Joining & Create Employee'}
+          </Button>
+          <Button variant="ghost" onClick={() => setConfirmOpen(false)}>Cancel</Button>
+        </div>
+      </Modal>
     </>
   );
 }
