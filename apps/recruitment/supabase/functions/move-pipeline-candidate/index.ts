@@ -92,7 +92,18 @@ Deno.serve(async (req) => {
     body: JSON.stringify({
       jobId: job.id,
       candidateSource: "TA Sourced",
-      skipResume: true,
+      // The pipeline candidate's own resume (pipeline_candidates.resume_path/
+      // resume_meta — same columns, uploaded the same way, see
+      // 20261005140000_pipeline_from_ta_create.sql) carries over to the new
+      // application; create-ta-candidate's existing "adopt the resume into
+      // the candidate's own folder" step (storage.move) handles it exactly
+      // like a directly-added TA candidate's resume. skipResume only applies
+      // when this pipeline candidate genuinely has none on file — previously
+      // this was unconditional, silently dropping an uploaded resume on
+      // every pipeline-to-job move.
+      resumePath: pc.resume_path || undefined,
+      resumeMeta: pc.resume_meta || undefined,
+      skipResume: !pc.resume_path,
       createdVia: "pipeline",
       duplicateAction: matchedIds.size ? "use_existing" : undefined,
       personal: {

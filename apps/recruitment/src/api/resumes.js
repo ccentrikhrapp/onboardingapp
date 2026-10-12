@@ -51,8 +51,11 @@ export function parseResume(path, client = supabase) {
 /** Short-lived signed URL to the candidate's current resume file (TA: "staff
     read" RLS policy on the resumes bucket; see 20260910094000_storage.sql —
     no DB change needed to view it). `forDownload` sets Content-Disposition
-    so the browser saves the file instead of trying to navigate to it. */
+    so the browser saves the file instead of trying to navigate to it.
+    15 minutes, not the usual 5 — long enough to actually read a resume
+    without the URL expiring mid-review (ResumeViewer fetches the file as a
+    blob up front specifically so this expiry only matters once, at open). */
 export function resumeUrl(resumePath, forDownload = false) {
   const objectPath = resumePath.replace(/^resumes\//, '');
-  return signedUrl('resumes', objectPath, 300, supabase, forDownload ? { download: true } : {});
+  return signedUrl('resumes', objectPath, 900, supabase, forDownload ? { download: true } : {});
 }
