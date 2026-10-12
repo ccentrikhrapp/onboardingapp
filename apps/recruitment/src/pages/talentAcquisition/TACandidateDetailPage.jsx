@@ -19,6 +19,7 @@ import { listApplicationDocuments } from '../../api/documents.js';
 import { summarizeDocuments } from '../../utils/documentRules.js';
 import TADocumentReview from '../../components/ta/TADocumentReview.jsx';
 import ResumeViewer from '../../components/ta/ResumeViewer.jsx';
+import { resumeUrl } from '../../api/resumes.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useApp } from '../../context/AppContext.jsx';
@@ -271,6 +272,22 @@ export default function TACandidateDetailPage() {
   const viewDoc = (d, file = null) => {
     const slot = file?.slot;
     navigate(`/ta/candidates/${candidateId}/documents/${d.id}/verify${slot ? `?slot=${encodeURIComponent(slot)}` : ''}`);
+  };
+
+  // Full Resume — opens straight in a new tab on the one click, instead of
+  // loading the file into this page first. window.open is called
+  // synchronously, inside the click itself, before the signed URL is even
+  // fetched: a blank tab opened later, once that async call resolves, gets
+  // blocked by the browser's popup blocker (it no longer looks like a
+  // direct result of the click) — opening blank now and redirecting it
+  // once the URL is ready keeps it inside that window.
+  const openResume = () => {
+    setTab('resume');
+    if (!app?.resumePath) return;
+    const win = window.open('', '_blank', 'noopener');
+    resumeUrl(app.resumePath)
+      .then((url) => { if (win) win.location.href = url; })
+      .catch(() => { win?.close(); toast.error('Could not open this resume.'); });
   };
 
   const reloadOffer = () => {
@@ -531,7 +548,7 @@ export default function TACandidateDetailPage() {
                   key={k}
                   type="button"
                   className={`ta-ptab${tab === k ? ' is-active' : ''}`}
-                  onClick={() => setTab(k)}
+                  onClick={() => (k === 'resume' ? openResume() : setTab(k))}
                 >
                   <Icon name={icon} size={15} /> {label}
                 </button>
