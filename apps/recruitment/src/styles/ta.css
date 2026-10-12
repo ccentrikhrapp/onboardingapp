@@ -1267,6 +1267,49 @@
   background: var(--ta-blue-wash); color: var(--ta-blue);
   display: flex; align-items: center; justify-content: center;
 }
+/* document review rows (TA pre-offer checklist) — a taller, wrap-friendly
+   variant that keeps the status pill and action line clustered at the end
+   of the row instead of crammed against the document title. */
+.ta-docrow--wide { flex-wrap: wrap; padding: 13px 14px; row-gap: 8px; }
+.ta-docrow__right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
+.ta-docrow__actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+
+/* compact summary tiles above the document checklist — same numbers as
+   before, just smaller so eight of them don't read as eight dashboard
+   cards. */
+.ta-docsum { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.ta-docsum__tile {
+  border: 1px solid var(--ta-line); border-radius: 10px; padding: 8px 10px;
+  min-height: 52px; display: flex; flex-direction: column; justify-content: center;
+}
+.ta-docsum__n { font-size: 17px; font-weight: 700; line-height: 1.2; }
+@media (max-width: 760px) { .ta-docsum { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* the row-level "⋯ More" menu — groups Reject / Mark not applicable out of
+   the main action line so Approve reads as the obviously primary action. */
+.ta-rowmenu { position: relative; display: inline-flex; }
+.ta-rowmenu__btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 28px; height: 28px; border-radius: 8px; border: 1px solid var(--ta-line);
+  background: var(--ta-surface); color: var(--ta-text-mute); cursor: pointer;
+  transition: border-color 0.14s ease, color 0.14s ease, background 0.14s ease;
+}
+.ta-rowmenu__btn:hover { border-color: #dbe4fb; color: var(--ta-text); background: var(--ta-blue-wash); }
+.ta-rowmenu__panel {
+  position: absolute; right: 0; top: calc(100% + 6px); min-width: 180px; z-index: 40;
+  background: var(--ta-surface); border: 1px solid var(--ta-line);
+  border-radius: var(--ta-radius-sm); box-shadow: var(--ta-shadow-hover);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.ta-rowmenu__item {
+  display: flex; align-items: center; gap: 9px; width: 100%;
+  padding: 7px 8px; border-radius: 7px; background: transparent; border: 0;
+  font-size: 12px; color: var(--ta-text); cursor: pointer; text-align: left;
+}
+.ta-rowmenu__item:hover { background: var(--ta-bg); }
+.ta-rowmenu__item svg { flex-shrink: 0; color: var(--ta-text-mute); }
+.ta-rowmenu__item.is-danger { color: var(--tag-red-fg); }
+.ta-rowmenu__item.is-danger svg { color: var(--tag-red-fg); }
 
 .ta-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 15px; }
 .ta-timeline li {
