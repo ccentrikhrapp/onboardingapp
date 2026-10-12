@@ -8,6 +8,16 @@ const DECISIONS = [
   { value: 'further_review', label: 'Further Review', icon: '•' },
   { value: 'not_progressing', label: 'Not Moving Forward', icon: '✕' },
 ];
+// The HR round is the last one — "Further Review" (hold for another round)
+// doesn't make sense once there's no round left to hold for, and it's what
+// got mistakenly picked instead of Advance last time. Just two options
+// here: move the candidate on to pre-offer documents, or reject them.
+// "Reject", not "Cancel", for the second one — the modal's own Cancel
+// button (closes without saving) already uses that word.
+const HR_ROUND_DECISIONS = [
+  { value: 'advance', label: 'Next Step', icon: '✓' },
+  { value: 'not_progressing', label: 'Reject', icon: '✕' },
+];
 
 /* Remarks are mandatory for every decision — the backend rejects an empty
    submission too, this is not just a frontend nicety (master prompt §41).
@@ -18,6 +28,7 @@ export default function InterviewFeedbackModal({ open, onClose, round, onSubmit,
   const [decision, setDecision] = useState('');
   const [remarks, setRemarks] = useState('');
   const [fieldErrors, setFieldErrors] = useState({});
+  const options = round?.is_hr_final ? HR_ROUND_DECISIONS : DECISIONS;
 
   const submit = () => {
     const fe = {};
@@ -42,7 +53,7 @@ export default function InterviewFeedbackModal({ open, onClose, round, onSubmit,
     >
       <Field label="Decision" required error={fieldErrors.decision}>
         <div className="ta-btnrow">
-          {DECISIONS.map((d) => (
+          {options.map((d) => (
             <button
               key={d.value}
               type="button"

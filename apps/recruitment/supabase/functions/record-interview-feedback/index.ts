@@ -107,6 +107,32 @@ Deno.serve(async (req) => {
         application_id: app.id, type: "interview", title: "All Required Rounds Cleared",
         description: "Ready to proceed to document verification.", actor_label: "System",
       });
+      // Advancing the HR round used to leave the application sitting at
+      // INTERVIEW_PASSED until the TA came back and clicked a separate
+      // "Proceed to document verification" button — now folded into this
+      // same action, through the existing application-decision function
+      // (same internal-call pattern move-pipeline-candidate uses for
+      // create-ta-candidate) rather than duplicating its pre-offer-document
+      // setup, event/audit logging and candidate email here.
+      const docRes = await fetch(`${Deno.env.get("SUPABASE_URL")}/functions/v1/application-decision`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: req.headers.get("Authorization") ?? "",
+          apikey: Deno.env.get("SUPABASE_ANON_KEY") ?? "",
+        },
+        body: JSON.stringify({ applicationId: app.id, action: "request_documents" }),
+      });
+      if (docRes.ok) {
+        const docData = await docRes.json().catch(() => ({}));
+        newAppStatus = docData?.data?.status ?? newAppStatus;
+      } else {
+        // Non-fatal: the HR round is already recorded and the candidate
+        // already cleared — worst case the TA still sees the old manual
+        // "Proceed to document verification" button on the page and can
+        // click it themselves, nothing is lost.
+        console.error("record-interview-feedback: auto request_documents failed", await docRes.text().catch(() => ""));
+      }
     }
   }
 
