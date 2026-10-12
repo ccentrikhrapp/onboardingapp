@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { renderAsync } from 'docx-preview';
 import Icon from '../common/Icon.jsx';
 import { resumeUrl } from '../../api/resumes.js';
 
@@ -106,9 +105,19 @@ export default function ResumeViewer({ resumePath, resumeMeta }) {
         return;
       }
 
-      // docx
+      // docx — the renderer (~150KB with its own dependencies) is loaded
+      // on demand here, not imported at the top of this file: ResumeViewer
+      // itself is already lazy-loaded (see TACandidateDetailPage.jsx), and
+      // a static top-level `import ... from 'docx-preview'` would have
+      // forced that entire bundle to download before ResumeViewer could
+      // even run — for every resume, PDFs included. If that large chunk
+      // was ever slow or failed to load, the component never mounted at
+      // all, so this file's resumeUrl() query never fired either — not a
+      // rendering bug so much as nothing ever starting.
       setState({ status: 'rendering-docx', url: null, downloadUrl, error: null });
       try {
+        const { renderAsync } = await import('docx-preview');
+        if (cancelled) return;
         if (docxHost.current) docxHost.current.innerHTML = '';
         await renderAsync(blob, docxHost.current, docxStyleHost.current, {
           inWrapper: true, breakPages: true, ignoreLastRenderedPageBreak: true,
