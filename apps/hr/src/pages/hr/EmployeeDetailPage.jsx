@@ -178,17 +178,6 @@ export default function EmployeeDetailPage() {
           <div style={{ height: 14 }} />
         </>
       )}
-
-      <Card title="Activity history">
-        <div className="hr-stack" style={{ maxHeight: 360, overflowY: 'auto' }}>
-          {remote.events.length === 0 && <p className="hr-cell-sub">No activity recorded yet.</p>}
-          {remote.events.map((e) => (
-            <div key={e.id} className="hr-cell-sub">
-              <strong>{formatDateTime(e.created_at)}</strong> · {e.actor_label || 'System'} · {e.kind}{e.remark ? ` — ${e.remark}` : ''}
-            </div>
-          ))}
-        </div>
-      </Card>
     </>
   );
 }
