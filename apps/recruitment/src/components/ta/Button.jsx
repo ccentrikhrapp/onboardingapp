@@ -1,6 +1,6 @@
 import Icon from '../common/Icon.jsx';
 
-/* Premium button. variant: 'primary' | 'ghost'. */
+/* Premium button. variant: 'primary' | 'ghost' | 'danger'. */
 export default function Button({ children, variant = 'primary', icon, iconRight, className = '', ...rest }) {
   return (
     <button className={`ta-btn ta-btn--${variant} ${className}`} {...rest}>

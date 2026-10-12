@@ -402,7 +402,7 @@
   background-image: linear-gradient(115deg, transparent 0%, color-mix(in srgb, var(--pt) 20%, #fff) 32%, transparent 58%, transparent 100%);
   background-size: 260% 100%; background-position: 100% 0;
   box-shadow: var(--ta-shadow);
-  font-family: var(--font-display); font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
+  font-size: 13px; font-weight: 700; letter-spacing: -0.01em;
   color: #0c0e13;
   cursor: pointer; text-align: left; line-height: 1.2;
   transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease, background-position 0.55s cubic-bezier(0.4, 0, 0.2, 1);

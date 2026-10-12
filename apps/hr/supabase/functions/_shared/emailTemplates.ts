@@ -128,6 +128,41 @@ export const templates: Record<string, (v: Vars) => { subject: string; html: str
       `Checklist:\n${(v.checklist_items || "").split("|||").filter(Boolean).map((i) => `- ${i}`).join("\n")}\n\n` +
       `${v.photo_link ? `Employee photo: ${v.photo_link}\n\n` : ""}${v.task_link}\n\n— Ccentrik HR Portal`,
   }),
+
+  // Cross-portal handoff — the TA portal scheduled (or rescheduled) this
+  // candidate's HR-final interview round. hr_recipient_name is personalised
+  // per recipient (one send per active hr/admin profile); every other field
+  // comes straight from the recruitment app's own interview_rounds row via
+  // the integration call, never invented here.
+  hr_interview_scheduled: (v) => ({
+    subject: `HR Interview ${v.rescheduled === "true" ? "Rescheduled" : "Scheduled"} — ${v.candidate_name} — ${v.job_title}`,
+    html: shell(
+      `HR Interview ${v.rescheduled === "true" ? "Rescheduled" : "Scheduled"}`,
+      `<p>Hello ${v.hr_recipient_name || "there"},</p>
+       <p>An HR interview has been ${v.rescheduled === "true" ? "rescheduled" : "scheduled"} for the following candidate.</p>
+       ${details([
+         ["Candidate", v.candidate_name],
+         ["Application ID", v.application_code],
+         ["Position", v.job_title],
+         ["Interview Round", v.round_name],
+         ["Date", v.date],
+         ["Time", v.time],
+         ["Meeting Platform", v.platform_label],
+         ["Joining Link", v.meeting_url ? `<a href="${v.meeting_url}">${v.meeting_url}</a>` : null],
+         ["Location", v.location],
+         ["Assigned Recruiter", v.recruiter_name],
+       ])}
+       <p>Please review the candidate details and join the meeting at the scheduled time.</p>
+       ${v.meeting_url ? button("Join Meeting", v.meeting_url) : ""}`,
+    ),
+    text: `Hello ${v.hr_recipient_name || "there"},\n\n` +
+      `An HR interview has been ${v.rescheduled === "true" ? "rescheduled" : "scheduled"} for the following candidate.\n\n` +
+      `Candidate: ${v.candidate_name}\nApplication ID: ${v.application_code || "—"}\nPosition: ${v.job_title}\n` +
+      `Interview Round: ${v.round_name}\nDate: ${v.date}\nTime: ${v.time}\nMeeting Platform: ${v.platform_label || "—"}\n` +
+      `${v.meeting_url ? `Joining Link: ${v.meeting_url}\n` : ""}${v.location ? `Location: ${v.location}\n` : ""}` +
+      `Assigned Recruiter: ${v.recruiter_name || "—"}\n\n` +
+      `Please review the candidate details and join the meeting at the scheduled time.\n\nRegards,\nCcentrik Recruitment System`,
+  }),
 };
 
 export function render(name: string, vars: Vars) {

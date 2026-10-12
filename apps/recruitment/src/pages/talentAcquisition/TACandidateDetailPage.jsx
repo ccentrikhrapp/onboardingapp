@@ -560,10 +560,16 @@ export default function TACandidateDetailPage() {
           </div>
         </div>
 
+        {/* The stage name itself is already the Tag next to the candidate's
+            name above — repeating it here too ("Documents" / "Document
+            Verification · 71%") said the same thing twice in one card, so
+            this row now only adds what the Tag doesn't: overall progress
+            through the full candidate journey (TA review through HR
+            onboarding), not just the current stage's name again. */}
         {!rejected && (
           <div className="ta-progress-row" style={{ marginTop: 14, marginBottom: 0 }}>
             <div className="ta-progress"><div className="ta-progress__bar" style={{ width: `${progress}%` }} /></div>
-            <span className="ta-cell-sub">{PIPELINE_STAGES[stageIdx]?.label} · {progress}%</span>
+            <span className="ta-cell-sub">{progress}% through the full recruitment journey</span>
           </div>
         )}
         {app.status === APP_STATUS.RETURNED && (

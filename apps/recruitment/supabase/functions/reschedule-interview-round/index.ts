@@ -19,6 +19,7 @@ import { addEvent, deliverQueuedEmail, istDateParts, notify } from "../_shared/w
 import { render } from "../_shared/emailTemplates.ts";
 import { createMeetingLink } from "../_shared/meetingProviders.ts";
 import { randomToken } from "../_shared/teamInvite.ts";
+import { callHr } from "../_shared/hrIntegration.ts";
 
 const PLATFORM_LABEL: Record<string, string> = { teams: "Microsoft Teams", google_meet: "Google Meet" };
 
@@ -53,7 +54,7 @@ Deno.serve(async (req) => {
   const svc = serviceClient();
   const { data: round } = await svc
     .from("interview_rounds")
-    .select("id, name, round_number, candidate_response, application_id, applications(id, assigned_ta_id, status, personal, cooldown_until, jobs(title), candidates(profile_id))")
+    .select("id, name, round_number, candidate_response, application_id, is_hr_final, applications(id, assigned_ta_id, status, personal, cooldown_until, application_code, jobs(title), candidates(profile_id))")
     .eq("id", body.roundId)
     .maybeSingle();
   if (!round) return fail("NOT_FOUND", "Interview round not found.", 404);
@@ -135,6 +136,45 @@ Deno.serve(async (req) => {
     entity_type: "application",
     entity_id: app.id,
   });
+
+  // --- HR handoff — keep HR's view of this same round in step. The event
+  // key includes the new time, so a genuinely new reschedule always sends a
+  // fresh notification/email, while a retried request for the same new time
+  // stays deduped.
+  if (round.is_hr_final) {
+    const { data: recruiterProfile } = await svc.from("profiles").select("full_name").eq("id", app.assigned_ta_id).maybeSingle();
+    const hrEventId = `hr-interview-rescheduled-${round.id}-${new Date(body.scheduledAt).getTime()}`;
+    await callHr(
+      svc,
+      "integration-hr-interview-scheduled",
+      "HR_INTERVIEW_RESCHEDULED",
+      hrEventId,
+      {
+        event: "HR_INTERVIEW_RESCHEDULED",
+        event_id: hrEventId,
+        round_id: round.id,
+        application_id: app.id,
+        application_code: app.application_code,
+        candidate: { name: candidateName },
+        position: { job_title: jobTitle },
+        interview: {
+          round_name: round.name,
+          scheduled_at: body.scheduledAt,
+          date: ist.date,
+          time: `${ist.time} IST`,
+          duration_minutes: body.durationMinutes ?? null,
+          meeting_type: meetingType,
+          meeting_platform: meetingType === "virtual" ? body.meetingPlatform : null,
+          platform_label: meetingType === "virtual" ? PLATFORM_LABEL[body.meetingPlatform] ?? null : null,
+          meeting_url: meetingType === "virtual" ? meetingUrl : null,
+          location: meetingType === "in_person" ? body.location ?? null : null,
+          location_details: meetingType === "in_person" ? body.locationDetails ?? null : null,
+        },
+        recruiter: { name: recruiterProfile?.full_name ?? profile.full_name ?? null },
+      },
+      { entity_type: "interview_round", entity_id: round.id },
+    );
+  }
 
   const candidateEmail: string | undefined = app.personal?.email;
   let emailStatus: "queued" | "failed" | "no_email" = "no_email";

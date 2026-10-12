@@ -631,6 +631,31 @@
 .hr-statbar__text { display: flex; flex-direction: column; line-height: 1.15; min-width: 0; }
 .hr-statbar__num { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--sb, var(--hr-text)); }
 .hr-statbar__label { font-size: 12px; font-weight: 700; color: #0c0e13; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---------- Grouped document-summary tiles (consolidated — each tile
+   carries 2-3 related numbers instead of one metric per tile) ---------- */
+.hr-doctiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 10px; }
+.hr-doctile {
+  border: 1px solid color-mix(in srgb, var(--dt, var(--hr-blue)) 22%, var(--hr-line));
+  border-radius: 13px; padding: 12px 14px;
+  background: color-mix(in srgb, var(--dt, var(--hr-blue)) 6%, #fff);
+  box-shadow: var(--hr-shadow);
+}
+.hr-doctile--blue { --dt: var(--tag-blue-fg); }
+.hr-doctile--amber { --dt: var(--tag-amber-fg); }
+.hr-doctile--green { --dt: var(--tag-green-fg); }
+.hr-doctile__head { display: flex; align-items: center; gap: 8px; margin-bottom: 11px; }
+.hr-doctile__icon {
+  width: 26px; height: 26px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--dt, var(--hr-blue)); color: #fff;
+}
+.hr-doctile__title { font-size: 12.5px; font-weight: 700; color: var(--hr-text); }
+.hr-doctile__stats { display: flex; gap: 16px; flex-wrap: wrap; }
+.hr-doctile__stat { display: flex; flex-direction: column; min-width: 0; }
+.hr-doctile__n { font-size: 19px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--dt, var(--hr-text)); line-height: 1.15; }
+.hr-doctile__l { font-size: 11px; font-weight: 600; color: var(--hr-text-mute); white-space: nowrap; }
+@media (max-width: 760px) { .hr-doctiles { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
   .hr-statbar__item { flex-basis: 45%; }
 }

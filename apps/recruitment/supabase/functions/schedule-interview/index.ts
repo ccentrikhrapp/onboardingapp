@@ -24,6 +24,7 @@ import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { addEvent, deliverQueuedEmail, istDateParts, notify, queueEmail } from "../_shared/workflow.ts";
 import { render } from "../_shared/emailTemplates.ts";
 import { createMeetingLink } from "../_shared/meetingProviders.ts";
+import { callHr } from "../_shared/hrIntegration.ts";
 
 const PLATFORM_LABEL: Record<string, string> = { teams: "Microsoft Teams", google_meet: "Google Meet" };
 
@@ -209,6 +210,46 @@ Deno.serve(async (req) => {
     entity_type: "application",
     entity_id: app.id,
   });
+
+  // --- HR handoff — only the HR-final round; HR has nothing to do with an
+  // earlier technical/panel round, so there's nothing to hand off for one.
+  if (isHrFinal) {
+    const { data: recruiterProfile } = await svc.from("profiles").select("full_name").eq("id", app.assigned_ta_id).maybeSingle();
+    await callHr(
+      svc,
+      "integration-hr-interview-scheduled",
+      "HR_INTERVIEW_SCHEDULED",
+      `hr-interview-scheduled-${round.id}`,
+      {
+        event: "HR_INTERVIEW_SCHEDULED",
+        event_id: `hr-interview-scheduled-${round.id}`,
+        round_id: round.id,
+        application_id: app.id,
+        application_code: app.application_code,
+        candidate: { name: candidateName },
+        position: { job_title: jobTitle },
+        interview: {
+          round_name: body.name,
+          scheduled_at: body.scheduledAt,
+          date: ist.date,
+          time: `${ist.time} IST`,
+          duration_minutes: body.durationMinutes ?? null,
+          meeting_type: meetingType,
+          meeting_platform: meetingType === "virtual" ? body.meetingPlatform : null,
+          platform_label: meetingType === "virtual" ? PLATFORM_LABEL[body.meetingPlatform] ?? null : null,
+          meeting_url: meetingType === "virtual" ? meetingUrl : null,
+          location: meetingType === "in_person" ? body.location ?? null : null,
+          location_details: meetingType === "in_person" ? body.locationDetails ?? null : null,
+        },
+        recruiter: { name: recruiterProfile?.full_name ?? profile.full_name ?? null },
+      },
+      { entity_type: "interview_round", entity_id: round.id },
+    );
+    // Non-fatal by design: the round is already scheduled and the candidate
+    // already notified — a failed HR handoff never blocks or undoes that,
+    // same tradeoff as every other callHr() site in this codebase. Logged to
+    // integration_outbox either way.
+  }
 
   // Candidate invitation is sent synchronously (not the fire-and-forget
   // queueEmail helper other side effects use) so the response can honestly

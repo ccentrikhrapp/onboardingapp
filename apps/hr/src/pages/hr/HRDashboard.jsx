@@ -11,8 +11,9 @@ import { useAuth } from '../../context/AuthContext.jsx';
 import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases, listEmployees } from '../../api/onboarding.js';
 import { listOnboardingTasks } from '../../api/onboardingTasks.js';
+import { listUpcomingHrInterviews } from '../../api/interviews.js';
 import { statusMeta } from '../../constants/statuses.js';
-import { timeAgo } from '../../utils/format.js';
+import { timeAgo, formatDateTime } from '../../utils/format.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const DEPT_COLORS = ['#4b7bf7', '#8b7ff0', '#f6a04a', '#46c98a', '#e5484d', '#f2b705'];
@@ -23,6 +24,7 @@ export default function HRDashboard() {
   const { profile, role } = useAuth();
   const [remote, setRemote] = useState({ loading: true, verifications: [], cases: [], employees: [] });
   const [pendingRequests, setPendingRequests] = useState(0);
+  const [upcomingInterviews, setUpcomingInterviews] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -31,6 +33,17 @@ export default function HRDashboard() {
         if (!cancelled) setRemote({ loading: false, verifications: verifications || [], cases: cases || [], employees: employees || [] });
       })
       .catch(() => !cancelled && setRemote({ loading: false, verifications: [], cases: [], employees: [] }));
+    return () => { cancelled = true; };
+  }, []);
+
+  // The candidate's real, currently-scheduled HR interview — handed off by
+  // the TA portal the moment it's scheduled, kept live on reschedule. Past
+  // meetings fall out of view on their own (time has already moved on).
+  useEffect(() => {
+    let cancelled = false;
+    listUpcomingHrInterviews()
+      .then((rows) => !cancelled && setUpcomingInterviews((rows || []).filter((r) => new Date(r.scheduled_at) > new Date())))
+      .catch(() => !cancelled && setUpcomingInterviews([]));
     return () => { cancelled = true; };
   }, []);
 
@@ -133,6 +146,35 @@ export default function HRDashboard() {
       <div className="hr-kpi-row">
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}
       </div>
+
+      {upcomingInterviews.length > 0 && (
+        <>
+          <Card title="Upcoming HR interviews" action={<span className="hr-cell-sub">{upcomingInterviews.length} scheduled</span>}>
+            <div className="hr-stack">
+              {upcomingInterviews.slice(0, 5).map((it) => (
+                <div className="hr-docrow" key={it.id}>
+                  <span className="hr-docrow__icon"><Icon name="CalendarClock" size={16} /></span>
+                  <div className="grow">
+                    <div className="hr-cell-strong">{it.candidate_name}{it.job_title ? ` — ${it.job_title}` : ''}</div>
+                    <div className="hr-cell-sub">
+                      {formatDateTime(it.scheduled_at)}
+                      {it.meeting_type === 'virtual' && it.meeting_platform ? ` · ${it.meeting_platform === 'teams' ? 'Microsoft Teams' : 'Google Meet'}` : it.location ? ` · ${it.location}` : ''}
+                      {it.recruiter_name ? ` · Recruiter: ${it.recruiter_name}` : ''}
+                    </div>
+                  </div>
+                  <Tag tone={it.status === 'rescheduled' ? 'amber' : 'blue'}>{it.status === 'rescheduled' ? 'Rescheduled' : 'Scheduled'}</Tag>
+                  {it.meeting_url && (
+                    <a className="hr-link" href={it.meeting_url} target="_blank" rel="noreferrer" style={{ textDecoration: 'none', flexShrink: 0 }}>
+                      Join Meeting <Icon name="ArrowRight" size={13} />
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+          <div style={{ height: 16 }} />
+        </>
+      )}
 
       <div className="hr-bento">
         <Card

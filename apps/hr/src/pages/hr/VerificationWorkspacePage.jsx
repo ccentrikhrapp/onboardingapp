@@ -103,15 +103,51 @@ export default function VerificationWorkspacePage() {
 
       {summary && (
         <Card title="Documentation summary">
-          <p className="hr-cell-sub" style={{ marginBottom: 8 }}>
+          <p className="hr-cell-sub" style={{ marginBottom: 12 }}>
             Employee: <strong>{first?.candidate_name}</strong> · Employment type: <strong>{summary.employment_type === 'fresher' ? 'Fresher' : summary.employment_type === 'experienced' ? 'Experienced' : '—'}</strong> · Previous employers: <strong>{summary.previous_employers ?? 0}</strong>
           </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
-            {[['Applicable requirements', summary.summary.applicable], ['Approved', summary.summary.approved], ['Approved with reason', summary.summary.approvedWithReason], ['Pending review', (summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0)], ['Not applicable', summary.summary.notApplicable], ['Rejected', summary.summary.rejected], ['Clarification required', summary.summary.clarification]].map(([l, n]) => (
-              <div key={l} style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 10, padding: '8px 10px' }}><div style={{ fontSize: 20, fontWeight: 700 }}>{n ?? 0}</div><div className="hr-cell-sub">{l}</div></div>
-            ))}
+
+          {/* Consolidated from 7 single-metric tiles into 3 grouped ones —
+              same numbers, same summarizeDocuments() data, just read
+              together instead of one at a time. */}
+          <div className="hr-doctiles">
+            <div className="hr-doctile hr-doctile--blue">
+              <div className="hr-doctile__head">
+                <span className="hr-doctile__icon"><Icon name="FileCheck2" size={14} /></span>
+                <span className="hr-doctile__title">Document overview</span>
+              </div>
+              <div className="hr-doctile__stats">
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.applicable ?? 0}</span><span className="hr-doctile__l">Applicable</span></div>
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.approved ?? 0}</span><span className="hr-doctile__l">Approved</span></div>
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{(summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0)}</span><span className="hr-doctile__l">Pending review</span></div>
+              </div>
+            </div>
+            <div className="hr-doctile hr-doctile--amber">
+              <div className="hr-doctile__head">
+                <span className="hr-doctile__icon"><Icon name="AlertTriangle" size={14} /></span>
+                <span className="hr-doctile__title">Review exceptions</span>
+              </div>
+              <div className="hr-doctile__stats">
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.approvedWithReason ?? 0}</span><span className="hr-doctile__l">Approved w/ reason</span></div>
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.rejected ?? 0}</span><span className="hr-doctile__l">Rejected</span></div>
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.clarification ?? 0}</span><span className="hr-doctile__l">Clarification</span></div>
+              </div>
+            </div>
+            <div className="hr-doctile hr-doctile--green">
+              <div className="hr-doctile__head">
+                <span className="hr-doctile__icon"><Icon name="ClipboardList" size={14} /></span>
+                <span className="hr-doctile__title">Requirement coverage</span>
+              </div>
+              <div className="hr-doctile__stats">
+                <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.notApplicable ?? 0}</span><span className="hr-doctile__l">Not applicable</span></div>
+                <div className="hr-doctile__stat">
+                  <Tag tone={summary.summary.ready ? 'green' : 'amber'}>{summary.summary.ready ? 'All resolved' : `${(summary.summary.unresolved || []).length} to resolve`}</Tag>
+                </div>
+              </div>
+            </div>
           </div>
-          <p className="hr-cell-sub" style={{ marginTop: 8 }}>
+
+          <p className="hr-cell-sub">
             {summary.summary.identityResolved ? <strong>Identity Proof – Satisfied. </strong> : null}
             {summary.summary.ready ? 'Every applicable requirement is resolved.' : `Still to resolve: ${(summary.summary.unresolved || []).join(', ')}.`}
           </p>
