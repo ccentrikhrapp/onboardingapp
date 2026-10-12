@@ -381,7 +381,7 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
           <Info label="Sending to" value={selectedAdmin ? `${selectedAdmin.name} (${selectedAdmin.email})` : '—'} />
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <Button disabled={sending} onClick={confirmSend}>{sending ? 'Sending…' : 'Confirm & send'}</Button>
+          <Button disabled={sending} onClick={() => confirmSend()}>{sending ? 'Sending…' : 'Confirm & send'}</Button>
           <Button variant="ghost" disabled={sending} onClick={() => setStage('form')}>Back</Button>
         </div>
       </Modal>
