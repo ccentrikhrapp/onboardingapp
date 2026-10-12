@@ -235,6 +235,7 @@ export default function TACandidateDetailPage() {
   // information were previously flattened into one six-item tab row.
   const [section, setSection] = useState('overview');
   const [activityOpen, setActivityOpen] = useState(false);
+  const [showAllAct, setShowAllAct] = useState(false);
   const [rounds, setRounds] = useState([]);
   // HR is always the final round: once it exists nothing else can be scheduled,
   // and no round can be added while the previous one is still open.
