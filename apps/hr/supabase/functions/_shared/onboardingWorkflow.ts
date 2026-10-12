@@ -2,6 +2,7 @@ import { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { render } from "./emailTemplates.ts";
 import { sendStaffMail } from "./notify.ts";
 import { appBaseUrl } from "./teamInvite.ts";
+import { audit } from "./supabase.ts";
 
 // Everything that must happen once, right after an employee record is
 // created: create the configurable checklist tasks, and notify whichever
@@ -71,6 +72,14 @@ export async function initializeOnboarding(
     kind: "onboarding_initialized", actor_profile_id: o.actor.id, actor_label: o.actor.label,
     remark: `${rows.length} onboarding task(s) created from the active checklist.`,
   });
+  // Previously only written to employee_onboarding_events (the per-employee
+  // timeline) — never to audit_logs, so the org-wide Activity page had no
+  // way to show "onboarding started" for a new employee at all. Additive
+  // only: existing employee_onboarding_events rows and readers are untouched.
+  await audit(svc, {
+    actor_profile_id: o.actor.id, actor_label: o.actor.label, action: "onboarding.initialized",
+    entity_type: "employee", entity_id: o.employeeId, remarks: `${rows.length} onboarding task(s) created from the active checklist.`,
+  });
 
   // ---- Accounts/IT and Joining Arrangements requests ----
   const groups: { category: "accounts_it" | "joining_arrangements"; roles: string[]; heading: string; subjectPrefix: string }[] = [
@@ -120,6 +129,14 @@ export async function markTaskInProgressOnSend(
     employee_id: task.employee_id, task_id: task.id, kind: "task_update", actor_label: actor.label,
     old_value: { status: task.status }, new_value: { status: "in_progress" },
     remark: `${task.label}: status: not_started → in_progress (request email sent)`,
+  });
+  // Same gap as initializeOnboarding above — this auto transition (as
+  // opposed to a manual status change through onboarding-task-update, which
+  // already calls audit()) never reached audit_logs before.
+  await audit(svc, {
+    actor_label: actor.label, action: "onboarding_task.auto_in_progress",
+    entity_type: "onboarding_task", entity_id: task.id, new_state: { status: "in_progress" },
+    remarks: `${task.label}: moved to in progress automatically — request email sent.`,
   });
 }
 

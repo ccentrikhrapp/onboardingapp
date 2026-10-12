@@ -1,6 +1,6 @@
 import Icon from '../common/Icon.jsx';
 
-/* Compact one-line summary of key numbers. Each item: { icon, value, label, accent, onClick }. */
+/* Compact one-line summary of key numbers. Each item: { icon, value, label, accent, onClick, active }. */
 export default function StatBar({ items }) {
   return (
     <div className="hr-statbar">
@@ -10,8 +10,9 @@ export default function StatBar({ items }) {
           <Row
             key={it.label}
             type={it.onClick ? 'button' : undefined}
-            className={`hr-statbar__item${it.onClick ? ' hr-statbar__item--link' : ''}`}
+            className={`hr-statbar__item${it.onClick ? ' hr-statbar__item--link' : ''}${it.active ? ' is-active' : ''}`}
             onClick={it.onClick}
+            aria-pressed={it.onClick ? !!it.active : undefined}
           >
             <span className={`hr-statbar__icon hr-statbar__icon--${it.accent || 'blue'}`}>
               <Icon name={it.icon} size={16} />

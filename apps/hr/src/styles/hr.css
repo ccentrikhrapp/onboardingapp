@@ -612,6 +612,11 @@
 }
 .hr-statbar__item--link { cursor: pointer; transition: transform 0.14s ease, box-shadow 0.14s ease; }
 .hr-statbar__item--link:hover { transform: translateY(-2px); box-shadow: var(--hr-shadow-hover); }
+.hr-statbar__item--link:focus-visible { outline: 2px solid var(--sb, var(--hr-blue)); outline-offset: 2px; }
+.hr-statbar__item.is-active {
+  background: color-mix(in srgb, var(--sb, var(--hr-blue)) 14%, #fff);
+  box-shadow: inset 0 0 0 1.5px var(--sb, var(--hr-blue));
+}
 .hr-statbar__icon {
   width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;

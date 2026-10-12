@@ -42,13 +42,20 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
 
   // Accounts/IT/Office Admin only have their own assigned tasks and their
   // profile in this app — not the rest of the HR workflow.
+  //
+  // "Account requests" used to be its own nav entry here (an alias to the
+  // same /hr/tasks page every non-staff role's "My onboarding tasks" uses),
+  // which meant account-request activity lived in a second, disconnected
+  // place from the Activity feed. It's now a category inside Activity
+  // itself (see HRActivityPage's "Account requests" tile/filter) — the
+  // Super Admin's in-app "something's waiting on you" signal moves with it
+  // onto the Activity link rather than disappearing.
   const nav = isHrStaff ? [
     { to: '/hr', label: 'Dashboard', icon: 'Home', end: true },
     { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
     { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
-    ...(isSuperAdmin ? [{ to: '/hr/tasks', label: 'Account requests', icon: 'Mail', count: counts.requests, end: true }] : []),
-    { to: '/hr/activity', label: 'Activity', icon: 'History' },
+    { to: '/hr/activity', label: 'Activity', icon: 'History', count: isSuperAdmin ? counts.requests : 0 },
     ...(isSuperAdmin ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
     { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
   ] : [
