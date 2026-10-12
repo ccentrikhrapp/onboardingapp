@@ -170,6 +170,8 @@ function adaptRemote(a, events) {
     education: a.education || [],
     additional: a.additional || {},
     atsScore: a.atsScore || null,
+    resumePath: a.resumePath || null,
+    resumeMeta: a.resumeMeta || null,
     events: (events || []).map((e) => ({
       id: e.id, title: e.title, description: e.description, at: e.created_at, actor: e.actor_label || 'System',
     })),
