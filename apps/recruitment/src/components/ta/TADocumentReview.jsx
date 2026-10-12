@@ -49,10 +49,10 @@ export default function TADocumentReview({ docs, onReload, onView, onOpen }) {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 8 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
         {tiles.map(([l, n]) => (
-          <div key={l} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 10, padding: '8px 10px' }}>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>{n}</div><div className="ta-cell-sub">{l}</div>
+          <div key={l} style={{ border: '1px solid var(--ta-line, #e5e7eb)', borderRadius: 10, padding: '12px 14px', minHeight: 64, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 700 }}>{n}</div><div className="ta-cell-sub">{l}</div>
           </div>
         ))}
       </div>

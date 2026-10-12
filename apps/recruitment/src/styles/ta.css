@@ -392,7 +392,7 @@
 @media (max-width: 960px) { .ta-snapshot__list { grid-template-columns: 1fr; gap: 0; } }
 
 /* candidate profile — clickable tiles that swap the panel below */
-.ta-ptabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+.ta-ptabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 20px; }
 .ta-ptab {
   --pt: var(--tag-blue-fg);
   display: flex; align-items: center; gap: 10px;
@@ -426,6 +426,7 @@
 }
 .ta-ptab.is-active svg { background: var(--pt); color: #fff; }
 @media (max-width: 1180px) { .ta-ptabs { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 540px) { .ta-ptabs { grid-template-columns: 1fr; } }
 
 /* pipeline stepper — plain numbered progress, not the colorful profile tabs */
 .ta-stepper { display: flex; align-items: center; flex-wrap: wrap; }
