@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   let ctx;
   try { ctx = await employeeMailContext(svc, body.employeeId); }
   catch (e) { return fail("NOT_FOUND", (e as Error).message, 404); }
-  const { emp, designation, department, joiningDate, location, mobile, officialEmail, profileLink } = ctx;
+  const { emp, designation, mobile } = ctx;
 
   // Section 1: the request form shows only Name/Mobile/Designation,
   // prepopulated but editable — HR's corrected values (if any) are what
@@ -44,10 +44,8 @@ Deno.serve(async (req) => {
   for (const admin of admins) {
     if (!admin.email) continue;
     const mail = render("employee_onboarded_super_admin", {
-      employee_name: employeeName, employee_code: emp.employee_code, designation: employeeDesignation, department,
-      mobile: employeeMobile, official_email: officialEmail, joining_date: joiningDate, location, hr_name: me.full_name ?? me.email,
-      confirmed_at: new Date().toLocaleString("en-IN", { dateStyle: "long", timeStyle: "short", timeZone: "Asia/Kolkata" }),
-      attention_summary: null, profile_link: profileLink,
+      employee_name: employeeName, designation: employeeDesignation, mobile: employeeMobile,
+      admin_name: admin.full_name || admin.email,
     });
     // A deliberate "Resend" bypasses the usual dedupe; an ordinary click
     // for someone already notified is a safe no-op, not a second email —

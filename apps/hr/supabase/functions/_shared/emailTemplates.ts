@@ -69,30 +69,28 @@ function checklist(items: string[]): string {
 }
 
 export const templates: Record<string, (v: Vars) => { subject: string; html: string; text: string }> = {
-  // Section 3 — Super Admin, immediately after employee creation.
+  // Section 1 (account-creation refinement) — Super Admin request. Exactly
+  // three employee details, per the specified copy — nothing else.
   employee_onboarded_super_admin: (v) => ({
-    subject: `New Employee Onboarded — ${v.employee_name} | ${v.employee_code}`,
+    subject: `Organizational Email Account Creation Request – ${v.employee_name}`,
     html: shell(
-      "A New Employee Has Joined",
-      `<p>${v.employee_name} has officially joined Ccentrik. A summary is below.</p>
+      "Organizational Email Account Creation Request",
+      `<p>Dear ${v.admin_name || "Super Admin"},</p>
+       <p>A new employee has joined CCENTRIK. Kindly create an official organizational email account for the following employee.</p>
        ${details([
-         ["Employee ID", v.employee_code],
+         ["Employee Name", v.employee_name],
          ["Designation", v.designation],
-         ["Department / Business Unit", v.department],
-         ["Mobile", v.mobile],
-         ["Official email", v.official_email],
-         ["Date of Joining", v.joining_date],
-         ["Location / Office", v.location],
-         ["Confirmed by (HR)", v.hr_name],
-         ["Confirmed at", v.confirmed_at],
+         ["Mobile Number", v.mobile],
        ])}
-       ${v.attention_summary ? notice(v.attention_summary) : ""}
-       ${button("Open employee profile", v.profile_link)}`,
+       <p>Please process the request and update the existing request status once the organizational email account has been created.</p>
+       <p>Thank you.</p>
+       <p>Regards,<br/>CCENTRIK HR Team</p>`,
     ),
-    text: `A New Employee Has Joined\n\n${v.employee_name} has officially joined Ccentrik.\n\n` +
-      `Employee ID: ${v.employee_code}\nDesignation: ${v.designation || "—"}\nDepartment: ${v.department || "—"}\n` +
-      `Mobile: ${v.mobile || "—"}\nOfficial email: ${v.official_email || "—"}\nDate of Joining: ${v.joining_date || "—"}\n` +
-      `Location: ${v.location || "—"}\nConfirmed by: ${v.hr_name} at ${v.confirmed_at}\n\n${v.profile_link}\n\n— Ccentrik HR Portal`,
+    text: `Dear ${v.admin_name || "Super Admin"},\n\n` +
+      `A new employee has joined CCENTRIK. Kindly create an official organizational email account for the following employee.\n\n` +
+      `Employee Name: ${v.employee_name}\nDesignation: ${v.designation || "—"}\nMobile Number: ${v.mobile || "—"}\n\n` +
+      `Please process the request and update the existing request status once the organizational email account has been created.\n\n` +
+      `Thank you.\n\nRegards,\nCCENTRIK HR Team`,
   }),
 
   // Sections 4 & 5 — one reusable template for Accounts/IT and Joining
