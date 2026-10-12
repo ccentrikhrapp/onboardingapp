@@ -280,11 +280,15 @@ export default function TACandidateDetailPage() {
   // fetched: a blank tab opened later, once that async call resolves, gets
   // blocked by the browser's popup blocker (it no longer looks like a
   // direct result of the click) — opening blank now and redirecting it
-  // once the URL is ready keeps it inside that window.
+  // once the URL is ready keeps it inside that window. No 'noopener' here:
+  // that flag makes window.open() return null specifically so the opener
+  // can't control the new tab — exactly the handle this needs to later set
+  // its location. Not a cross-origin-link risk here anyway: the tab starts
+  // blank and is only ever pointed at our own signed storage URL.
   const openResume = () => {
     setTab('resume');
     if (!app?.resumePath) return;
-    const win = window.open('', '_blank', 'noopener');
+    const win = window.open('', '_blank');
     resumeUrl(app.resumePath)
       .then((url) => { if (win) win.location.href = url; })
       .catch(() => { win?.close(); toast.error('Could not open this resume.'); });
