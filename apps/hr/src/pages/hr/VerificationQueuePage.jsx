@@ -4,6 +4,7 @@ import HRHeader from '../../components/kit/HRHeader.jsx';
 import Card from '../../components/kit/Card.jsx';
 import Tag from '../../components/kit/Tag.jsx';
 import Button from '../../components/kit/Button.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
 import EmptyState from '../../components/kit/EmptyState.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import { listVerifications } from '../../api/verification.js';
@@ -76,6 +77,16 @@ export default function VerificationQueuePage() {
           icon="ClipboardCheck"
           title="Nothing to verify right now"
           message="Documents appear here automatically as soon as a candidate uploads them in the recruitment application."
+        />
+      )}
+
+      {groups.length > 0 && (
+        <StatBar
+          items={[
+            { icon: 'ClipboardCheck', accent: 'blue', label: 'Candidates', value: groups.length },
+            { icon: 'CheckCircle2', accent: 'green', label: 'Verified', value: groups.filter((g) => g.verified).length },
+            { icon: 'AlertTriangle', accent: 'amber', label: 'Action required', value: groups.filter((g) => !g.verified).length },
+          ]}
         />
       )}
 
