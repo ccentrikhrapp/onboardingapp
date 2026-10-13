@@ -7,7 +7,7 @@ import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listVerificationsForApplication, getVerificationDocumentUrl, getVerificationSummary } from '../../api/verification.js';
+import { listVerificationsForApplication, getVerificationDocumentUrl } from '../../api/verification.js';
 import { verifyDocument } from '../../api/verify.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
@@ -46,7 +46,6 @@ export default function VerificationWorkspacePage() {
   const [error, setError] = useState('');
   const [reasonFor, setReasonFor] = useState(null); // { docId, action }
   const [busy, setBusy] = useState(null);
-  const [summary, setSummary] = useState(null);
   const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
 
   const load = () => {
@@ -55,7 +54,6 @@ export default function VerificationWorkspacePage() {
       .catch((e) => setError(e.message || 'Could not load these documents.'));
   };
   useEffect(load, [applicationId]);
-  useEffect(() => { getVerificationSummary(applicationId).then(setSummary).catch(() => setSummary(null)); }, [applicationId, docs]);
 
   const act = async (doc, action, remarks) => {
     setBusy(doc.id);
@@ -100,68 +98,6 @@ export default function VerificationWorkspacePage() {
 
       {error && <Card><p className="text-secondary">{error}</p></Card>}
       {docs === null && !error && <SkeletonBlock lines={4} />}
-
-      {summary && (
-        // Plain .hr-card chrome (same border/radius/background every other
-        // card uses) but without Card's head/body split — that split's two
-        // independently-padded regions were the actual source of the
-        // excessive, hard-to-control spacing above; one continuous flow
-        // gives exact control over each gap instead of patching around it.
-        <section className="hr-card hr-doctiles-card">
-          <div className="hr-doctiles-body">
-            <h3 className="hr-doctiles-heading">Documentation summary</h3>
-            <p className="hr-doctiles-meta">
-              Employee: <strong>{first?.candidate_name}</strong> · Employment type: <strong>{summary.employment_type === 'fresher' ? 'Fresher' : summary.employment_type === 'experienced' ? 'Experienced' : '—'}</strong> · Previous employers: <strong>{summary.previous_employers ?? 0}</strong>
-            </p>
-
-            {/* Consolidated from 7 single-metric tiles into 3 grouped ones —
-                same numbers, same summarizeDocuments() data, just read
-                together instead of one at a time. */}
-            <div className="hr-doctiles">
-              <div className="hr-doctile hr-doctile--blue">
-                <div className="hr-doctile__head">
-                  <span className="hr-doctile__icon"><Icon name="FileCheck2" size={13} /></span>
-                  <span className="hr-doctile__title">Document overview</span>
-                </div>
-                <div className="hr-doctile__stats">
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.applicable ?? 0}</span><span className="hr-doctile__l">Applicable</span></div>
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.approved ?? 0}</span><span className="hr-doctile__l">Approved</span></div>
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{(summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0)}</span><span className="hr-doctile__l">Pending review</span></div>
-                </div>
-              </div>
-              <div className="hr-doctile hr-doctile--amber">
-                <div className="hr-doctile__head">
-                  <span className="hr-doctile__icon"><Icon name="AlertTriangle" size={13} /></span>
-                  <span className="hr-doctile__title">Review exceptions</span>
-                </div>
-                <div className="hr-doctile__stats">
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.approvedWithReason ?? 0}</span><span className="hr-doctile__l">Approved w/ reason</span></div>
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.rejected ?? 0}</span><span className="hr-doctile__l">Rejected</span></div>
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.clarification ?? 0}</span><span className="hr-doctile__l">Clarification</span></div>
-                </div>
-              </div>
-              <div className="hr-doctile hr-doctile--green">
-                <div className="hr-doctile__head">
-                  <span className="hr-doctile__icon"><Icon name="ClipboardList" size={13} /></span>
-                  <span className="hr-doctile__title">Requirement coverage</span>
-                </div>
-                <div className="hr-doctile__stats hr-doctile__stats--compact">
-                  <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.notApplicable ?? 0}</span><span className="hr-doctile__l">Not applicable</span></div>
-                  <div className="hr-doctile__stat hr-doctile__stat--badge">
-                    <Tag tone={summary.summary.ready ? 'green' : 'amber'}>{summary.summary.ready ? 'All resolved' : `${(summary.summary.unresolved || []).length} to resolve`}</Tag>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <p className="hr-doctiles-status">
-              {summary.summary.identityResolved && <Icon name="CheckCircle2" size={14} className="hr-doctiles-status__icon" />}
-              {summary.summary.identityResolved ? <strong>Identity Proof – Satisfied.</strong> : null}
-              <span className="hr-cell-sub">{summary.summary.ready ? 'Every applicable requirement is resolved.' : `Still to resolve: ${(summary.summary.unresolved || []).join(', ')}.`}</span>
-            </p>
-          </div>
-        </section>
-      )}
 
       {docs !== null && (
         <Card
