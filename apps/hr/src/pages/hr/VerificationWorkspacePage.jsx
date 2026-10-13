@@ -4,10 +4,11 @@ import HRHeader from '../../components/kit/HRHeader.jsx';
 import Card from '../../components/kit/Card.jsx';
 import Tag from '../../components/kit/Tag.jsx';
 import Button from '../../components/kit/Button.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listVerificationsForApplication, getVerificationDocumentUrl } from '../../api/verification.js';
+import { listVerificationsForApplication, getVerificationDocumentUrl, getVerificationSummary } from '../../api/verification.js';
 import { verifyDocument } from '../../api/verify.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
@@ -46,6 +47,7 @@ export default function VerificationWorkspacePage() {
   const [error, setError] = useState('');
   const [reasonFor, setReasonFor] = useState(null); // { docId, action }
   const [busy, setBusy] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
 
   const load = () => {
@@ -54,6 +56,7 @@ export default function VerificationWorkspacePage() {
       .catch((e) => setError(e.message || 'Could not load these documents.'));
   };
   useEffect(load, [applicationId]);
+  useEffect(() => { getVerificationSummary(applicationId).then(setSummary).catch(() => setSummary(null)); }, [applicationId, docs]);
 
   const act = async (doc, action, remarks) => {
     setBusy(doc.id);
@@ -98,6 +101,16 @@ export default function VerificationWorkspacePage() {
 
       {error && <Card><p className="text-secondary">{error}</p></Card>}
       {docs === null && !error && <SkeletonBlock lines={4} />}
+
+      {summary && (
+        <StatBar
+          items={[
+            { icon: 'FileCheck2', accent: 'blue', label: 'Applicable', value: summary.summary.applicable ?? 0 },
+            { icon: 'CheckCircle2', accent: 'green', label: 'Approved', value: summary.summary.approved ?? 0 },
+            { icon: 'Clock3', accent: 'amber', label: 'Pending review', value: (summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0) },
+          ]}
+        />
+      )}
 
       {docs !== null && (
         <Card
