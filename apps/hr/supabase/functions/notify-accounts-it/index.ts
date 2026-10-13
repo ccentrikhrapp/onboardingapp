@@ -44,6 +44,10 @@ Deno.serve(async (req) => {
   const requestType = body.requestType as string;
   const meta = REQUEST_META[requestType];
   if (!body.employeeId || !meta) return fail("VALIDATION_ERROR", "Unknown request type.", 422);
+  const manualEmail = typeof body.toEmail === "string" ? body.toEmail.trim() : "";
+  if (manualEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(manualEmail)) {
+    return fail("VALIDATION_ERROR", "That doesn't look like a valid email address.", 422, { toEmail: "Enter a valid email address." });
+  }
 
   const svc = serviceClient();
   const { data: task } = await svc.from("onboarding_tasks").select("*").eq("employee_id", body.employeeId).eq("key", requestType).maybeSingle();
@@ -54,12 +58,19 @@ Deno.serve(async (req) => {
   catch (e) { return fail("NOT_FOUND", (e as Error).message, 404); }
   const { emp, designation, department, joiningDate, location } = ctx;
 
-  // Falls back to HR/Super Admin when nobody's been given the Accounts/IT
-  // role yet — a brand-new org (or one with no dedicated IT hire) shouldn't
-  // have this request go nowhere just because that role is unfilled.
-  let recipients = await activeTeamEmails(svc, ["accounts", "it"]);
-  if (!recipients.length) recipients = await activeTeamEmails(svc, ["admin", "hr"]);
-  if (!recipients.length) return fail("NOT_FOUND", "No active staff found to send this to.", 404);
+  // A manually-typed address on the request form takes priority — HR
+  // pointing this at a real mailbox directly, without needing that person
+  // set up as an Accounts/IT team member first. Otherwise falls back to
+  // whoever actually has that role, then to HR/Super Admin when nobody's
+  // been given the Accounts/IT role yet.
+  let recipients: { email: string; name: string }[];
+  if (manualEmail) {
+    recipients = [{ email: manualEmail, name: "there" }];
+  } else {
+    recipients = await activeTeamEmails(svc, ["accounts", "it"]);
+    if (!recipients.length) recipients = await activeTeamEmails(svc, ["admin", "hr"]);
+    if (!recipients.length) return fail("NOT_FOUND", "No active staff found to send this to.", 404);
+  }
 
   // Section 3: ID card creation reuses the employee's existing photo —
   // never attached (no attachment pipeline exists in this app's mailer),

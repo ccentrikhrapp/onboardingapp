@@ -415,15 +415,20 @@ function AccountsItRequestsCard({ laptopTask, idCardTask, employeeId, canManage,
 
 function AccountsItTile({ task, requestType, icon, note, employeeId, canManage, busy, setTaskStatus, toast, onSent }) {
   const [sending, setSending] = useState(false);
+  // Optional manual override — lets HR type a real mailbox straight into the
+  // request form instead of first setting that person up as an Accounts/IT
+  // team member. Left blank, the server falls back to whoever actually has
+  // that role (then to HR/Super Admin if no one does yet).
+  const [toEmail, setToEmail] = useState('');
   const meta = TASK_STATUS_META[task.status];
   const alreadySent = task.status !== 'not_started';
 
   const send = async () => {
     setSending(true);
     try {
-      const res = await notifyAccountsIt(employeeId, requestType, alreadySent);
+      const res = await notifyAccountsIt(employeeId, requestType, alreadySent, toEmail.trim());
       const sent = res.results.some((r) => r.sent);
-      if (sent) toast.success('Request sent to the Accounts/IT team.');
+      if (sent) toast.success(`Request sent${toEmail.trim() ? ` to ${toEmail.trim()}` : ' to the Accounts/IT team'}.`);
       else toast.error(res.results[0]?.error || 'Could not send the request. You can try again.');
       onSent();
     } catch (e) { toast.error(e.message || 'Could not send the request.'); }
@@ -445,9 +450,19 @@ function AccountsItTile({ task, requestType, icon, note, employeeId, canManage, 
       </div>
       {task.completed_at && <div className="hr-cell-sub">Completed {formatDate(task.completed_at)}</div>}
       {canManage && (
-        <Button variant="ghost" icon="Send" disabled={sending} onClick={send}>
-          {sending ? 'Sending…' : alreadySent ? 'Resend request' : 'Send request to Accounts/IT'}
-        </Button>
+        <>
+          <input
+            type="email"
+            className="hr-input"
+            placeholder="Send to a specific email (optional)"
+            value={toEmail}
+            onChange={(e) => setToEmail(e.target.value)}
+            disabled={sending}
+          />
+          <Button variant="ghost" icon="Send" disabled={sending} onClick={send}>
+            {sending ? 'Sending…' : alreadySent ? 'Resend request' : 'Send request to Accounts/IT'}
+          </Button>
+        </>
       )}
     </div>
   );

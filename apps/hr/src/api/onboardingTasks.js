@@ -65,8 +65,11 @@ export function notifySuperAdmin(employeeId, adminId, fields, resend = false) {
 
 /** Sends the laptop-allocation or ID-card-creation request to the Accounts/
     IT team. `requestType`: 'laptop_allocation' | 'id_card_creation'. */
-export function notifyAccountsIt(employeeId, requestType, resend = false) {
-  return callFn('notify-accounts-it', { body: { employeeId, requestType, resend } });
+/** toEmail: optional manual override — when the role (Accounts/IT) isn't
+    filled by a real team member yet, HR can type a destination address
+    directly on the request form instead of going through Team invites. */
+export function notifyAccountsIt(employeeId, requestType, resend = false, toEmail) {
+  return callFn('notify-accounts-it', { body: { employeeId, requestType, resend, toEmail: toEmail || undefined } });
 }
 
 /** Completes/updates joining details on an EXISTING employee record — never
