@@ -49,6 +49,7 @@ export default function VerificationWorkspacePage() {
   const [busy, setBusy] = useState(null);
   const [summary, setSummary] = useState(null);
   const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'approved' | 'pending'
 
   const load = () => {
     listVerificationsForApplication(applicationId)
@@ -89,6 +90,12 @@ export default function VerificationWorkspacePage() {
   const first = docs?.[0];
   const approved = (docs || []).filter((d) => d.status === 'approved').length;
   const total = (docs || []).length;
+  const toggleFilter = (value) => setStatusFilter((v) => (v === value ? 'all' : value));
+  const visibleDocs = (docs || []).filter((d) => {
+    if (statusFilter === 'approved') return d.status === 'approved';
+    if (statusFilter === 'pending') return ['pending', 'under_review'].includes(d.status);
+    return true;
+  });
 
   return (
     <>
@@ -105,9 +112,9 @@ export default function VerificationWorkspacePage() {
       {summary && (
         <StatBar
           items={[
-            { icon: 'FileCheck2', accent: 'blue', label: 'Applicable', value: summary.summary.applicable ?? 0 },
-            { icon: 'CheckCircle2', accent: 'green', label: 'Approved', value: summary.summary.approved ?? 0 },
-            { icon: 'Clock3', accent: 'amber', label: 'Pending review', value: (summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0) },
+            { icon: 'FileCheck2', accent: 'blue', label: 'Applicable', value: summary.summary.applicable ?? 0, active: statusFilter === 'all', onClick: () => setStatusFilter('all') },
+            { icon: 'CheckCircle2', accent: 'green', label: 'Approved', value: summary.summary.approved ?? 0, active: statusFilter === 'approved', onClick: () => toggleFilter('approved') },
+            { icon: 'Clock3', accent: 'amber', label: 'Pending review', value: (summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0), active: statusFilter === 'pending', onClick: () => toggleFilter('pending') },
           ]}
         />
       )}
@@ -117,8 +124,11 @@ export default function VerificationWorkspacePage() {
           title="Pre-offer documents"
           action={<Tag tone={approved === total ? 'green' : 'amber'}>{approved}/{total} approved</Tag>}
         >
+          {visibleDocs.length === 0 ? (
+            <p className="hr-cell-mute">No documents match this filter.</p>
+          ) : (
           <div className="hr-stack">
-            {docs.map((doc) => {
+            {visibleDocs.map((doc) => {
               const meta = STATUS_META[doc.status] || STATUS_META.pending;
               const canAct = ['pending', 'under_review'].includes(doc.status);
               return (
@@ -160,6 +170,7 @@ export default function VerificationWorkspacePage() {
               );
             })}
           </div>
+          )}
         </Card>
       )}
       <DocumentPreviewModal

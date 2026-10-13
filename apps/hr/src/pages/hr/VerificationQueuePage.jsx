@@ -47,6 +47,7 @@ export default function VerificationQueuePage() {
   const navigate = useNavigate();
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
+  const [filter, setFilter] = useState('all'); // 'all' | 'verified' | 'action'
 
   useEffect(() => {
     let cancelled = false;
@@ -57,6 +58,12 @@ export default function VerificationQueuePage() {
   }, []);
 
   const groups = useMemo(() => groupByApplication(rows || []), [rows]);
+  const toggleFilter = (value) => setFilter((v) => (v === value ? 'all' : value));
+  const visibleGroups = groups.filter((g) => {
+    if (filter === 'verified') return g.verified;
+    if (filter === 'action') return !g.verified;
+    return true;
+  });
 
   return (
     <>
@@ -83,15 +90,19 @@ export default function VerificationQueuePage() {
       {groups.length > 0 && (
         <StatBar
           items={[
-            { icon: 'ClipboardCheck', accent: 'blue', label: 'Candidates', value: groups.length },
-            { icon: 'CheckCircle2', accent: 'green', label: 'Verified', value: groups.filter((g) => g.verified).length },
-            { icon: 'AlertTriangle', accent: 'amber', label: 'Action required', value: groups.filter((g) => !g.verified).length },
+            { icon: 'ClipboardCheck', accent: 'blue', label: 'Candidates', value: groups.length, active: filter === 'all', onClick: () => setFilter('all') },
+            { icon: 'CheckCircle2', accent: 'green', label: 'Verified', value: groups.filter((g) => g.verified).length, active: filter === 'verified', onClick: () => toggleFilter('verified') },
+            { icon: 'AlertTriangle', accent: 'amber', label: 'Action required', value: groups.filter((g) => !g.verified).length, active: filter === 'action', onClick: () => toggleFilter('action') },
           ]}
         />
       )}
 
+      {groups.length > 0 && visibleGroups.length === 0 && (
+        <Card><p className="hr-cell-mute">No candidates match this filter.</p></Card>
+      )}
+
       <div className="hr-stack">
-        {groups.map((g) => (
+        {visibleGroups.map((g) => (
           <Card key={g.applicationId}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <div>
