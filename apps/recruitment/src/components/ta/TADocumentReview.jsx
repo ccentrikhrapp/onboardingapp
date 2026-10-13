@@ -141,53 +141,57 @@ export default function TADocumentReview({ docs, onReload, onView, onOpen }) {
                 if (review && markNaEligible) menuItems.push({ label: 'Mark not applicable', icon: 'Circle', disabled: isBusy, onClick: () => act(d, 'mark_na') });
                 return (
                   <div key={d.id} className="ta-docrow ta-docrow--wide">
-                    <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
-                    <div className="grow" style={{ minWidth: 0 }}>
-                      <div className="ta-cell-strong" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {req.name}{d.employer_label ? ` — ${d.employer_label}` : ''}
-                        {d.status !== 'requested' && <Tag tone={tone}>{cl}</Tag>}{req.any_of_group && <Tag tone="grey">PAN or Aadhaar</Tag>}
-                      </div>
-                      {files.length > 0 && (
-                        <div className="ta-cell-sub" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
-                          {slots.length
-                            ? slots.map((s) => bySlot[s] && <button key={s} type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onView(d, bySlot[s], slotLabel(req, s))}><Icon name="Eye" size={12} /> {slotLabel(req, s)}</button>)
-                            : files.map((f, i) => <button key={i} type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onView(d, f, f.file_name)}><Icon name="Eye" size={12} /> {f.file_name || `File ${i + 1}`}</button>)}
+                    <div className="ta-docrow__details">
+                      <span className="ta-docrow__icon"><Icon name="FileText" size={15} /></span>
+                      <div className="grow" style={{ minWidth: 0 }}>
+                        <div className="ta-cell-strong" style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                          {req.name}{d.employer_label ? ` — ${d.employer_label}` : ''}
+                          {d.status !== 'requested' && <Tag tone={tone}>{cl}</Tag>}{req.any_of_group && <Tag tone="grey">PAN or Aadhaar</Tag>}
                         </div>
-                      )}
-                      {d.cannot_provide_reason && d.status !== 'requested' && <div className="ta-cell-sub" style={{ marginTop: 2 }}>{d.na_reason ? 'Not applicable — ' : 'Cannot provide — '}reason: {d.cannot_provide_reason}</div>}
-                      {d.hr_remarks && ['revision_required', 'rejected'].includes(d.status) && <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)', marginTop: 2 }}>Sent back: {d.hr_remarks}</div>}
-                      {asking && (
-                        <div className="cx-docreason" style={{ marginTop: 6 }}>
-                          <textarea className="cx-docreason__input" rows={2} placeholder={remarkFor.action === 'reject' ? 'Why is this not acceptable?' : 'What does the candidate need to correct or clarify?'} value={text} onChange={(e) => setText(e.target.value)} />
-                          <div className="cx-docreason__btns">
-                            <button className="ta-btn ta-btn--primary ta-btn--sm" disabled={!text.trim() || isBusy} onClick={() => act(d, remarkFor.action, text.trim())}>Send</button>
-                            <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setRemarkFor(null); setText(''); }}>Cancel</button>
+                        {files.length > 0 && (
+                          <div className="ta-cell-sub" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+                            {slots.length
+                              ? slots.map((s) => bySlot[s] && <button key={s} type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onView(d, bySlot[s], slotLabel(req, s))}><Icon name="Eye" size={12} /> {slotLabel(req, s)}</button>)
+                              : files.map((f, i) => <button key={i} type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onView(d, f, f.file_name)}><Icon name="Eye" size={12} /> {f.file_name || `File ${i + 1}`}</button>)}
                           </div>
-                        </div>
-                      )}
+                        )}
+                        {d.cannot_provide_reason && d.status !== 'requested' && <div className="ta-cell-sub" style={{ marginTop: 2 }}>{d.na_reason ? 'Not applicable — ' : 'Cannot provide — '}reason: {d.cannot_provide_reason}</div>}
+                        {d.hr_remarks && ['revision_required', 'rejected'].includes(d.status) && <div className="ta-cell-sub" style={{ color: 'var(--tag-red-fg)', marginTop: 2 }}>Sent back: {d.hr_remarks}</div>}
+                        {asking && (
+                          <div className="cx-docreason" style={{ marginTop: 6 }}>
+                            <textarea className="cx-docreason__input" rows={2} placeholder={remarkFor.action === 'reject' ? 'Why is this not acceptable?' : 'What does the candidate need to correct or clarify?'} value={text} onChange={(e) => setText(e.target.value)} />
+                            <div className="cx-docreason__btns">
+                              <button className="ta-btn ta-btn--primary ta-btn--sm" disabled={!text.trim() || isBusy} onClick={() => act(d, remarkFor.action, text.trim())}>Send</button>
+                              <button className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => { setRemarkFor(null); setText(''); }}>Cancel</button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="ta-docrow__right">
+
+                    <div className="ta-docrow__status">
                       <Tag tone={meta.tone}>{meta.label}</Tag>
+                      {d.status === 'under_verification' && <span className="ta-cell-sub">With HR</span>}
+                    </div>
+
+                    <div className="ta-docrow__actions">
                       {!asking && (
-                        <span className="ta-docrow__actions">
-                          {review ? (
-                            <>
-                              <button type="button" className="ta-btn ta-btn--primary ta-btn--sm" disabled={isBusy} onClick={() => act(d, 'approve')}>
-                                <Icon name="CheckCircle2" size={13} /> {d.status === 'cannot_provide' ? 'Approve reason' : 'Approve'}
-                              </button>
-                              <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onOpen?.(d)}>
-                                <Icon name="Eye" size={13} /> Verify
-                              </button>
-                              <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={isBusy} onClick={() => { setRemarkFor({ id: d.id, action: 'reupload_required' }); setText(''); }}>
-                                <Icon name="RotateCcw" size={13} /> Clarify
-                              </button>
-                              <DocRowMenu items={menuItems} />
-                            </>
-                          ) : markNaEligible ? (
-                            <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={isBusy} onClick={() => act(d, 'mark_na')}>Mark not applicable</button>
-                          ) : null}
-                          {d.status === 'under_verification' && <span className="ta-cell-sub">With HR</span>}
-                        </span>
+                        review ? (
+                          <>
+                            <button type="button" className="ta-btn ta-btn--primary ta-btn--sm" disabled={isBusy} onClick={() => act(d, 'approve')}>
+                              <Icon name="CheckCircle2" size={13} /> {d.status === 'cannot_provide' ? 'Approve reason' : 'Approve'}
+                            </button>
+                            <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" onClick={() => onOpen?.(d)}>
+                              <Icon name="Eye" size={13} /> Verify
+                            </button>
+                            <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={isBusy} onClick={() => { setRemarkFor({ id: d.id, action: 'reupload_required' }); setText(''); }}>
+                              <Icon name="RotateCcw" size={13} /> Clarify
+                            </button>
+                            <DocRowMenu items={menuItems} />
+                          </>
+                        ) : markNaEligible ? (
+                          <button type="button" className="ta-btn ta-btn--ghost ta-btn--sm" disabled={isBusy} onClick={() => act(d, 'mark_na')}>Mark not applicable</button>
+                        ) : null
                       )}
                     </div>
                   </div>

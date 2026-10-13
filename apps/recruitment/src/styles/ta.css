@@ -1267,12 +1267,25 @@
   background: var(--ta-blue-wash); color: var(--ta-blue);
   display: flex; align-items: center; justify-content: center;
 }
-/* document review rows (TA pre-offer checklist) — a taller, wrap-friendly
-   variant that keeps the status pill and action line clustered at the end
-   of the row instead of crammed against the document title. */
-.ta-docrow--wide { flex-wrap: wrap; padding: 13px 14px; row-gap: 8px; }
-.ta-docrow__right { display: flex; align-items: center; gap: 10px; margin-left: auto; flex-wrap: wrap; }
-.ta-docrow__actions { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+/* document review rows (TA pre-offer checklist) — a real 3-column layout
+   (Document details | Status | Actions), the same column widths on every
+   row regardless of document-name length or status-label length, instead
+   of everything floating based on each row's own content. */
+.ta-docrow--wide {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 150px 260px;
+  align-items: start;
+  gap: 10px 16px;
+  padding: 13px 14px;
+}
+.ta-docrow__details { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.ta-docrow__status { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; padding-top: 2px; }
+.ta-docrow__actions { display: flex; align-items: center; justify-content: flex-end; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 900px) {
+  .ta-docrow--wide { grid-template-columns: 1fr; }
+  .ta-docrow__status { flex-direction: row; align-items: center; }
+  .ta-docrow__actions { justify-content: flex-start; }
+}
 
 /* compact summary tiles above the document checklist — same numbers as
    before, just smaller so eight of them don't read as eight dashboard

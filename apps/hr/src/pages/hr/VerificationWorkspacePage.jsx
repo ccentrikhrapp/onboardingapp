@@ -102,8 +102,8 @@ export default function VerificationWorkspacePage() {
       {docs === null && !error && <SkeletonBlock lines={4} />}
 
       {summary && (
-        <Card title="Documentation summary">
-          <p className="hr-cell-sub" style={{ marginBottom: 12 }}>
+        <Card title="Documentation summary" className="hr-doctiles-card" bodyStyle={{ paddingTop: 10 }}>
+          <p className="hr-cell-sub hr-doctiles-meta">
             Employee: <strong>{first?.candidate_name}</strong> · Employment type: <strong>{summary.employment_type === 'fresher' ? 'Fresher' : summary.employment_type === 'experienced' ? 'Experienced' : '—'}</strong> · Previous employers: <strong>{summary.previous_employers ?? 0}</strong>
           </p>
 
@@ -140,14 +140,14 @@ export default function VerificationWorkspacePage() {
               </div>
               <div className="hr-doctile__stats">
                 <div className="hr-doctile__stat"><span className="hr-doctile__n">{summary.summary.notApplicable ?? 0}</span><span className="hr-doctile__l">Not applicable</span></div>
-                <div className="hr-doctile__stat">
+                <div className="hr-doctile__stat hr-doctile__stat--badge">
                   <Tag tone={summary.summary.ready ? 'green' : 'amber'}>{summary.summary.ready ? 'All resolved' : `${(summary.summary.unresolved || []).length} to resolve`}</Tag>
                 </div>
               </div>
             </div>
           </div>
 
-          <p className="hr-cell-sub">
+          <p className="hr-cell-sub hr-doctiles-status">
             {summary.summary.identityResolved ? <strong>Identity Proof – Satisfied. </strong> : null}
             {summary.summary.ready ? 'Every applicable requirement is resolved.' : `Still to resolve: ${(summary.summary.unresolved || []).join(', ')}.`}
           </p>
