@@ -137,7 +137,7 @@ export default function HRDashboard() {
       <HRHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
 
       {role === 'admin' && pendingRequests > 0 && (
-        <div className="hr-note hr-note--warn" style={{ justifyContent: 'space-between', marginBottom: 16, cursor: 'pointer' }} onClick={() => navigate('/hr/tasks')}>
+        <div className="hr-note hr-note--warn" style={{ justifyContent: 'space-between', marginBottom: 16, cursor: 'pointer' }} onClick={() => navigate('/hr/activity', { state: { type: 'account_requests' } })}>
           <span><Icon name="Mail" size={14} /> {pendingRequests} organisational account creation request{pendingRequests > 1 ? 's' : ''} waiting on you</span>
           <span className="hr-link">Review <Icon name="ChevronRight" size={13} /></span>
         </div>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import HRHeader from '../../components/kit/HRHeader.jsx';
 import Card from '../../components/kit/Card.jsx';
 import StatBar from '../../components/kit/StatBar.jsx';
@@ -75,8 +75,13 @@ const shortTime = (d) => new Date(d).toLocaleTimeString(undefined, { hour: 'nume
 
 export default function HRActivityPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [remote, setRemote] = useState({ loading: true, logs: [], docs: [], cases: [], verifications: [], tasks: [] });
-  const [type, setType] = useState('all');
+  // Dashboard's "account creation request waiting on you" banner (and any
+  // other entry point) can jump straight into a filtered view by passing
+  // { state: { type: 'account_requests' } } on navigate() — same idea as a
+  // tile click, just arriving from a different page.
+  const [type, setType] = useState(location.state?.type || 'all');
   const [when, setWhen] = useState('all');
   const [actor, setActor] = useState('all');
 
