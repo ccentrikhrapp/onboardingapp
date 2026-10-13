@@ -632,40 +632,57 @@
 .hr-statbar__num { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--sb, var(--hr-text)); }
 .hr-statbar__label { font-size: 12px; font-weight: 700; color: #0c0e13; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* ---------- Documentation summary card — a tighter head/body than the
-   default .hr-card (scoped here only; .hr-card itself is reused all over
-   the app and stays untouched). ---------- */
-.hr-doctiles-card .hr-card__head { padding: 10px 14px 0; }
-.hr-doctiles-card .hr-card__body { padding: 10px 14px 12px; }
-.hr-doctiles-meta { margin-bottom: 8px; }
-.hr-doctiles-status { margin: 0; }
+/* ---------- Documentation summary — one continuous left-aligned flow
+   (heading -> metadata -> cards -> status), each gap set explicitly rather
+   than inherited from .hr-card's head/body split. ---------- */
+.hr-doctiles-card { text-align: left; }
+.hr-doctiles-body { padding: 22px; text-align: left; }
+.hr-doctiles-heading { margin: 0 0 10px; font-size: 21px; font-weight: 600; line-height: 1.25; color: var(--hr-text); letter-spacing: -0.01em; text-align: left; }
+.hr-doctiles-meta { margin: 0 0 16px; font-size: 14px; line-height: 1.4; color: var(--hr-text-soft); text-align: left; }
+.hr-doctiles-meta strong { color: var(--hr-text); font-weight: 600; }
+.hr-doctiles-status {
+  margin: 12px 0 0; display: flex; align-items: center; flex-wrap: wrap;
+  gap: 4px 6px; font-size: 13px; color: var(--hr-text); text-align: left;
+}
+.hr-doctiles-status__icon { color: var(--tag-green-fg); flex-shrink: 0; }
 
 /* ---------- Grouped document-summary tiles (consolidated — each tile
    carries 2-3 related numbers instead of one metric per tile) ---------- */
-.hr-doctiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 8px; }
+.hr-doctiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .hr-doctile {
-  border: 1px solid color-mix(in srgb, var(--dt, var(--hr-blue)) 16%, var(--hr-line));
-  border-radius: 10px; padding: 9px 12px;
-  background: color-mix(in srgb, var(--dt, var(--hr-blue)) 4%, #fff);
+  border: 1px solid var(--hr-line); border-radius: 10px; padding: 16px;
+  background: #fff; text-align: left;
 }
 .hr-doctile--blue { --dt: var(--tag-blue-fg); }
 .hr-doctile--amber { --dt: var(--tag-amber-fg); }
 .hr-doctile--green { --dt: var(--tag-green-fg); }
-.hr-doctile__head { display: flex; align-items: center; gap: 7px; margin-bottom: 8px; }
+.hr-doctile__head { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
 .hr-doctile__icon {
-  width: 20px; height: 20px; border-radius: 6px; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 6px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: var(--dt, var(--hr-blue)); color: #fff;
+  background: color-mix(in srgb, var(--dt, var(--hr-blue)) 14%, #fff); color: var(--dt, var(--hr-blue));
 }
-.hr-doctile__title { font-size: 12px; font-weight: 700; color: var(--hr-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hr-doctile__stats { display: flex; justify-content: space-between; gap: 8px; }
-.hr-doctile__stat { display: flex; flex-direction: column; min-width: 0; }
+.hr-doctile__title { font-size: 14px; font-weight: 600; color: var(--hr-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hr-doctile__stats { display: flex; }
+.hr-doctile__stat {
+  flex: 1; display: flex; flex-direction: column; min-width: 0;
+  padding-left: 12px; border-left: 1px solid var(--hr-line-soft);
+}
+.hr-doctile__stat:first-child { padding-left: 0; border-left: 0; }
+/* Requirement coverage only has 2 items (not 3) — stretching them to equal
+   thirds like the other cards would leave a large empty gap, so this one
+   sizes to its own content with a fixed gap instead. */
+.hr-doctile__stats--compact { gap: 20px; }
+.hr-doctile__stats--compact .hr-doctile__stat { flex: 0 0 auto; padding-left: 0; border-left: 0; }
 .hr-doctile__stat--badge { justify-content: center; }
-.hr-doctile__stat--badge .hr-tag { font-size: 10.5px; padding: 2px 8px; }
-.hr-doctile__n { font-size: 17px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--dt, var(--hr-text)); line-height: 1.2; }
-.hr-doctile__l { font-size: 10.5px; font-weight: 600; color: var(--hr-text-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-@media (max-width: 1024px) { .hr-doctiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 560px) { .hr-doctiles { grid-template-columns: 1fr; } }
+.hr-doctile__stat--badge .hr-tag { font-size: 11px; padding: 2px 9px; }
+.hr-doctile__n { font-size: 27px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--hr-text); line-height: 1.2; }
+.hr-doctile__l { font-size: 12px; font-weight: 500; color: var(--hr-text-mute); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+@media (max-width: 860px) { .hr-doctiles { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 540px) {
+  .hr-doctiles { grid-template-columns: 1fr; }
+  .hr-doctiles-body { padding: 18px; }
+}
 @media (max-width: 720px) {
   .hr-statbar__item { flex-basis: 45%; }
 }
