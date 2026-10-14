@@ -17,19 +17,16 @@ import { formatDate } from '../../utils/format.js';
 // Optional, international formats allowed (+91 98765 43210) — mirrors team-invite.
 const phoneProblem = (p) => phoneError(p, { required: false });
 
-const ROLE_LABEL = { admin: 'Super Admin', admin_ta: 'Talent Acquisition Head', ta: 'Talent Acquisition', developer: 'Developer' };
-const ROLE_TONE = { admin: 'green', admin_ta: 'violet', ta: 'blue', developer: 'violet' };
+const ROLE_LABEL = { admin: 'Super Admin', admin_ta: 'Talent Acquisition Head', ta: 'Talent Acquisition' };
+const ROLE_TONE = { admin: 'green', admin_ta: 'violet', ta: 'blue' };
 const INVITATION_TONE = { pending: 'amber', accepted: 'blue', active: 'green', expired: 'red', disabled: 'grey' };
 const INVITATION_LABEL = { pending: 'Pending', accepted: 'Accepted', active: 'Active', expired: 'Expired', disabled: 'Disabled' };
 const ACCOUNT_TONE = { ACTIVE: 'green', INVITED: 'amber', DISABLED: 'grey' };
 const ACCOUNT_LABEL = { ACTIVE: 'Active', INVITED: 'Invited', DISABLED: 'Disabled' };
-const SCOPE_LABEL = { real: 'Real Team', developer_test: 'Developer / Test' };
-const SCOPE_TONE = { real: 'blue', developer_test: 'violet' };
 
 const COLUMNS = [
   { key: 'name', label: 'Name / Email' },
   { key: 'role', label: 'Role' },
-  { key: 'scope', label: 'Team' },
   { key: 'status', label: 'Account status' },
   { key: 'invitation', label: 'Invitation' },
   { key: 'login', label: 'Last login' },
@@ -59,7 +56,6 @@ export default function TAManagementPage() {
   const [saving, setSaving] = useState(false);
 
   const actorRole = team?.actorRole;
-  const isManager = actorRole === 'admin' || actorRole === 'admin_ta';
   const inviteRoles = actorRole === 'admin'
     ? ['admin', 'admin_ta', 'ta']
     : ['ta'];
@@ -205,17 +201,14 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
 
   return (
     <>
-      <TAHeader
-        title={isManager ? 'Teams' : 'Developer / Test Team'}
-        subtitle={isManager ? 'Invite people, assign roles, and control access for the recruitment portal.' : 'Developer / Test accounts only — the real team is not visible here.'}
-      />
+      <TAHeader title="Teams" subtitle="Invite people, assign roles, and control access for the recruitment portal." />
 
       <DataGrid
-        columns={isManager ? COLUMNS : COLUMNS.filter((c) => c.key !== 'actions')}
+        columns={COLUMNS}
         rows={members}
         loading={!team}
         title={team ? `${members.length} team member${members.length === 1 ? '' : 's'}` : 'Team'}
-        action={isManager && <Button icon="UserPlus" onClick={() => { setForm((f) => ({ ...f, role: inviteRoles.includes(f.role) ? f.role : inviteRoles[0] })); setInviteOpen(true); }}>Add Team Member</Button>}
+        action={<Button icon="UserPlus" onClick={() => { setForm((f) => ({ ...f, role: inviteRoles.includes(f.role) ? f.role : inviteRoles[0] })); setInviteOpen(true); }}>Add Team Member</Button>}
         empty={{ icon: 'Users', title: 'No team members yet', message: 'Add your first team member to get started.' }}
         renderRow={(m) => (
           <tr key={m.id}>
@@ -224,7 +217,6 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
               <span className="ta-cell-sub">{m.email}{m.phone ? ` · ${m.phone}` : ''}</span>
             </td>
             <td><Tag tone={ROLE_TONE[m.role]}>{ROLE_LABEL[m.role] || m.role}</Tag></td>
-            <td><Tag tone={SCOPE_TONE[m.teamScope]}>{SCOPE_LABEL[m.teamScope] || m.teamScope}</Tag></td>
             <td><Tag tone={ACCOUNT_TONE[m.accountStatus]}>{ACCOUNT_LABEL[m.accountStatus]}</Tag></td>
             <td>
               <Tag tone={INVITATION_TONE[m.invitationStatus]}>{INVITATION_LABEL[m.invitationStatus]}</Tag>
@@ -234,49 +226,47 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
             </td>
             <td className="ta-cell-mute">{formatDateTime(m.lastLoginAt)}</td>
             <td className="ta-cell-mute">{m.role === 'ta' ? (workload[m.id] || 0) : '—'}</td>
-            {isManager && (
-              <td>
-                <span className="ta-rowactions">
-                  {actorRole === 'admin' && (
-                    <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => openEdit(m)} aria-label={`Edit ${m.fullName || m.email}`} title="Edit details">
-                      <Icon name="Pencil" size={16} />
-                    </button>
-                  )}
-                  {canManageRow(m) && (m.invitationStatus === 'pending' || m.invitationStatus === 'expired') && (
-                    <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => resend(m)} aria-label="Resend invitation" title="Resend invitation">
-                      <Icon name="Send" size={16} />
-                    </button>
-                  )}
-                  {actorRole === 'admin' && (
-                    <select
-                      className="ta-select"
-                      value={m.role}
-                      disabled={busyId === m.id || m.id === team?.actorId}
-                      onChange={(e) => changeRole(m, e.target.value)}
-                      aria-label={`Change role for ${m.fullName || m.email}`}
-                    >
-                      {Object.entries(ROLE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                    </select>
-                  )}
-                  {canManageRow(m) && (
-                    <button
-                      className="ta-iconbtn"
-                      disabled={busyId === m.id}
-                      onClick={() => toggleActive(m)}
-                      aria-label={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
-                      title={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
-                    >
-                      <Icon name={m.accountStatus === 'DISABLED' ? 'UserCheck' : 'UserX'} size={16} />
-                    </button>
-                  )}
-                  {actorRole === 'admin' && canManageRow(m) && (
-                    <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => removeMember(m)} aria-label="Delete member" title="Delete member permanently" style={{ color: '#dc2626' }}>
-                      <Icon name="Trash2" size={16} />
-                    </button>
-                  )}
-                </span>
-              </td>
-            )}
+            <td>
+              <span className="ta-rowactions">
+                {actorRole === 'admin' && (
+                  <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => openEdit(m)} aria-label={`Edit ${m.fullName || m.email}`} title="Edit details">
+                    <Icon name="Pencil" size={16} />
+                  </button>
+                )}
+                {canManageRow(m) && (m.invitationStatus === 'pending' || m.invitationStatus === 'expired') && (
+                  <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => resend(m)} aria-label="Resend invitation" title="Resend invitation">
+                    <Icon name="Send" size={16} />
+                  </button>
+                )}
+                {actorRole === 'admin' && (
+                  <select
+                    className="ta-select"
+                    value={m.role}
+                    disabled={busyId === m.id || m.id === team?.actorId}
+                    onChange={(e) => changeRole(m, e.target.value)}
+                    aria-label={`Change role for ${m.fullName || m.email}`}
+                  >
+                    {Object.entries(ROLE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                  </select>
+                )}
+                {canManageRow(m) && (
+                  <button
+                    className="ta-iconbtn"
+                    disabled={busyId === m.id}
+                    onClick={() => toggleActive(m)}
+                    aria-label={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
+                    title={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
+                  >
+                    <Icon name={m.accountStatus === 'DISABLED' ? 'UserCheck' : 'UserX'} size={16} />
+                  </button>
+                )}
+                {actorRole === 'admin' && canManageRow(m) && (
+                  <button className="ta-iconbtn" disabled={busyId === m.id} onClick={() => removeMember(m)} aria-label="Delete member" title="Delete member permanently" style={{ color: '#dc2626' }}>
+                    <Icon name="Trash2" size={16} />
+                  </button>
+                )}
+              </span>
+            </td>
           </tr>
         )}
       />

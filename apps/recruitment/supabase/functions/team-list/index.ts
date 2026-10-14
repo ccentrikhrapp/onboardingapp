@@ -1,15 +1,13 @@
 // POST /functions/v1/team-list
-// Auth: Super Admin (admin), Talent Acquisition Head (admin_ta), or
-// Developer (sees only the Developer/Test scope — enforced right here in
-// the query, not filtered client-side). Returns every TA-app staff account
-// with its invitation + login status, computed server-side (last sign-in
-// lives in auth.users, which the browser can't read).
+// Auth: Super Admin (admin) or Talent Acquisition Head (admin_ta). Returns
+// every TA-app staff account with its invitation + login status, computed
+// server-side (last sign-in lives in auth.users, which the browser can't read).
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 
-const TEAM_ROLES = ["admin", "admin_ta", "ta", "developer"];
-const MANAGERS = ["admin", "admin_ta", "developer"];
+const TEAM_ROLES = ["admin", "admin_ta", "ta"];
+const MANAGERS = ["admin", "admin_ta"];
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -20,13 +18,8 @@ Deno.serve(async (req) => {
   if (!me || !MANAGERS.includes(me.role)) return fail("FORBIDDEN", "You don't have access to Teams.", 403);
 
   const svc = serviceClient();
-  let teamQuery = svc.from("profiles").select("id, email, full_name, role, active, department, phone, created_at, must_change_password, team_scope").in("role", TEAM_ROLES).order("created_at", { ascending: false });
-  // A Developer's query is scoped at the database query itself — never
-  // "fetch everyone, hide some in the response" — so there is no code path
-  // where a Real Team row is even constructed for a Developer caller.
-  if (me.role === "developer") teamQuery = teamQuery.eq("team_scope", "developer_test");
   const [{ data: profiles }, { data: invites }, { data: tokens }, usersRes] = await Promise.all([
-    teamQuery,
+    svc.from("profiles").select("id, email, full_name, role, active, department, phone, created_at, must_change_password").in("role", TEAM_ROLES).order("created_at", { ascending: false }),
     svc.from("staff_invites").select("email, role, full_name, invited_at, expires_at, last_sent_at, send_count, accepted_at, invited_by"),
     svc.from("staff_invitation_tokens").select("email, expires_at").is("used_at", null),
     svc.auth.admin.listUsers({ perPage: 1000 }),
@@ -65,7 +58,6 @@ Deno.serve(async (req) => {
       phone: p.phone,
       department: p.department,
       createdAt: p.created_at,
-      teamScope: p.team_scope,
       accountStatus,
       invitationStatus,
       invitedAt: inv?.invited_at ?? null,

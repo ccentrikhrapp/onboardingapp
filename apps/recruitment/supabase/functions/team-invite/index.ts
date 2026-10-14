@@ -16,9 +16,8 @@ import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 import { appBaseUrl, deliverInvitation, generateTempPassword, hashToken, INVITATION_EXPIRY_DAYS, invitationEmail, randomToken } from "../_shared/teamInvite.ts";
 
 const APP_NAME = "Recruitment Portal";
-const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", admin_ta: "Talent Acquisition Head", ta: "Talent Acquisition", developer: "Developer" };
-const INVITABLE: Record<string, string[]> = { admin: ["admin", "admin_ta", "ta", "developer"], admin_ta: ["ta"] };
-const scopeForRole = (role: string) => (role === "developer" ? "developer_test" : "real");
+const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", admin_ta: "Talent Acquisition Head", ta: "Talent Acquisition" };
+const INVITABLE: Record<string, string[]> = { admin: ["admin", "admin_ta", "ta"], admin_ta: ["ta"] };
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Optional. Accepts international formats (+91 98765 43210, (022) 1234 5678...).
 
@@ -74,7 +73,7 @@ Deno.serve(async (req) => {
     });
     if (cErr || !created.user) return fail("CREATE_FAILED", cErr?.message || "Could not create the account.", 500);
     profileId = created.user.id;
-    await svc.from("profiles").update({ must_change_password: true, team_scope: scopeForRole(role), ...(phone ? { phone } : {}) }).eq("id", profileId);
+    await svc.from("profiles").update({ must_change_password: true, ...(phone ? { phone } : {}) }).eq("id", profileId);
   } else {
     if (!existing) return fail("NOT_FOUND", "No invitation exists for this email.", 404);
     if (!INVITABLE[me.role].includes(existing.role)) return fail("FORBIDDEN", "You can't manage this user's invitation.", 403);

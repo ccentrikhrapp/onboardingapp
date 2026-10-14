@@ -17,18 +17,10 @@ export default function RoleRoute({ allow, children }) {
   // admin/admin_ta are supersets of ta ("Super TA" tier) — same workspace,
   // plus cross-team oversight; Teams is open to Super Admin + Talent Acquisition
   // Head (allow="team"), with finer limits enforced server-side (team-* functions).
-  // developer is deliberately NOT part of isTaTier — it never gets real-data
-  // access through the generic 'ta' check; only routes that explicitly pass
-  // 'team_or_developer' / 'ta_or_developer' admit it.
   const isTaTier = (r) => r === 'ta' || r === 'admin' || r === 'admin_ta';
-  const permitted =
-    allow === 'ta' ? isTaTier(role) :
-    allow === 'team' ? (role === 'admin' || role === 'admin_ta') :
-    allow === 'team_or_developer' ? (role === 'admin' || role === 'admin_ta' || role === 'developer') :
-    allow === 'ta_or_developer' ? (isTaTier(role) || role === 'developer') :
-    role === allow;
+  const permitted = allow === 'ta' ? isTaTier(role) : allow === 'team' ? (role === 'admin' || role === 'admin_ta') : role === allow;
   if (allow && !permitted) {
-    const home = role === 'developer' ? '/ta/team' : isTaTier(role) ? '/ta' : '/candidate';
+    const home = isTaTier(role) ? '/ta' : '/candidate';
     return <Navigate to={home} replace />;
   }
   return children;

@@ -14,19 +14,9 @@ const NAV = [
 const TEAMS_NAV = { to: '/ta/team', label: 'Teams', icon: 'ShieldCheck' };
 // Super Admin only — the database enforces it too (RLS on document_requirements).
 
-// Developer gets its own short branch — Team (Developer/Test scope only,
-// enforced server-side) and Profile, nothing from the real pipeline/jobs
-// nav. Checked before the admin/admin_ta branch so it can never fall
-// through to the full NAV array.
-const DEVELOPER_NAV = [
-  { to: '/ta/team', label: 'Team', icon: 'ShieldCheck', end: true },
-  { to: '/ta/profile', label: 'Profile', icon: 'UserRound' },
-];
-
 export default function TASidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
   const { role } = useApp();
-  const isDeveloper = role === 'developer';
-  const nav = isDeveloper ? DEVELOPER_NAV : role === 'admin' || role === 'admin_ta' ? [...NAV, TEAMS_NAV] : NAV;
+  const nav = role === 'admin' || role === 'admin_ta' ? [...NAV, TEAMS_NAV] : NAV;
   return (
     <aside className={`ta-sidebar${open ? ' ta-sidebar--open' : ''}`}>
       <button
@@ -45,16 +35,6 @@ export default function TASidebar({ open, collapsed, onToggleCollapse, onNavigat
           <span className="ta-brand__sub">TA Portal</span>
         </span>
       </div>
-
-      {isDeveloper && (
-        <div className="ta-devmode" title="Developer Mode — test data only, no production access">
-          <Icon name="ShieldCheck" size={13} />
-          <span>
-            <strong>Developer Mode</strong>
-            <small>Test data only</small>
-          </span>
-        </div>
-      )}
 
       <nav className="ta-nav">
         {nav.map((item) => (

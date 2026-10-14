@@ -107,29 +107,8 @@ export default function AppRoutes() {
         <Route path="/ta/candidates/:candidateId" element={<TACandidateDetailPage />} />
         <Route path="/ta/jobs" element={<TAJobsPage />} />
         <Route path="/ta/jobs/:jobId" element={<TAJobDetailPage />} />
+        <Route path="/ta/team" element={<RoleRoute allow="team"><TAManagementPage /></RoleRoute>} />
         <Route path="/ta/settings" element={<SettingsPage />} />
-      </Route>
-
-      {/* Teams and Profile are reachable by Developer too (Developer/Test
-          scope only, enforced server-side) — isolated from the 'ta' block
-          above so a developer never passes through a gate guarding real
-          pipeline/candidate data. */}
-      <Route
-        element={
-          <RoleRoute allow="team_or_developer">
-            <TALayout />
-          </RoleRoute>
-        }
-      >
-        <Route path="/ta/team" element={<TAManagementPage />} />
-      </Route>
-      <Route
-        element={
-          <RoleRoute allow="ta_or_developer">
-            <TALayout />
-          </RoleRoute>
-        }
-      >
         <Route path="/ta/profile" element={<ProfilePage role="ta" />} />
       </Route>
 
