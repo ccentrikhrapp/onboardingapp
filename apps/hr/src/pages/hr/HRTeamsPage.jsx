@@ -6,15 +6,12 @@ import Button from '../../components/kit/Button.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import { Modal } from '../../components/common/Modal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { useAuth } from '../../context/AuthContext.jsx';
 import CountryPhoneInput from '../../components/common/CountryPhoneInput.jsx';
 import { phoneError } from '../../utils/phone.js';
 import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember } from '../../api/team.js';
 
-const ROLE_LABEL = { admin: 'Super Admin', hr: 'HR', accounts: 'Accounts', it: 'IT', office_admin: 'Office Administration', developer: 'Developer' };
-const ROLE_TONE = { admin: 'green', hr: 'blue', accounts: 'amber', it: 'teal', office_admin: 'grey', developer: 'violet' };
-const SCOPE_LABEL = { real: 'Real Team', developer_test: 'Developer / Test' };
-const SCOPE_TONE = { real: 'blue', developer_test: 'violet' };
+const ROLE_LABEL = { admin: 'Super Admin', hr: 'HR', accounts: 'Accounts', it: 'IT', office_admin: 'Office Administration' };
+const ROLE_TONE = { admin: 'green', hr: 'blue', accounts: 'amber', it: 'teal', office_admin: 'grey' };
 const INVITATION_TONE = { pending: 'amber', accepted: 'blue', active: 'green', expired: 'red', disabled: 'grey' };
 const INVITATION_LABEL = { pending: 'Pending', accepted: 'Accepted', active: 'Active', expired: 'Expired', disabled: 'Disabled' };
 const ACCOUNT_TONE = { ACTIVE: 'green', INVITED: 'amber', DISABLED: 'grey' };
@@ -26,7 +23,6 @@ const phoneProblem = (p) => phoneError(p, { required: false });
 const COLUMNS = [
   { key: 'name', label: 'Name / Email' },
   { key: 'role', label: 'Role' },
-  { key: 'scope', label: 'Team' },
   { key: 'status', label: 'Account status' },
   { key: 'invitation', label: 'Invitation' },
   { key: 'login', label: 'Last login' },
@@ -36,17 +32,10 @@ const COLUMNS = [
 const formatDate = (iso) => (iso ? new Date(iso).toLocaleDateString('en-IN', { dateStyle: 'medium' }) : '—');
 const formatDateTime = (iso) => (iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—');
 
-/* Teams — reachable by Super Admin (full management, both scopes) or
-   Developer (read-only, Developer/Test scope only — team-list itself
-   filters the query server-side, so a Developer's response never contains
-   a Real Team row to begin with). The team-* mutation edge functions
-   (invite/set-role/set-active/delete) stay Super-Admin-only regardless of
-   what this page renders, so hiding the controls below is a UX nicety, not
-   the actual security boundary. */
+/* Teams — Super Admin only (route guard + the team-* edge functions both
+   enforce it; HR users have no user-management rights). */
 export default function HRTeamsPage() {
   const toast = useToast();
-  const { role } = useAuth();
-  const isAdmin = role === 'admin';
   const [team, setTeam] = useState(null); // { actorId, members }
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviting, setInviting] = useState(false);
@@ -153,18 +142,15 @@ This removes their account, revokes their Google access and stops ${m.email} fro
 
   return (
     <>
-      <HRHeader
-        title={isAdmin ? 'Teams' : 'Developer / Test Team'}
-        subtitle={isAdmin ? 'Invite people, assign roles, and control access for the HR portal.' : 'Test accounts only — this view never includes real HR/TA staff.'}
-      />
+      <HRHeader title="Teams" subtitle="Invite people, assign roles, and control access for the HR portal." />
 
       <DataGrid
-        columns={isAdmin ? COLUMNS : COLUMNS.filter((c) => c.key !== 'actions')}
+        columns={COLUMNS}
         rows={members}
         loading={!team}
         title={team ? `${members.length} team member${members.length === 1 ? '' : 's'}` : 'Team'}
-        action={isAdmin ? <Button icon="UserPlus" onClick={() => setInviteOpen(true)}>Add Team Member</Button> : undefined}
-        empty={{ icon: 'Users', title: isAdmin ? 'No team members yet' : 'No test accounts yet', message: isAdmin ? 'Add your first team member to get started.' : 'A Super Admin can add Developer/Test accounts from here.' }}
+        action={<Button icon="UserPlus" onClick={() => setInviteOpen(true)}>Add Team Member</Button>}
+        empty={{ icon: 'Users', title: 'No team members yet', message: 'Add your first team member to get started.' }}
         renderRow={(m) => (
           <tr key={m.id}>
             <td>
@@ -172,7 +158,6 @@ This removes their account, revokes their Google access and stops ${m.email} fro
               <span className="hr-cell-sub">{m.email}{m.phone ? ` · ${m.phone}` : ''}</span>
             </td>
             <td><Tag tone={ROLE_TONE[m.role]}>{ROLE_LABEL[m.role] || m.role}</Tag></td>
-            <td><Tag tone={SCOPE_TONE[m.teamScope]}>{SCOPE_LABEL[m.teamScope] || m.teamScope}</Tag></td>
             <td><Tag tone={ACCOUNT_TONE[m.accountStatus]}>{ACCOUNT_LABEL[m.accountStatus]}</Tag></td>
             <td>
               <Tag tone={INVITATION_TONE[m.invitationStatus]}>{INVITATION_LABEL[m.invitationStatus]}</Tag>
@@ -181,43 +166,41 @@ This removes their account, revokes their Google access and stops ${m.email} fro
               )}
             </td>
             <td className="hr-cell-mute">{formatDateTime(m.lastLoginAt)}</td>
-            {isAdmin && (
-              <td>
-                <span className="hr-rowactions" style={{ opacity: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {m.id !== team?.actorId && (m.invitationStatus === 'pending' || m.invitationStatus === 'expired') && (
-                    <button className="hr-iconbtn" disabled={busyId === m.id} onClick={() => resend(m)} aria-label="Resend invitation" title="Resend invitation">
-                      <Icon name="Send" size={16} />
-                    </button>
-                  )}
-                  <select
-                    className="hr-input"
-                    style={{ width: 'auto', padding: '6px 8px' }}
-                    value={m.role}
-                    disabled={busyId === m.id || m.id === team?.actorId}
-                    onChange={(e) => changeRole(m, e.target.value)}
-                    aria-label={`Change role for ${m.fullName || m.email}`}
+            <td>
+              <span className="hr-rowactions" style={{ opacity: 1, display: 'flex', gap: 6, alignItems: 'center' }}>
+                {m.id !== team?.actorId && (m.invitationStatus === 'pending' || m.invitationStatus === 'expired') && (
+                  <button className="hr-iconbtn" disabled={busyId === m.id} onClick={() => resend(m)} aria-label="Resend invitation" title="Resend invitation">
+                    <Icon name="Send" size={16} />
+                  </button>
+                )}
+                <select
+                  className="hr-input"
+                  style={{ width: 'auto', padding: '6px 8px' }}
+                  value={m.role}
+                  disabled={busyId === m.id || m.id === team?.actorId}
+                  onChange={(e) => changeRole(m, e.target.value)}
+                  aria-label={`Change role for ${m.fullName || m.email}`}
+                >
+                  {Object.entries(ROLE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </select>
+                {m.id !== team?.actorId && (
+                  <button
+                    className="hr-iconbtn"
+                    disabled={busyId === m.id}
+                    onClick={() => toggleActive(m)}
+                    aria-label={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
+                    title={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
                   >
-                    {Object.entries(ROLE_LABEL).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-                  </select>
-                  {m.id !== team?.actorId && (
-                    <button
-                      className="hr-iconbtn"
-                      disabled={busyId === m.id}
-                      onClick={() => toggleActive(m)}
-                      aria-label={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
-                      title={m.accountStatus === 'DISABLED' ? 'Re-enable' : 'Disable'}
-                    >
-                      <Icon name={m.accountStatus === 'DISABLED' ? 'UserCheck' : 'UserX'} size={16} />
-                    </button>
-                  )}
-                  {m.id !== team?.actorId && (
-                    <button className="hr-iconbtn" disabled={busyId === m.id} onClick={() => removeMember(m)} aria-label="Delete member" title="Delete member permanently" style={{ color: '#dc2626' }}>
-                      <Icon name="Trash2" size={16} />
-                    </button>
-                  )}
-                </span>
-              </td>
-            )}
+                    <Icon name={m.accountStatus === 'DISABLED' ? 'UserCheck' : 'UserX'} size={16} />
+                  </button>
+                )}
+                {m.id !== team?.actorId && (
+                  <button className="hr-iconbtn" disabled={busyId === m.id} onClick={() => removeMember(m)} aria-label="Delete member" title="Delete member permanently" style={{ color: '#dc2626' }}>
+                    <Icon name="Trash2" size={16} />
+                  </button>
+                )}
+              </span>
+            </td>
           </tr>
         )}
       />
