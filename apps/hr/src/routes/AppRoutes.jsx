@@ -56,7 +56,6 @@ export default function AppRoutes() {
         <Route path="/hr/activity" element={<HRActivityPage />} />
         {/* Document Rules moved under Settings. Old links still work. */}
         <Route path="/hr/document-rules" element={<Navigate to="/hr/settings/documents/rules" replace />} />
-        <Route path="/hr/team" element={<RoleRoute allow={[ROLES.ADMIN]}><HRTeamsPage /></RoleRoute>} />
         <Route path="/hr/settings" element={<SettingsLayout />}>
           <Route index element={<Navigate to="/hr/settings/general" replace />} />
           <Route path="general" element={<SettingsPage />} />
@@ -69,6 +68,16 @@ export default function AppRoutes() {
           tasks and their profile — not the rest of the HR workflow. */}
       <Route element={<RoleRoute allow={ALL_STAFF_ROLES}><HRLayout /></RoleRoute>}>
         <Route path="/hr/tasks" element={<OnboardingTasksPage />} />
+      </Route>
+
+      {/* Developer: Team (own scope only, enforced server-side in team-list)
+          and Profile — nothing else. Kept in its own block, separate from
+          every other RoleRoute above, so Developer is never accidentally
+          swept into a broader allow-list by a future edit to this file. */}
+      <Route element={<RoleRoute allow={[ROLES.ADMIN, ROLES.DEVELOPER]}><HRLayout /></RoleRoute>}>
+        <Route path="/hr/team" element={<HRTeamsPage />} />
+      </Route>
+      <Route element={<RoleRoute allow={[...ALL_STAFF_ROLES, ROLES.DEVELOPER]}><HRLayout /></RoleRoute>}>
         <Route path="/hr/profile" element={<ProfilePage />} />
       </Route>
 

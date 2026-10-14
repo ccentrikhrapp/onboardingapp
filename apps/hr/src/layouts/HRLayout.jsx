@@ -4,6 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import HRSidebar from '../components/navigation/HRSidebar.jsx';
 import HRTopbar from '../components/navigation/HRTopbar.jsx';
 import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
+import { useAuth } from '../context/AuthContext.jsx';
 
 const COLLAPSE_KEY = 'ccentrik.hr.sidebar.collapsed';
 
@@ -12,6 +13,7 @@ function readCollapsed() {
 }
 
 export default function HRLayout() {
+  const { role } = useAuth();
   const [open, setOpen] = useState(false); // mobile drawer
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [head, setHead] = useState(null);
@@ -34,7 +36,7 @@ export default function HRLayout() {
 
       <div className="hr-main">
         <HRTopbar head={head} onMenu={() => setOpen(true)} />
-        <ConnectGoogleBanner settingsPath="/hr/settings" />
+        {role !== 'developer' && <ConnectGoogleBanner settingsPath="/hr/settings" />}
         <div className="hr-page" key={pathname}>
           <Suspense fallback={<SkeletonPage />}><Outlet context={ctx} /></Suspense>
         </div>

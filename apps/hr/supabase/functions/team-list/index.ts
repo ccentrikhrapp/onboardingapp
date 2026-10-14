@@ -1,12 +1,13 @@
 // POST /functions/v1/team-list
-// Auth: Super Admin (admin) only. Returns every HR-app account with its
-// invitation + login status, computed server-side (last sign-in lives in
-// auth.users, which the browser can't read).
+// Auth: Super Admin (admin), or Developer (sees only the Developer/Test
+// scope — enforced right here in the query, not filtered client-side).
+// Returns every HR-app account with its invitation + login status, computed
+// server-side (last sign-in lives in auth.users, which the browser can't read).
 
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 
-const TEAM_ROLES = ["admin", "hr", "accounts", "it", "office_admin"];
+const TEAM_ROLES = ["admin", "hr", "accounts", "it", "office_admin", "developer"];
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -14,11 +15,16 @@ Deno.serve(async (req) => {
   if (req.method !== "POST") return fail("METHOD", "POST only.", 405);
 
   const me = await currentProfile(req);
-  if (!me || me.role !== "admin") return fail("FORBIDDEN", "You don't have access to Teams.", 403);
+  if (!me || !["admin", "developer"].includes(me.role)) return fail("FORBIDDEN", "You don't have access to Teams.", 403);
 
   const svc = serviceClient();
+  let teamQuery = svc.from("profiles").select("id, email, full_name, role, active, phone, created_at, must_change_password, team_scope").in("role", TEAM_ROLES).order("created_at", { ascending: false });
+  // A Developer's query is scoped at the database query itself — never "fetch
+  // everyone, hide some in the response" — so there is no code path where a
+  // Real Team row is even constructed for a Developer caller, let alone sent.
+  if (me.role === "developer") teamQuery = teamQuery.eq("team_scope", "developer_test");
   const [{ data: profiles }, { data: invites }, { data: tokens }, usersRes] = await Promise.all([
-    svc.from("profiles").select("id, email, full_name, role, active, phone, created_at, must_change_password").in("role", TEAM_ROLES).order("created_at", { ascending: false }),
+    teamQuery,
     svc.from("staff_invites").select("email, role, full_name, invited_at, expires_at, last_sent_at, send_count, accepted_at"),
     svc.from("staff_invitation_tokens").select("email, expires_at").is("used_at", null),
     svc.auth.admin.listUsers({ perPage: 1000 }),
@@ -51,6 +57,7 @@ Deno.serve(async (req) => {
     const accountStatus = !p.active ? "DISABLED" : (invitationStatus === "pending" || invitationStatus === "expired") ? "INVITED" : "ACTIVE";
     return {
       id: p.id, email: p.email, fullName: p.full_name, role: p.role, phone: p.phone, department: null, createdAt: p.created_at,
+      teamScope: p.team_scope,
       accountStatus, invitationStatus,
       invitedAt: inv?.invited_at ?? null, expiresAt: tokenExpiry.get(email) ?? inv?.expires_at ?? null, lastSentAt: inv?.last_sent_at ?? null, lastLoginAt: login,
     };

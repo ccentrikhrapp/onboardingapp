@@ -15,6 +15,7 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
 
   const isHrStaff = role === 'admin' || role === 'hr';
   const isSuperAdmin = role === 'admin';
+  const isDeveloper = role === 'developer';
 
   useEffect(() => {
     if (!isHrStaff) return;
@@ -50,7 +51,14 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
   // itself (see HRActivityPage's "Account requests" tile/filter) — the
   // Super Admin's in-app "something's waiting on you" signal moves with it
   // onto the Activity link rather than disappearing.
-  const nav = isHrStaff ? [
+  // Developer gets its own, deliberately short branch — Team (their own
+  // scope only, enforced server-side) and Profile, nothing from the real HR
+  // workflow. Not folded into the isHrStaff/else split above so a future
+  // edit to that logic can't accidentally widen what Developer sees.
+  const nav = isDeveloper ? [
+    { to: '/hr/team', label: 'Team', icon: 'ShieldCheck', end: true },
+    { to: '/hr/profile', label: 'Profile', icon: 'UserRound' },
+  ] : isHrStaff ? [
     { to: '/hr', label: 'Dashboard', icon: 'Home', end: true },
     { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
     { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
@@ -81,6 +89,16 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
           <span className="hr-brand__sub">HR Portal</span>
         </span>
       </div>
+
+      {isDeveloper && (
+        <div className="hr-devmode" title="Developer Mode — test data only, no production access">
+          <Icon name="ShieldCheck" size={13} />
+          <span>
+            <strong>Developer Mode</strong>
+            <small>Test data only</small>
+          </span>
+        </div>
+      )}
 
       <nav className="hr-nav">
         {nav.map((item) => (

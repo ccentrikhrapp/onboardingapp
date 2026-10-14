@@ -7,8 +7,14 @@
 import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 
-const TEAM_ROLES = ["admin", "hr", "accounts", "it", "office_admin"];
-const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR", accounts: "Accounts", it: "IT", office_admin: "Office Administration" };
+const TEAM_ROLES = ["admin", "hr", "accounts", "it", "office_admin", "developer"];
+const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR", accounts: "Accounts", it: "IT", office_admin: "Office Administration", developer: "Developer" };
+// team_scope is never an independent, directly-settable field anywhere in
+// this app — it is always derived from role, right here, the one place role
+// changes happen (and this whole function is already admin-only). That's
+// what makes it impossible for a Developer to grant themselves Real Team
+// visibility: there is no request shape that sets scope on its own.
+const scopeForRole = (role: string) => (role === "developer" ? "developer_test" : "real");
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -79,7 +85,7 @@ Deno.serve(async (req) => {
     if (target.role === "admin" && value !== "admin" && (await otherActiveAdmins()) === 0) {
       return fail("LAST_SUPER_ADMIN", "There must always be at least one active Super Admin.", 409);
     }
-    await svc.from("profiles").update({ role: value }).eq("id", target.id);
+    await svc.from("profiles").update({ role: value, team_scope: scopeForRole(value) }).eq("id", target.id);
     await svc.from("staff_invites").update({ role: value }).ilike("email", target.email.replace(/[\\%_]/g, (c: string) => "\\" + c));
     await audit(svc, {
       actor_profile_id: me.id, actor_label: me.full_name ?? me.email, action: "team.role_change",
