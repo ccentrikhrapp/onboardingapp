@@ -5,12 +5,19 @@ import TASidebar from '../components/navigation/TASidebar.jsx';
 import TATopbar from '../components/navigation/TATopbar.jsx';
 import Icon from '../components/common/Icon.jsx';
 import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
+import { useApp } from '../context/AppContext.jsx';
 
 const BOTTOM_NAV = [
   { to: '/ta', label: 'Dashboard', icon: 'Home', end: true },
   { to: '/ta/pipeline', label: 'Pipeline', icon: 'UsersRound' },
   { to: '/ta/candidates', label: 'Job Candidates', icon: 'Users' },
   { to: '/ta/jobs', label: 'Jobs', icon: 'Briefcase' },
+];
+// Developer never sees the real pipeline/jobs bottom nav — same reasoning
+// as TASidebar's DEVELOPER_NAV.
+const DEVELOPER_BOTTOM_NAV = [
+  { to: '/ta/team', label: 'Team', icon: 'ShieldCheck', end: true },
+  { to: '/ta/profile', label: 'Profile', icon: 'UserRound' },
 ];
 
 const COLLAPSE_KEY = 'talentflow.ta.sidebar.collapsed';
@@ -24,6 +31,9 @@ export default function TALayout() {
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [head, setHead] = useState(null);
   const { pathname } = useLocation();
+  const { role } = useApp();
+  const isDeveloper = role === 'developer';
+  const bottomNav = isDeveloper ? DEVELOPER_BOTTOM_NAV : BOTTOM_NAV;
 
   const ctx = useMemo(() => ({ setHead }), []);
 
@@ -47,14 +57,14 @@ export default function TALayout() {
 
       <div className="ta-main">
         <TATopbar head={head} onMenu={() => setOpen(true)} />
-        <ConnectGoogleBanner needCalendar settingsPath="/ta/settings" />
+        {!isDeveloper && <ConnectGoogleBanner needCalendar settingsPath="/ta/settings" />}
         <div className="ta-page" key={pathname}>
           <Suspense fallback={<SkeletonPage />}><Outlet context={ctx} /></Suspense>
         </div>
       </div>
 
       <nav className="ta-bottomnav">
-        {BOTTOM_NAV.map((item) => (
+        {bottomNav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}

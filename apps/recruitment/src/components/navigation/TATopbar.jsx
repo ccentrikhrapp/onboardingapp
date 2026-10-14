@@ -9,6 +9,7 @@ export default function TATopbar({ head, onMenu }) {
   const { profile, role, signOut } = useApp();
   const name = profile?.full_name || profile?.email || 'Account';
   const roleLabel = ROLE_META[role]?.label || 'Talent Acquisition';
+  const isDeveloper = role === 'developer';
 
   return (
     <header className="ta-topbar">
@@ -24,13 +25,14 @@ export default function TATopbar({ head, onMenu }) {
         )}
         {head?.title && <h1 className="ta-topbar__title">{head.title}</h1>}
         {head?.subtitle && <p className="ta-topbar__sub">{head.subtitle}</p>}
+        {isDeveloper && <span className="ta-devmode-chip" title="Test data only — no production access">DEVELOPER MODE</span>}
       </div>
 
       <NotificationBell variant="ta" />
       <ProfileMenu
         name={name}
         roleLabel={roleLabel}
-        links={[{ label: 'Profile & settings', icon: 'Settings', to: '/ta/settings' }]}
+        links={isDeveloper ? [{ label: 'Profile', icon: 'UserRound', to: '/ta/profile' }] : [{ label: 'Profile & settings', icon: 'Settings', to: '/ta/settings' }]}
         onSignOut={signOut}
         afterSignOut="/ta/login"
       />
