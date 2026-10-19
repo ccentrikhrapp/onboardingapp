@@ -4,6 +4,13 @@ import HRLayout from '../layouts/HRLayout.jsx';
 import RoleRoute from '../components/routing/RoleRoute.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ALL_STAFF_ROLES, ROLES } from '../constants/roles.js';
+
+// Super Admin OTP (see AuthContext's otpRequired / OtpVerificationPage) is
+// gated off until this project's company mailbox (MAIL_USER/MAIL_PASS
+// secrets) is configured — otherwise send-super-admin-otp can't deliver a
+// code and every Super Admin would be locked out with no way in. Flip this
+// to true once that's set up.
+const SUPER_ADMIN_OTP_ENABLED = false;
 const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
 const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage.jsx'));
 const OtpVerificationPage = lazy(() => import('../pages/OtpVerificationPage.jsx'));
@@ -36,7 +43,7 @@ export default function AppRoutes() {
   if (mustChangePassword) return <Suspense fallback={null}><SetPasswordPage mode="temp" /></Suspense>;
   // Super Admin second factor: nothing else is reachable — including typing
   // /hr directly — until the emailed OTP is verified for this session.
-  if (otpRequired) return <Suspense fallback={null}><OtpVerificationPage /></Suspense>;
+  if (SUPER_ADMIN_OTP_ENABLED && otpRequired) return <Suspense fallback={null}><OtpVerificationPage /></Suspense>;
   return (
     <Suspense fallback={null}>
     <Routes>
