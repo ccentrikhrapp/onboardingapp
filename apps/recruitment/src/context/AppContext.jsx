@@ -64,13 +64,14 @@ export function AppProvider({ children }) {
       profile: auth.profile,
       authConfigured: auth.configured,
       authLoading: auth.loading,
+      otpRequired: auth.otpRequired,
       signOut: auth.signOut,
       reloadJobs,
       createJob,
       deleteJob,
       ...selectors,
     }),
-    [auth.role, auth.profile, auth.configured, auth.loading, auth.signOut, reloadJobs, createJob, deleteJob, selectors]
+    [auth.role, auth.profile, auth.configured, auth.loading, auth.otpRequired, auth.signOut, reloadJobs, createJob, deleteJob, selectors]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

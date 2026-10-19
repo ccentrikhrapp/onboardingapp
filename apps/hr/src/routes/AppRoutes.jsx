@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { ALL_STAFF_ROLES, ROLES } from '../constants/roles.js';
 const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
 const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage.jsx'));
+const OtpVerificationPage = lazy(() => import('../pages/OtpVerificationPage.jsx'));
 const HRTeamsPage = lazy(() => import('../pages/hr/HRTeamsPage.jsx'));
 const HRDashboard = lazy(() => import('../pages/hr/HRDashboard.jsx'));
 const VerificationQueuePage = lazy(() => import('../pages/hr/VerificationQueuePage.jsx'));
@@ -29,10 +30,13 @@ function RedirectToEmployee() {
 }
 
 export default function AppRoutes() {
-  const { mustChangePassword } = useAuth();
+  const { mustChangePassword, otpRequired } = useAuth();
   // First sign-in with the emailed temporary password: nothing else is reachable
   // until the person chooses their own password.
   if (mustChangePassword) return <Suspense fallback={null}><SetPasswordPage mode="temp" /></Suspense>;
+  // Super Admin second factor: nothing else is reachable — including typing
+  // /hr directly — until the emailed OTP is verified for this session.
+  if (otpRequired) return <Suspense fallback={null}><OtpVerificationPage /></Suspense>;
   return (
     <Suspense fallback={null}>
     <Routes>

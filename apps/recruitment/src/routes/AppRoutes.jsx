@@ -11,10 +11,18 @@ import TALayout from '../layouts/TALayout.jsx';
 import RoleRoute from '../components/routing/RoleRoute.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 
+// Super Admin OTP (see AuthContext's otpRequired / OtpVerificationPage) is
+// gated off until this project's company mailbox (MAIL_USER/MAIL_PASS
+// secrets) is configured — otherwise send-super-admin-otp can't deliver a
+// code and every Super Admin would be locked out with no way in. Flip this
+// to true once that's set up.
+const SUPER_ADMIN_OTP_ENABLED = false;
+
 const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
 const TALoginPage = lazy(() => import('../pages/TALoginPage.jsx'));
 const WelcomePage = lazy(() => import('../pages/WelcomePage.jsx'));
 const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage.jsx'));
+const OtpVerificationPage = lazy(() => import('../pages/OtpVerificationPage.jsx'));
 const LegalPage = lazy(() => import('../pages/LegalPage.jsx'));
 import RootGate from '../components/routing/RootGate.jsx';
 
@@ -43,10 +51,13 @@ const SettingsPage = lazy(() => import('../pages/shared/SettingsPage.jsx'));
 const ProfilePage = lazy(() => import('../pages/shared/ProfilePage.jsx'));
 
 export default function AppRoutes() {
-  const { mustChangePassword } = useAuth();
+  const { mustChangePassword, otpRequired } = useAuth();
   // First sign-in with the emailed temporary password: nothing else is reachable
   // until the person chooses their own password.
   if (mustChangePassword) return <Suspense fallback={null}><SetPasswordPage mode="temp" /></Suspense>;
+  // Super Admin second factor: nothing else is reachable — including typing
+  // /ta directly — until the emailed OTP is verified for this session.
+  if (SUPER_ADMIN_OTP_ENABLED && otpRequired) return <Suspense fallback={null}><OtpVerificationPage /></Suspense>;
   return (
     <Suspense fallback={null}>
     <Routes>

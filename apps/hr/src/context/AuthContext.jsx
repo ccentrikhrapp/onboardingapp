@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase, isSupabaseConfigured, SITE_URL } from '../lib/supabase.js';
 import { recordLogin } from '../api/team.js';
+import { ROLES } from '../constants/roles.js';
+
+// Scoped to one browser tab and to the session that earned it (see
+// otpRequired below) — a fresh login, a new tab, or closing the browser all
+// require verifying again. Cleared on sign-out.
+const OTP_VERIFIED_KEY = 'ccx_otp_verified_session';
 
 /**
  * Real authentication. One Google account -> one profile row -> one role.
@@ -13,6 +19,9 @@ export function AuthProvider({ children }) {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [otpVerifiedSessionId, setOtpVerifiedSessionId] = useState(() => {
+    try { return sessionStorage.getItem(OTP_VERIFIED_KEY) || null; } catch { return null; }
+  });
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -34,6 +43,8 @@ export function AuthProvider({ children }) {
       if (!s) {
         setProfile(null);
         setLoading(false);
+        try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
+        setOtpVerifiedSessionId(null);
       }
       // Google only returns a refresh token on fresh consent (we always ask
       // for one via prompt=consent), so this only fires occasionally, not on
@@ -69,6 +80,7 @@ export function AuthProvider({ children }) {
         // every edge function also refuse them — this is just the UX).
         if (data && data.active === false) {
           try { sessionStorage.setItem('ccx_auth_notice', 'Your account has been disabled. Please contact your administrator.'); } catch { /* private mode */ }
+          try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
           supabase.auth.signOut();
           setProfile(null);
           setLoading(false);
@@ -114,6 +126,30 @@ export function AuthProvider({ children }) {
     }
   }, [profile, session]);
 
+  // Super Admin only: after valid primary auth (password OR Google), a
+  // second email-OTP step must be completed before any role-gated route is
+  // reachable (see AppRoutes). "Verified" is scoped to this JWT's own
+  // session id (from the token, not something the client can invent) and is
+  // only ever set by markOtpVerified after the server accepts a code — so a
+  // fresh login, a different tab, or a closed browser always re-prompts.
+  // Every other role is entirely unaffected.
+  const sessionId = useMemo(() => {
+    if (!session?.access_token) return null;
+    try {
+      return JSON.parse(atob(session.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).session_id ?? null;
+    } catch {
+      return null;
+    }
+  }, [session]);
+
+  const otpRequired = profile?.role === ROLES.ADMIN && !!sessionId && otpVerifiedSessionId !== sessionId;
+
+  const markOtpVerified = () => {
+    if (!sessionId) return;
+    try { sessionStorage.setItem(OTP_VERIFIED_KEY, sessionId); } catch { /* private mode */ }
+    setOtpVerifiedSessionId(sessionId);
+  };
+
   const value = useMemo(
     () => ({
       configured: isSupabaseConfigured,
@@ -122,6 +158,8 @@ export function AuthProvider({ children }) {
       profile,
       role: profile?.role ?? null,
       mustChangePassword,
+      otpRequired,
+      markOtpVerified,
       loading,
       // Signing in only asks Google for basic identity (name + email), so there
       // is no "unverified app" warning at login. Sending email needs more and is
@@ -147,9 +185,12 @@ export function AuthProvider({ children }) {
       // is deliberately identical whether or not the address has an account.
       requestPasswordReset: (email) =>
         supabase.auth.resetPasswordForEmail(email, { redirectTo: `${SITE_URL}/reset-password` }),
-      signOut: () => supabase.auth.signOut(),
+      signOut: () => {
+        try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
+        return supabase.auth.signOut();
+      },
     }),
-    [session, profile, loading, mustChangePassword]
+    [session, profile, loading, mustChangePassword, otpRequired]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
