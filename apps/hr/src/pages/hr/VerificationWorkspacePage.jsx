@@ -6,7 +6,6 @@ import Tag from '../../components/kit/Tag.jsx';
 import Button from '../../components/kit/Button.jsx';
 import StatBar from '../../components/kit/StatBar.jsx';
 import Icon from '../../components/common/Icon.jsx';
-import DocumentPreviewModal from '../../components/common/DocumentPreviewModal.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { listVerificationsForApplication, getVerificationDocumentUrl, getVerificationSummary } from '../../api/verification.js';
 import { verifyDocument } from '../../api/verify.js';
@@ -48,7 +47,6 @@ export default function VerificationWorkspacePage() {
   const [reasonFor, setReasonFor] = useState(null); // { docId, action }
   const [busy, setBusy] = useState(null);
   const [summary, setSummary] = useState(null);
-  const [preview, setPreview] = useState(null); // { url, fileName, title } for DocumentPreviewModal
   const [statusFilter, setStatusFilter] = useState('all'); // 'all' | 'approved' | 'pending'
 
   const load = () => {
@@ -76,14 +74,26 @@ export default function VerificationWorkspacePage() {
   };
 
   const viewDoc = async (doc) => {
-    setPreview({ url: null, fileName: null, title: doc.requirement_name });
+    // Opened synchronously (before the await below) so the browser still
+    // counts this as a direct result of the click and doesn't block it as a
+    // popup — setting .location after the signed URL resolves.
+    const win = window.open('', '_blank');
     try {
       const { url, fileName, files } = await getVerificationDocumentUrl(doc.source_document_id);
       const parts = files?.length ? files : [{ url, fileName, label: null }];
-      setPreview({ url: parts[0].url, fileName: parts[0].fileName, title: doc.requirement_name, parts, active: 0 });
+      if (win) win.location.href = parts[0].url;
+      // A multi-file document (e.g. Aadhaar front + back) opens one tab per part.
+      for (let i = 1; i < parts.length; i += 1) window.open(parts[i].url, '_blank');
     } catch (e) {
-      setPreview(null);
-      toast.error(e.message || 'Could not open this document.');
+      win?.close();
+      // Not a failure — some approved items were never actually uploaded
+      // (e.g. accepted via "candidate cannot provide this"-style overrides
+      // without a file attached). A plain info note, not an error toast.
+      if (/no file on record/i.test(e.message || '')) {
+        toast.info('No file was uploaded for this document.');
+      } else {
+        toast.error(e.message || 'Could not open this document.');
+      }
     }
   };
 
@@ -173,12 +183,6 @@ export default function VerificationWorkspacePage() {
           )}
         </Card>
       )}
-      <DocumentPreviewModal
-        open={!!preview} onClose={() => setPreview(null)}
-        url={preview?.url} fileName={preview?.fileName} title={preview?.title}
-        parts={preview?.parts || []} activePart={preview?.active || 0}
-        onPart={(i) => setPreview((p) => ({ ...p, active: i, url: p.parts[i].url, fileName: p.parts[i].fileName }))}
-      />
     </>
   );
 }
