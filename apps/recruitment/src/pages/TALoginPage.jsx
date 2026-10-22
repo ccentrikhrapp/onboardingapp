@@ -60,6 +60,7 @@ export default function TALoginPage() {
     if (authLoading) return;
     cleanAuthUrl();
     if (noProfile) {
+      console.warn('[ccx-debug] TALoginPage noProfile signing out', { session: !!session, role, authLoading }); // TEMP debug
       setFormError(SIGN_IN_FAILED);
       signOut();
     }

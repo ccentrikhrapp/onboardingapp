@@ -47,8 +47,12 @@ async function callFnInner(name, { body, method = 'POST', query } = {}, client =
     // leaving them on a screen where everything silently fails.
     const st = error.context?.status;
     if (st === 401 || st === 403) {
+      console.warn('[ccx-debug] callFn got', st, 'from', name, '— checking session'); // TEMP debug, remove after sign-in bug is found
       const { error: sessionErr } = await client.auth.getUser();
-      if (sessionErr) await client.auth.signOut();
+      if (sessionErr) {
+        console.warn('[ccx-debug] getUser also failed, signing out:', sessionErr.message); // TEMP debug
+        await client.auth.signOut();
+      }
     }
     let payload = null;
     try {
