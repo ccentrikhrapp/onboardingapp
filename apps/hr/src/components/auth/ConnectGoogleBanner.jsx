@@ -5,12 +5,16 @@ import { SITE_URL } from '../../lib/supabase.js';
 import { callFn } from '../../api/client.js';
 
 const DISMISS_KEY = 'ccx_gconnect_dismissed';
+// These two accounts are password-only (see AuthContext) — Google can never
+// actually be connected for them, so don't show a banner promising a feature
+// that can't work for this account.
+const PASSWORD_ONLY_EMAILS = ['sarthak.tyagi@ccentrik.com', 'sachin.chaudhary@ccentrik.com'];
 
 /* Staff sign in with basic Google identity only. Sending email and creating
    Meet links needs extra Google permissions, asked for once, on purpose, here.
    `needCalendar` is true where interviews are scheduled (Talent Acquisition). */
 export default function ConnectGoogleBanner({ needCalendar = false, settingsPath = '/' }) {
-  const { connectGoogle } = useAuth();
+  const { connectGoogle, profile } = useAuth();
   const navigate = useNavigate();
   const [status, setStatus] = useState(null); // null = unknown yet
   const [busy, setBusy] = useState(false);
@@ -36,6 +40,7 @@ export default function ConnectGoogleBanner({ needCalendar = false, settingsPath
   const emailOk = status && (status.mailSaved || status.connected || status.mailConfigured);
   const needsEmail = status && !emailOk;
   const needsMeet = status && emailOk && needCalendar && !status.calendar;
+  if (profile?.email && PASSWORD_ONLY_EMAILS.includes(profile.email.toLowerCase())) return null;
   if (!status || dismissed || (!needsEmail && !needsMeet)) return null;
 
   const connect = async () => {
