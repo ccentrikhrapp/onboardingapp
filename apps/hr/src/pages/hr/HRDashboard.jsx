@@ -75,6 +75,13 @@ export default function HRDashboard() {
   }).length;
 
   const kpis = [
+    ...(role === 'admin' && pendingRequests > 0
+      ? [{
+          icon: 'Mail', label: 'Account Requests', accent: 'amber', value: pendingRequests,
+          note: `organisational account creation request${pendingRequests > 1 ? 's' : ''} waiting on you`,
+          onClick: () => navigate('/hr/activity', { state: { type: 'account_requests' } }),
+        }]
+      : []),
     {
       icon: 'FileSearch', label: 'Awaiting Document Review', accent: 'amber', value: awaitingReview.length,
       meter: { value: awaitingReview.length, max: Math.max(1, verifications.length) },
@@ -135,13 +142,6 @@ export default function HRDashboard() {
   return (
     <>
       <HRHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
-
-      {role === 'admin' && pendingRequests > 0 && (
-        <div className="hr-note hr-note--warn" style={{ justifyContent: 'space-between', marginBottom: 16, cursor: 'pointer' }} onClick={() => navigate('/hr/activity', { state: { type: 'account_requests' } })}>
-          <span><Icon name="Mail" size={14} /> {pendingRequests} organisational account creation request{pendingRequests > 1 ? 's' : ''} waiting on you</span>
-          <span className="hr-link">Review <Icon name="ChevronRight" size={13} /></span>
-        </div>
-      )}
 
       <div className="hr-kpi-row">
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}

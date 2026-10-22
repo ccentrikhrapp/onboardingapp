@@ -5,12 +5,10 @@ import RoleRoute from '../components/routing/RoleRoute.jsx';
 import { useAuth } from '../context/AuthContext.jsx';
 import { ALL_STAFF_ROLES, ROLES } from '../constants/roles.js';
 
-// Super Admin OTP (see AuthContext's otpRequired / OtpVerificationPage) is
-// gated off until this project's company mailbox (MAIL_USER/MAIL_PASS
-// secrets) is configured — otherwise send-super-admin-otp can't deliver a
-// code and every Super Admin would be locked out with no way in. Flip this
-// to true once that's set up.
-const SUPER_ADMIN_OTP_ENABLED = false;
+// Super Admin OTP (see AuthContext's otpRequired / OtpVerificationPage).
+// The company mailbox (MAIL_USER/MAIL_PASS) is now configured on this
+// project, so send-super-admin-otp can actually deliver a code.
+const SUPER_ADMIN_OTP_ENABLED = true;
 const LoginPage = lazy(() => import('../pages/LoginPage.jsx'));
 const SetPasswordPage = lazy(() => import('../pages/SetPasswordPage.jsx'));
 const OtpVerificationPage = lazy(() => import('../pages/OtpVerificationPage.jsx'));

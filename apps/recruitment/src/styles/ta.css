@@ -225,7 +225,7 @@
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ta-search:focus-within { border-color: var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash); }
-.ta-search input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font: inherit; font-size: 12.5px; }
+.ta-search input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font: inherit; font-size: 12.5px; text-overflow: ellipsis; }
 .ta-search svg { color: var(--ta-text-mute); flex-shrink: 0; }
 
 .ta-iconbtn {
@@ -1045,7 +1045,7 @@
 @media (max-width: 700px) {
   .ta-toolbar__end { margin-left: 0; width: 100%; justify-content: flex-end; }
 }
-.ta-search--wide { width: 230px; max-width: 100%; flex-shrink: 1; }
+.ta-search--wide { width: 100%; min-width: 180px; max-width: 320px; flex: 1 1 320px; }
 .ta-searchresult {
   display: flex; flex-direction: column; gap: 1px; width: 100%; text-align: left;
   border: 0; background: transparent; border-radius: 8px; padding: 6px 8px; cursor: pointer;
