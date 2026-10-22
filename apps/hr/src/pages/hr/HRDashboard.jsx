@@ -77,7 +77,7 @@ export default function HRDashboard() {
   const kpis = [
     ...(role === 'admin' && pendingRequests > 0
       ? [{
-          icon: 'Mail', label: 'Account Requests', accent: 'amber', value: pendingRequests,
+          icon: 'Mail', label: 'Account Requests', accent: 'red', value: pendingRequests,
           note: `organisational account creation request${pendingRequests > 1 ? 's' : ''} waiting on you`,
           onClick: () => navigate('/hr/activity', { state: { type: 'account_requests' } }),
         }]

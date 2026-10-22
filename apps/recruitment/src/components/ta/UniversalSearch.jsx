@@ -57,7 +57,7 @@ export default function UniversalSearch({ jobs, apps }) {
   };
 
   return (
-    <div ref={boxRef} style={{ position: 'relative', width: '100%', maxWidth: 420, marginBottom: 16 }}>
+    <div ref={boxRef} style={{ position: 'relative', width: '100%' }}>
       <div className="ta-search ta-search--wide" style={{ width: '100%', maxWidth: 'none' }}>
         <Icon name="Search" size={16} />
         <input

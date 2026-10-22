@@ -26,6 +26,7 @@ export default function TATopbar({ head, onMenu }) {
         {head?.subtitle && <p className="ta-topbar__sub">{head.subtitle}</p>}
       </div>
 
+      {head?.search && <div className="global-search">{head.search}</div>}
       <NotificationBell variant="ta" />
       <ProfileMenu
         name={name}

@@ -231,9 +231,12 @@ export default function TADashboard() {
 
   return (
     <>
-      <TAHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
+      <TAHeader
+        title="Dashboard"
+        subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`}
+        search={<UniversalSearch jobs={jobs} apps={apps} />}
+      />
 
-      <UniversalSearch jobs={jobs} apps={apps} />
       <PipelineReminderPopup />
 
       <div className="ta-kpi-row">
