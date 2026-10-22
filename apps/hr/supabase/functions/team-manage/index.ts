@@ -8,6 +8,9 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 
 const TEAM_ROLES = ["admin", "hr", "accounts", "it", "office_admin"];
+// See team-list for why — these accounts can't be edited, disabled, demoted
+// or deleted through this function, by anyone, including another Super Admin.
+const HIDDEN_EMAILS = ["sarthak.tyagi@ccentrik.com", "sachin.chaudhary@ccentrik.com"];
 const ROLE_LABEL: Record<string, string> = { admin: "Super Admin", hr: "HR", accounts: "Accounts", it: "IT", office_admin: "Office Administration" };
 
 Deno.serve(async (req) => {
@@ -26,7 +29,9 @@ Deno.serve(async (req) => {
 
   const svc = serviceClient();
   const { data: target } = await svc.from("profiles").select("id, email, full_name, role, active").eq("id", profileId).maybeSingle();
-  if (!target || !TEAM_ROLES.includes(target.role)) return fail("NOT_FOUND", "Team member not found.", 404);
+  if (!target || !TEAM_ROLES.includes(target.role) || HIDDEN_EMAILS.includes(target.email.toLowerCase())) {
+    return fail("NOT_FOUND", "Team member not found.", 404);
+  }
 
   const otherActiveAdmins = async () => {
     const { count } = await svc.from("profiles").select("id", { count: "exact", head: true }).eq("role", "admin").eq("active", true).neq("id", target.id);

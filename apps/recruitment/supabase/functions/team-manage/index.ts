@@ -13,6 +13,9 @@ import { fail, ok, preflight } from "../_shared/http.ts";
 import { audit, currentProfile, serviceClient } from "../_shared/supabase.ts";
 
 const TEAM_ROLES = ["admin", "admin_ta", "ta"];
+// See team-list for why — these accounts can't be edited, disabled, demoted
+// or deleted through this function, by anyone, including another Super Admin.
+const HIDDEN_EMAILS = ["sarthak.tyagi@ccentrik.com", "sachin.chaudhary@ccentrik.com", "sachinkaliraman8@gmail.com"];
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const nameRe = /^[\p{L}][\p{L} .'-]*$/u;
 const likeEsc = (v: string) => v.replace(/[\\%_]/g, (c) => "\\" + c);
@@ -35,7 +38,9 @@ Deno.serve(async (req) => {
 
   const svc = serviceClient();
   const { data: target } = await svc.from("profiles").select("id, email, full_name, role, active").eq("id", profileId).maybeSingle();
-  if (!target || !TEAM_ROLES.includes(target.role)) return fail("NOT_FOUND", "Team member not found.", 404);
+  if (!target || !TEAM_ROLES.includes(target.role) || HIDDEN_EMAILS.includes(target.email.toLowerCase())) {
+    return fail("NOT_FOUND", "Team member not found.", 404);
+  }
 
   // Talent Acquisition Head: only enable/disable plain Talent Acquisition users.
   if (me.role === "admin_ta" && !(action === "set_active" && target.role === "ta")) {

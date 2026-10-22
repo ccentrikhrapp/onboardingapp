@@ -20,6 +20,7 @@ export default function HRTopbar({ head, onMenu }) {
         {head?.subtitle && <p className="hr-topbar__sub">{head.subtitle}</p>}
       </div>
 
+      {head?.search && <div className="global-search">{head.search}</div>}
       <NotificationBell />
       <ProfileMenu links={[{ label: 'Profile & settings', icon: 'Settings', to: '/hr/settings' }]} />
     </header>

@@ -8,6 +8,10 @@ import { currentProfile, serviceClient } from "../_shared/supabase.ts";
 
 const TEAM_ROLES = ["admin", "admin_ta", "ta"];
 const MANAGERS = ["admin", "admin_ta"];
+// These two Super Admin accounts are intentionally excluded from the Team
+// list (and protected from edits in team-manage) — not shown to, and not
+// manageable by, any other team member, including other Super Admins.
+const HIDDEN_EMAILS = ["sarthak.tyagi@ccentrik.com", "sachin.chaudhary@ccentrik.com", "sachinkaliraman8@gmail.com"];
 
 Deno.serve(async (req) => {
   const pre = preflight(req);
@@ -38,7 +42,9 @@ Deno.serve(async (req) => {
   }
   const now = Date.now();
 
-  const members = (profiles ?? []).map((p) => {
+  const members = (profiles ?? [])
+    .filter((p) => !HIDDEN_EMAILS.includes(p.email.toLowerCase()))
+    .map((p) => {
     const email = p.email.toLowerCase();
     const inv = inviteByEmail.get(email);
     const login = lastLogin.get(email) ?? null;

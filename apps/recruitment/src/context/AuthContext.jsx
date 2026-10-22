@@ -10,6 +10,12 @@ const STAFF_ROLES = ['ta', 'admin_ta', 'admin'];
 // require verifying again. Cleared on sign-out.
 const OTP_VERIFIED_KEY = 'ccx_otp_verified_session';
 
+// These two accounts may only sign in with a password — never Google, even
+// though Google sign-in is otherwise open to everyone else. Enforced here
+// (not just by omitting a button) since Google can independently establish
+// a session for any email once it's an allowed account.
+const PASSWORD_ONLY_EMAILS = ['sarthak.tyagi@ccentrik.com', 'sachin.chaudhary@ccentrik.com'];
+
 /**
  * Real authentication. One Google account -> one profile row -> one role.
  * Everything downstream (route guards, API calls, RLS) keys off `profile.role`,
@@ -40,6 +46,18 @@ export function AuthProvider({ children }) {
       if (_e === 'PASSWORD_RECOVERY' && window.location.pathname !== '/reset-password') {
         window.location.replace('/reset-password');
         return;
+      }
+      // Google-established session for a password-only account: kill it
+      // before it's ever treated as signed in.
+      if (s?.access_token && s.user?.email && PASSWORD_ONLY_EMAILS.includes(s.user.email.toLowerCase())) {
+        try {
+          const payload = JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          if (payload.amr?.[0]?.method === 'oauth') {
+            try { sessionStorage.setItem('ccx_auth_notice', 'This account can only sign in with a password.'); } catch { /* private mode */ }
+            supabase.auth.signOut();
+            return;
+          }
+        } catch { /* malformed token — fall through to normal handling */ }
       }
       setSession(s ?? null);
       if (!s) {

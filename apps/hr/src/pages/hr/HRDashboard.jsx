@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import HRHeader from '../../components/kit/HRHeader.jsx';
+import HRUniversalSearch from '../../components/hr/HRUniversalSearch.jsx';
 import Card from '../../components/kit/Card.jsx';
 import Tag from '../../components/kit/Tag.jsx';
 import KpiCard from '../../components/kit/KpiCard.jsx';
@@ -141,7 +142,11 @@ export default function HRDashboard() {
 
   return (
     <>
-      <HRHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
+      <HRHeader
+        title="Dashboard"
+        subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`}
+        search={<HRUniversalSearch cases={cases} employees={employees} />}
+      />
 
       <div className="hr-kpi-row" style={{ '--kpi-count': kpis.length }}>
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}
