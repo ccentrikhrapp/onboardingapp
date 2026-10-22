@@ -143,7 +143,7 @@ export default function HRDashboard() {
     <>
       <HRHeader title="Dashboard" subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`} />
 
-      <div className="hr-kpi-row">
+      <div className="hr-kpi-row" style={{ '--kpi-count': kpis.length }}>
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}
       </div>
 

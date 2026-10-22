@@ -537,6 +537,13 @@
    box-sizing:border-box so a card's declared size is its real on-screen
    footprint, padding and border included. */
 .hr-kpi-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 16px; }
+/* Above the point where cards would otherwise wrap, keep every tile on one
+   row — however many there are — by giving each an equal share instead of
+   a fixed minimum width. Narrower than this, auto-fit wrapping (above) is
+   the better fit for a touch/small-screen layout. */
+@media (min-width: 900px) {
+  .hr-kpi-row { grid-template-columns: repeat(var(--kpi-count, 4), minmax(0, 1fr)); }
+}
 .hr-kpi {
   --k: var(--k-fg, var(--hr-blue));
   position: relative; overflow: hidden;

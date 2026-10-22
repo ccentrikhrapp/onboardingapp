@@ -57,12 +57,12 @@ export default function UniversalSearch({ jobs, apps }) {
   };
 
   return (
-    <div ref={boxRef} style={{ position: 'relative', flex: '1 1 320px', maxWidth: 420 }}>
-      <div className="ta-search ta-search--wide">
+    <div ref={boxRef} style={{ position: 'relative', width: '100%', maxWidth: 420, marginBottom: 16 }}>
+      <div className="ta-search ta-search--wide" style={{ width: '100%', maxWidth: 'none' }}>
         <Icon name="Search" size={16} />
         <input
           value={query}
-          placeholder="Search jobs, candidates, pipeline — any field…"
+          placeholder="Search jobs, candidates, pipeline…"
           onFocus={() => { setOpen(true); ensurePipeline(); }}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); ensurePipeline(); }}
         />
