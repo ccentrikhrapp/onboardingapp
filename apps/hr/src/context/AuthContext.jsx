@@ -63,6 +63,13 @@ export function AuthProvider({ children }) {
         setLoading(false);
         try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
         setOtpVerifiedSessionId(null);
+      } else {
+        // A session just appeared (fresh sign-in, or a token refresh). The
+        // profile for it hasn't loaded yet — force `loading` back on so
+        // consumers (e.g. the login page's "signed in but no profile" check)
+        // can't read this in-between moment as a failed/roleless sign-in and
+        // sign the person right back out before the profile effect runs.
+        setLoading(true);
       }
       // Google only returns a refresh token on fresh consent (we always ask
       // for one via prompt=consent), so this only fires occasionally, not on

@@ -53,20 +53,25 @@ export function AuthProvider({ children }) {
         try {
           const payload = JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
           if (payload.amr?.[0]?.method === 'oauth') {
-            console.warn('[ccx-debug] password-only guard firing, amr=', JSON.stringify(payload.amr)); // TEMP debug
             try { sessionStorage.setItem('ccx_auth_notice', 'This account can only sign in with a password.'); } catch { /* private mode */ }
             supabase.auth.signOut();
             return;
           }
-        } catch (e) { console.warn('[ccx-debug] password-only guard: token decode threw', e?.message); /* malformed token — fall through to normal handling */ }
+        } catch { /* malformed token — fall through to normal handling */ }
       }
-      console.warn('[ccx-debug] onAuthStateChange event=', _e, 'has session=', !!s); // TEMP debug
       setSession(s ?? null);
       if (!s) {
         setProfile(null);
         setLoading(false);
         try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
         setOtpVerifiedSessionId(null);
+      } else {
+        // A session just appeared (fresh sign-in, or a token refresh). The
+        // profile for it hasn't loaded yet — force `loading` back on so
+        // consumers (e.g. TALoginPage's "signed in but no profile" check)
+        // can't read this in-between moment as a failed/roleless sign-in and
+        // sign the person right back out before the profile effect runs.
+        setLoading(true);
       }
       // Google only returns a refresh token on fresh consent (we always ask
       // for one via prompt=consent), so this only fires occasionally, not on
@@ -119,13 +124,11 @@ export function AuthProvider({ children }) {
       // out immediately rather than left holding a live session — RLS is
       // keyed on role, not on `active`, so this is enforced here instead.
       if (data && data.active === false) {
-        console.warn('[ccx-debug] profile.active===false, signing out', data); // TEMP debug
         try { sessionStorage.setItem('ccx_auth_notice', 'Your account has been disabled. Please contact your administrator.'); } catch { /* private mode */ }
         try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
         supabase.auth.signOut();
         setProfile(null);
       } else {
-        console.warn('[ccx-debug] profile loaded', data); // TEMP debug
         setProfile(data);
       }
       setLoading(false);
