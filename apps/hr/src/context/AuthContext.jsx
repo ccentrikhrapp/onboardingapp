@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { supabase, isSupabaseConfigured, SITE_URL } from '../lib/supabase.js';
 import { recordLogin } from '../api/team.js';
 import { ROLES } from '../constants/roles.js';
@@ -28,6 +28,10 @@ export function AuthProvider({ children }) {
   const [otpVerifiedSessionId, setOtpVerifiedSessionId] = useState(() => {
     try { return sessionStorage.getItem(OTP_VERIFIED_KEY) || null; } catch { return null; }
   });
+  // Tracks whose profile is currently loaded/loading, so a background token
+  // refresh (same user, new access token) doesn't get mistaken for a fresh
+  // sign-in — see the `else` branch below.
+  const loadedUserIdRef = useRef(null);
 
   useEffect(() => {
     if (!isSupabaseConfigured) {
@@ -50,28 +54,28 @@ export function AuthProvider({ children }) {
       if (s?.access_token && s.user?.email && PASSWORD_ONLY_EMAILS.includes(s.user.email.toLowerCase())) {
         try {
           const payload = JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
-          console.warn('[ccx-debug] password-only check, event=', _e, 'amr=', JSON.stringify(payload.amr)); // TEMP debug
           if (payload.amr?.[0]?.method === 'oauth') {
-            console.warn('[ccx-debug] guard firing, signing out'); // TEMP debug
             try { sessionStorage.setItem('ccx_auth_notice', 'This account can only sign in with a password.'); } catch { /* private mode */ }
             supabase.auth.signOut();
             return;
           }
-        } catch (e) { console.warn('[ccx-debug] token decode threw', e?.message); /* malformed token — fall through to normal handling */ }
+        } catch { /* malformed token — fall through to normal handling */ }
       }
-      console.warn('[ccx-debug] onAuthStateChange event=', _e, 'has session=', !!s); // TEMP debug
       setSession(s ?? null);
       if (!s) {
+        loadedUserIdRef.current = null;
         setProfile(null);
         setLoading(false);
         try { sessionStorage.removeItem(OTP_VERIFIED_KEY); } catch { /* private mode */ }
         setOtpVerifiedSessionId(null);
-      } else {
-        // A session just appeared (fresh sign-in, or a token refresh). The
-        // profile for it hasn't loaded yet — force `loading` back on so
-        // consumers (e.g. the login page's "signed in but no profile" check)
-        // can't read this in-between moment as a failed/roleless sign-in and
-        // sign the person right back out before the profile effect runs.
+      } else if (s.user?.id !== loadedUserIdRef.current) {
+        // A session for a NEW user just appeared (fresh sign-in, or switching
+        // accounts) — its profile hasn't loaded yet, so force `loading` back
+        // on. A token refresh for the SAME user must not hit this branch: the
+        // profile effect below only re-runs when the user id changes, so
+        // `loading` would otherwise get stuck true forever after any refresh
+        // (e.g. one firing while someone's sitting on the OTP screen),
+        // stranding them on the login page until a manual reload.
         setLoading(true);
       }
       // Google only returns a refresh token on fresh consent (we always ask
@@ -116,6 +120,7 @@ export function AuthProvider({ children }) {
         }
         setProfile(data ?? null);
         setLoading(false);
+        loadedUserIdRef.current = userId;
       });
     return () => {
       cancelled = true;
