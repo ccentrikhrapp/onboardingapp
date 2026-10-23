@@ -37,7 +37,7 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session ?? null);
       if (!data.session) setLoading(false);
-    });
+    }).catch(() => setLoading(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => {
       // Emailed password-reset link: supabase-js has just turned it into a
       // temporary session — take the person to the set-password screen.
