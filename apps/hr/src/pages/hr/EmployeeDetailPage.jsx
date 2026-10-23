@@ -128,7 +128,7 @@ export default function EmployeeDetailPage() {
       {/* ---------- Employee Overview + readiness summary ---------- */}
       <Card>
         <div style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div style={{ width: 64, height: 64, borderRadius: 12, overflow: 'hidden', background: 'var(--hr-bg-soft, #f3f4f6)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 64, height: 64, borderRadius: 'var(--hr-radius-sm)', overflow: 'hidden', background: 'var(--hr-bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             {photoUrl ? <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <Icon name="UserRound" size={28} />}
           </div>
           <div style={{ flex: 1, minWidth: 200 }}>
@@ -332,7 +332,7 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
       )}
 
       {stage === 'form' && (
-        <div style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 12, padding: '28px 32px', maxWidth: 960, margin: '0 auto' }}>
+        <div style={{ border: '1px solid var(--hr-line)', borderRadius: 'var(--hr-radius)', padding: '28px 32px', maxWidth: 960, margin: '0 auto' }}>
           <div className="hr-formgrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '22px 28px', marginBottom: 26 }}>
             <FieldInput label="Name" value={fields.name} onChange={(v) => setFields((f) => ({ ...f, name: v }))} />
             <FieldInput label="Mobile number" value={fields.mobile} onChange={(v) => setFields((f) => ({ ...f, mobile: v }))} />
@@ -351,7 +351,7 @@ function SuperAdminRequestCard({ task, employee, admins, superAdminEmails, emplo
               <span>{selectedAdmin?.name || 'This Super Admin'} was already sent this request and hasn't been resent since. Use Resend below to send a fresh copy.</span>
             </div>
           )}
-          <div style={{ display: 'flex', gap: 10, paddingTop: 20, borderTop: '1px solid var(--hr-line, #eef0f3)' }}>
+          <div style={{ display: 'flex', gap: 10, paddingTop: 20, borderTop: '1px solid var(--hr-line)' }}>
             <Button onClick={reviewAndSend}>Review &amp; send</Button>
             {canForceResend && (
               <Button variant="ghost" icon="RefreshCw" disabled={sending} onClick={() => confirmSend(true)}>{sending ? 'Resending…' : 'Resend now'}</Button>
@@ -436,7 +436,7 @@ function AccountsItTile({ task, requestType, icon, note, employeeId, canManage, 
   };
 
   return (
-    <div style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 10, padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ border: '1px solid var(--hr-line)', borderRadius: 'var(--hr-radius-sm)', padding: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         <Icon name={icon} size={16} />
         <strong style={{ fontSize: 13 }}>{task.label}</strong>
@@ -474,7 +474,7 @@ function SimpleStatusRow({ task, label, busy, setTaskStatus, last }) {
   if (!task) return null;
   const completed = task.status === 'completed';
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: last ? 'none' : '1px solid var(--hr-line, #eef0f3)' }}>
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, padding: '10px 0', borderBottom: last ? 'none' : '1px solid var(--hr-line)' }}>
       <span className="hr-cell-strong">{label}</span>
       <select
         className="hr-input" style={{ width: 150 }} disabled={busy === task.id}

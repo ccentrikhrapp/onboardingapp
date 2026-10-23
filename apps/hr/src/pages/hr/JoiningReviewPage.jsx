@@ -219,7 +219,7 @@ export default function JoiningReviewPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8, marginBottom: 12 }}>
           {[['Applicable requirements', summary.applicable], ['Approved', summary.approved], ['Approved with reason', summary.approvedWithReason], ['Pending review', summary.pendingReview + summary.reasonSubmitted],
             ['Not applicable', summary.notApplicable], ['Rejected', summary.rejected], ['Clarification required', summary.clarification], ['Not yet submitted', summary.missing]].map(([l, n]) => (
-            <div key={l} style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 10, padding: '8px 10px' }}>
+            <div key={l} style={{ border: '1px solid var(--hr-line)', borderRadius: 'var(--hr-radius-sm)', padding: '8px 10px' }}>
               <div style={{ fontSize: 20, fontWeight: 700 }}>{n}</div><div className="hr-cell-sub">{l}</div>
             </div>
           ))}
@@ -333,7 +333,7 @@ export default function JoiningReviewPage() {
           </div>
         )}
         {summarizeSections(data, { mask: !reveal }).map((sec) => (
-          <details key={sec.id} style={{ border: '1px solid var(--hr-line, #e5e7eb)', borderRadius: 10, padding: '8px 12px', marginBottom: 8 }}>
+          <details key={sec.id} style={{ border: '1px solid var(--hr-line)', borderRadius: 'var(--hr-radius-sm)', padding: '8px 12px', marginBottom: 8 }}>
             <summary style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 600 }}>
               <span>{sec.title}</span>
               {['submitted', 'resubmitted', 'under_review'].includes(st) && (

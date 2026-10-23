@@ -10,21 +10,8 @@ function homeForRole(role) {
   return ROLE_META[role]?.home || '/hr';
 }
 
-// HR's own journey — picks up once Talent Acquisition hands a candidate
-// over (docs/requirements/02-two-application-architecture.md): verify their
-// documents, get the offer accepted, and bring them on as an employee.
-const JOURNEY = [
-  { label: 'Handover', icon: 'ArrowRightLeft', desc: 'From Talent Acquisition', c: '#60a5fa', c2: '#2563eb' },
-  { label: 'Documents', icon: 'FileCheck2', desc: 'Verify and confirm', c: '#a78bfa', c2: '#7c3aed' },
-  { label: 'Joining', icon: 'CalendarCheck2', desc: 'Set the start date', c: '#f472b6', c2: '#db2777' },
-  { label: 'Employee', icon: 'UserRoundCheck', desc: 'Fully onboarded', c: '#fbbf24', c2: '#f59e0b' },
-];
-
-/* Ccentrik HR's own sign-in — same two-pane hero shell and same blue brand
-   identity as the recruitment app's candidate/TA sign-in (per explicit
-   request), with HR's own copy and journey. HR staff get a password form
-   too (for accounts an admin has provisioned), on top of Google — same
-   pattern as the recruitment app's TA login. */
+/* Ccentrik HR's own sign-in. HR staff get a password form (for accounts an
+   admin has provisioned) on top of Google sign-in. */
 export default function LoginPage() {
   const { configured, role, loading: authLoading, signOut, signInWithPassword, requestPasswordReset } = useAuth();
   const { error: googleError, signing, trigger } = useGoogleSignIn('/');
@@ -108,11 +95,8 @@ export default function LoginPage() {
 
   return (
     <AuthHeroLayout
-      floatIn={{ icon: 'ArrowRightLeft', label: 'Candidate handed over' }}
-      floatOut={{ icon: 'UserRoundCheck', label: 'Employee onboarded!' }}
       title={<>Bring every new hire<br /><span>smoothly on board.</span></>}
       subtitle="Verify documents, track joining, and turn accepted offers into employees — end to end."
-      journey={JOURNEY}
       tags="Ccentrik HR"
       panelTitle="HR sign-in"
       panelLede="Sign in with your Ccentrik HR credentials or Google account."

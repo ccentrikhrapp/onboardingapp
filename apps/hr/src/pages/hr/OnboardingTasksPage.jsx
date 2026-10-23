@@ -98,7 +98,7 @@ export default function OnboardingTasksPage() {
           <button
             key={v} type="button" onClick={() => setFilter(v)}
             className="hr-btn hr-btn--sm"
-            style={{ background: filter === v ? 'var(--hr-accent-wash, #eef2ff)' : undefined, fontWeight: filter === v ? 700 : 500 }}
+            style={{ background: filter === v ? 'var(--hr-blue-wash)' : undefined, fontWeight: filter === v ? 700 : 500 }}
           >
             {label}
           </button>
@@ -161,7 +161,7 @@ function TaskDetailForm({ task, busy, onSave, onCancel }) {
   const [unavailable, setUnavailable] = useState(!!task.unavailable);
 
   return (
-    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--hr-line, #e5e7eb)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--hr-line)', display: 'flex', flexDirection: 'column', gap: 10 }}>
       <label style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 12.5, fontWeight: 600, color: 'var(--hr-text-soft)' }}>
         Asset identifier <span style={{ fontWeight: 400, color: 'var(--hr-text-mute)' }}>— e.g. laptop serial number, if relevant</span>
         <input className="hr-input" value={assetIdentifier} onChange={(e) => setAssetIdentifier(e.target.value)} />

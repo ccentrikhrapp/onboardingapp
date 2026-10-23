@@ -58,21 +58,21 @@ export default function ConnectGoogleBanner({ needCalendar = false, settingsPath
   };
 
   return (
-    <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '10px 20px', background: '#eef4ff', borderBottom: '1px solid #cfe0ff', color: '#1e3a8a', fontSize: 13 }}>
+    <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', padding: '10px 20px', background: 'var(--tag-blue-bg)', borderBottom: '1px solid var(--hr-line)', color: 'var(--tag-blue-fg)', fontSize: 13 }}>
       <span style={{ flex: '1 1 320px' }}>
         {needsEmail
           ? <><strong>Set up your email</strong> so interview invitations, offers and other emails are sent from your own address. Add your Gmail App Password once in Settings.</>
           : <><strong>Connect your Google account</strong> so interview Meet links are created on your own calendar. You approve it once.</>}
-        {problem && <span style={{ color: '#b91c1c' }}> {problem}</span>}
+        {problem && <span style={{ color: 'var(--tag-red-fg)' }}> {problem}</span>}
       </span>
       {needsEmail ? (
-        <button type="button" onClick={() => navigate(settingsPath)} style={{ padding: '7px 14px', borderRadius: 8, border: 0, background: '#2563eb', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>Open Settings</button>
+        <button type="button" onClick={() => navigate(settingsPath)} className="hr-btn hr-btn--primary">Open Settings</button>
       ) : (
-        <button type="button" onClick={connect} disabled={busy} style={{ padding: '7px 14px', borderRadius: 8, border: 0, background: '#2563eb', color: '#fff', fontWeight: 700, cursor: 'pointer' }}>
+        <button type="button" onClick={connect} disabled={busy} className="hr-btn hr-btn--primary">
           {busy ? 'Opening Google…' : 'Connect Google'}
         </button>
       )}
-      <button type="button" onClick={dismiss} aria-label="Dismiss" style={{ background: 'none', border: 0, color: '#1e3a8a', cursor: 'pointer', fontSize: 13 }}>Later</button>
+      <button type="button" onClick={dismiss} aria-label="Dismiss" style={{ background: 'none', border: 0, color: 'var(--tag-blue-fg)', cursor: 'pointer', fontSize: 13 }}>Later</button>
     </div>
   );
 }

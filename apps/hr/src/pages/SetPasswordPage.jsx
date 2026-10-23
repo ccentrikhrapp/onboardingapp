@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../components/common/Icon.jsx';
-import markColor from '../assets/ccentrik-logo.png';
 import { supabase } from '../lib/supabase.js';
 import { useAuth } from '../context/AuthContext.jsx';
 import { inspectInvitation, activateInvitation, setInitialPassword } from '../api/team.js';
@@ -99,10 +98,8 @@ export default function SetPasswordPage({ mode }) {
   };
 
   return (
-    <div className="wsauth" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', placeItems: 'center', minHeight: '100vh', boxSizing: 'border-box', overflowX: 'hidden', padding: 24, background: '#f4f5f7' }}>
-      <div className="wsauth__panel" style={{ width: '100%', maxWidth: 440, background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 8px 30px rgba(15,23,41,.08)' }}>
-        <img className="wsauth__logo wsauth__logo--sm" src={markColor} alt="Ccentrik" />
-
+    <div className="wsauth" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', placeItems: 'center', minHeight: '100vh', boxSizing: 'border-box', overflowX: 'hidden', padding: 24 }}>
+      <div className="wsauth__panel" style={{ width: '100%', maxWidth: 420 }}>
         {phase === 'loading' && <p className="wsauth__lede">Checking your link…</p>}
 
         {phase === 'error' && (

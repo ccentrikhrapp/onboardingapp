@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import Icon from '../common/Icon.jsx';
-import logo from '../../assets/ccentrik-logo.png';
 import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases } from '../../api/onboarding.js';
 import { listOnboardingTasks } from '../../api/onboardingTasks.js';
@@ -9,7 +8,7 @@ import { useAuth } from '../../context/AuthContext.jsx';
 
 const ACTIVE_ONBOARDING = new Set(['onboarding_initiated', 'documents_pending', 'documents_submitted', 'verification_in_progress', 'formalities_pending']);
 
-export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigate }) {
+export default function HRSidebar({ open, onNavigate }) {
   const { role } = useAuth();
   const [counts, setCounts] = useState({ verification: 0, onboarding: 0, requests: 0 });
 
@@ -65,21 +64,8 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
 
   return (
     <aside className={`hr-sidebar${open ? ' hr-sidebar--open' : ''}`}>
-      <button
-        className="hr-collapse-btn"
-        onClick={onToggleCollapse}
-        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        <Icon name={collapsed ? 'ChevronRight' : 'ChevronLeft'} size={14} />
-      </button>
-
       <div className="hr-brand">
-        <img className="hr-brand__logo" src={logo} alt="Ccentrik" />
-        <span className="hr-brand__badge" aria-hidden="true">C</span>
-        <span className="hr-brand__text">
-          <span className="hr-brand__sub">HR Portal</span>
-        </span>
+        <span className="hr-brand__badge" aria-hidden="true">H</span>
       </div>
 
       <nav className="hr-nav">
@@ -92,8 +78,7 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
             onClick={onNavigate}
             title={item.label}
           >
-            <Icon name={item.icon} size={19} />
-            <span className="hr-nav__label">{item.label}</span>
+            <Icon name={item.icon} size={18} />
             {!!item.count && <span className="hr-nav__count">{item.count}</span>}
           </NavLink>
         ))}
@@ -101,12 +86,8 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
 
       <div className="hr-sidebar__spacer" />
 
-      <a className="hr-help" href="mailto:support@ccentrik.app" title="Visit our Help Center">
-        <span className="hr-help__icon"><Icon name="LifeBuoy" size={16} /></span>
-        <span className="hr-help__text">
-          <span className="hr-help__title">Need help?</span>
-          <span className="hr-help__sub">Visit our Help Center</span>
-        </span>
+      <a className="hr-help" href="mailto:support@ccentrik.app" title="Need help? Visit our Help Center">
+        <Icon name="LifeBuoy" size={16} />
       </a>
     </aside>
   );

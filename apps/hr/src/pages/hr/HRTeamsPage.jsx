@@ -195,7 +195,7 @@ This removes their account, revokes their Google access and stops ${m.email} fro
                   </button>
                 )}
                 {m.id !== team?.actorId && (
-                  <button className="hr-iconbtn" disabled={busyId === m.id} onClick={() => removeMember(m)} aria-label="Delete member" title="Delete member permanently" style={{ color: '#dc2626' }}>
+                  <button className="hr-iconbtn" disabled={busyId === m.id} onClick={() => removeMember(m)} aria-label="Delete member" title="Delete member permanently" style={{ color: 'var(--tag-red-fg)' }}>
                     <Icon name="Trash2" size={16} />
                   </button>
                 )}
