@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import HRHeader from '../../components/kit/HRHeader.jsx';
 import Card from '../../components/kit/Card.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
 import Toolbar from '../../components/kit/Toolbar.jsx';
 import EmptyState from '../../components/kit/EmptyState.jsx';
 import Icon from '../../components/common/Icon.jsx';
@@ -170,6 +171,15 @@ export default function HRActivityPage() {
   const pendingDocuments = useMemo(() => docs.filter((d) => d.status === 'uploaded').length, [docs]);
 
   const clearAll = () => { setType('all'); setWhen('all'); setActor('all'); };
+  const toggleType = (value) => setType((v) => (v === value ? 'all' : value));
+  const toggleWeek = () => setWhen((v) => (v === 'week' ? 'all' : 'week'));
+
+  const stats = [
+    { icon: 'Activity', accent: 'blue', label: 'Events this week', value: last7, active: when === 'week', onClick: toggleWeek },
+    { icon: 'FileSearch', accent: 'amber', label: 'Total logged', value: all.length, active: type === 'all' && when === 'all' && actor === 'all', onClick: clearAll },
+    { icon: 'UserPlus', accent: 'green', label: 'Pending account requests', value: pendingAccountRequests, active: type === 'account_requests', onClick: () => toggleType('account_requests') },
+    { icon: 'FileCheck', accent: 'violet', label: 'Pending documents', value: pendingDocuments, active: type === 'documents', onClick: () => toggleType('documents') },
+  ];
 
   const chips = [
     type !== 'all' && { key: 'type', label: CATEGORY_LABEL[type] || cap(type.replace(/_/g, ' ')), onRemove: () => setType('all') },
@@ -187,10 +197,9 @@ export default function HRActivityPage() {
 
   return (
     <>
-      <HRHeader
-        title="Activity"
-        subtitle={`${all.length} events logged · ${last7} in the last 7 days${pendingAccountRequests ? ` · ${pendingAccountRequests} account request${pendingAccountRequests > 1 ? 's' : ''} pending` : ''}${pendingDocuments ? ` · ${pendingDocuments} document${pendingDocuments > 1 ? 's' : ''} pending` : ''}`}
-      />
+      <HRHeader title="Activity" subtitle="All HR actions, account requests, document updates and onboarding tasks in one place." />
+
+      <StatBar items={stats} />
 
       <Toolbar
         filters={[

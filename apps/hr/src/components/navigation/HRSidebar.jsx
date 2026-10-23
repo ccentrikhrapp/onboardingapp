@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import Icon from '../common/Icon.jsx';
+import logo from '../../assets/ccentrik-logo.png';
 import { listVerifications } from '../../api/verification.js';
 import { listOnboardingCases } from '../../api/onboarding.js';
 import { listOnboardingTasks } from '../../api/onboardingTasks.js';
@@ -49,34 +50,17 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
   // itself (see HRActivityPage's "Account requests" tile/filter) — the
   // Super Admin's in-app "something's waiting on you" signal moves with it
   // onto the Activity link rather than disappearing.
-  const groups = isHrStaff ? [
-    { label: null, items: [{ to: '/hr', label: 'Dashboard', icon: 'Home', end: true }] },
-    {
-      label: 'Recruitment',
-      items: [
-        { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
-        { to: '/hr/candidates', label: 'Onboarding', icon: 'ClipboardCheck', count: counts.onboarding },
-      ],
-    },
-    {
-      label: 'People',
-      items: [
-        { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
-        { to: '/hr/activity', label: 'Activity', icon: 'History', count: isSuperAdmin ? counts.requests : 0 },
-      ],
-    },
-    {
-      label: 'Administration',
-      items: [
-        ...(isSuperAdmin ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
-        { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
-      ],
-    },
+  const nav = isHrStaff ? [
+    { to: '/hr', label: 'Dashboard', icon: 'Home', end: true },
+    { to: '/hr/verification', label: 'Verification queue', icon: 'FileSearch', count: counts.verification },
+    { to: '/hr/candidates', label: 'Candidates', icon: 'ClipboardCheck', count: counts.onboarding },
+    { to: '/hr/employees', label: 'Employees', icon: 'UserRoundCheck' },
+    { to: '/hr/activity', label: 'Activity', icon: 'History', count: isSuperAdmin ? counts.requests : 0 },
+    ...(isSuperAdmin ? [{ to: '/hr/team', label: 'Teams', icon: 'ShieldCheck' }] : []),
+    { to: '/hr/settings', label: 'Settings', icon: 'Settings' },
   ] : [
-    { label: null, items: [
-      { to: '/hr/tasks', label: 'My onboarding tasks', icon: 'ListChecks', end: true },
-      { to: '/hr/profile', label: 'Profile', icon: 'UserRound' },
-    ] },
+    { to: '/hr/tasks', label: 'My onboarding tasks', icon: 'ListChecks', end: true },
+    { to: '/hr/profile', label: 'Profile', icon: 'UserRound' },
   ];
 
   return (
@@ -91,38 +75,33 @@ export default function HRSidebar({ open, collapsed, onToggleCollapse, onNavigat
       </button>
 
       <div className="hr-brand">
-        <span className="hr-brand__badge" aria-hidden="true">H</span>
+        <img className="hr-brand__logo" src={logo} alt="Ccentrik" />
+        <span className="hr-brand__badge" aria-hidden="true">C</span>
         <span className="hr-brand__text">
-          <span className="hr-brand__name">Ccentrik</span>
           <span className="hr-brand__sub">HR Portal</span>
         </span>
       </div>
 
       <nav className="hr-nav">
-        {groups.map((group, gi) => (
-          <div key={group.label || `g${gi}`}>
-            {group.label && <div className="hr-nav__section">{group.label}</div>}
-            {group.items.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) => `hr-nav__link${isActive ? ' active' : ''}`}
-                onClick={onNavigate}
-                title={item.label}
-              >
-                <Icon name={item.icon} size={18} />
-                <span className="hr-nav__label">{item.label}</span>
-                {!!item.count && <span className="hr-nav__count">{item.count}</span>}
-              </NavLink>
-            ))}
-          </div>
+        {nav.map((item) => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={({ isActive }) => `hr-nav__link${isActive ? ' active' : ''}`}
+            onClick={onNavigate}
+            title={item.label}
+          >
+            <Icon name={item.icon} size={19} />
+            <span className="hr-nav__label">{item.label}</span>
+            {!!item.count && <span className="hr-nav__count">{item.count}</span>}
+          </NavLink>
         ))}
       </nav>
 
       <div className="hr-sidebar__spacer" />
 
-      <a className="hr-help" href="mailto:support@ccentrik.app" title="Need help? Visit our Help Center">
+      <a className="hr-help" href="mailto:support@ccentrik.app" title="Visit our Help Center">
         <span className="hr-help__icon"><Icon name="LifeBuoy" size={16} /></span>
         <span className="hr-help__text">
           <span className="hr-help__title">Need help?</span>

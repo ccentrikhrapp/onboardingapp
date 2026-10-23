@@ -2,15 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import HRHeader from '../../components/kit/HRHeader.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
+import DataGrid from '../../components/kit/DataGrid.jsx';
 import Toolbar from '../../components/kit/Toolbar.jsx';
 import Tag from '../../components/kit/Tag.jsx';
-import { WorkListGroup, WorkListRow } from '../../components/kit/WorkList.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { listOnboardingCases } from '../../api/onboarding.js';
 import { listAllOnboardingDocuments } from '../../api/onboardingDocuments.js';
 import { ONBOARDING_STATUSES, statusMeta } from '../../constants/statuses.js';
 import { formatDate } from '../../utils/format.js';
-import { SkeletonPage } from '../../components/kit/Skeleton.jsx';
+import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/kit/Skeleton.jsx';
 
 const STAGE_FILTERS = [
   { key: 'onboarding_initiated', label: 'Initiated' },
@@ -18,6 +19,14 @@ const STAGE_FILTERS = [
   { key: 'formalities_pending', label: 'Formalities' },
   { key: 'ready_for_joining', label: 'Joining' },
   { key: 'employee_created', label: 'Employee' },
+];
+
+const COLUMNS = [
+  { key: 'name', label: 'Candidate', sortable: true },
+  { key: 'position', label: 'Position', sortable: true },
+  { key: 'hrStatus', label: 'Onboarding Stage', sortable: true },
+  { key: 'joiningDate', label: 'Joining', sortable: true },
+  { key: 'actions', label: '' },
 ];
 
 export default function HRCandidatesPage() {
@@ -51,6 +60,10 @@ export default function HRCandidatesPage() {
         hrStatus: c.status,
         hrRank: ONBOARDING_STATUSES.indexOf(c.status),
         docsIssue: rejected > 0,
+        docs: rejected ? { tone: 'red', text: `${rejected} rejected` }
+          : docs.length && verified === docs.length ? { tone: 'green', text: 'All verified' }
+          : verified ? { tone: 'amber', text: `${verified}/${docs.length} verified` }
+          : { tone: 'grey', text: '—' },
       };
     });
   }, [remote]);
@@ -88,11 +101,20 @@ export default function HRCandidatesPage() {
   const hasFilters = stage !== 'all' || activeDept !== 'all';
   const clearAll = () => { setStage('all'); view.setFilter('department', 'all'); };
 
+  const kpis = [
+    { icon: 'Users', accent: 'blue', label: 'Onboarding candidates', value: rows.length, onClick: () => setStage('all') },
+    { icon: 'FileSearch', accent: 'amber', label: 'Documents pending', value: rows.filter((r) => ['onboarding_initiated', 'documents_pending', 'documents_submitted', 'verification_in_progress'].includes(r.hrStatus)).length, onClick: () => setStage('documents_pending') },
+    { icon: 'CalendarClock', accent: 'violet', label: 'Ready for joining', value: rows.filter((r) => r.hrStatus === 'ready_for_joining' || r.hrStatus === 'joining_confirmed').length, onClick: () => setStage('ready_for_joining') },
+    { icon: 'UserRoundCheck', accent: 'green', label: 'Onboarded', value: rows.filter((r) => ['employee_created', 'completed'].includes(r.hrStatus)).length, onClick: () => setStage('employee_created') },
+  ];
+
   if (remote.loading) return <SkeletonPage />;
 
   return (
     <>
       <HRHeader title="Candidates" subtitle="Candidates who have accepted an offer and are onboarding." />
+
+      <StatBar items={kpis} />
 
       <Toolbar
         filters={[
@@ -103,36 +125,40 @@ export default function HRCandidatesPage() {
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
-      <WorkListGroup
-        title="Onboarding candidates"
-        count={view.total}
-        empty="No candidates onboarding yet — candidates appear here once a TA marks an offer accepted."
-      >
-        {view.rows.length > 0 && (
-          <div className="hr-pipe">
-            {view.rows.map((r) => {
-              const meta = statusMeta(r.hrStatus);
-              return (
-                <WorkListRow
-                  key={r.id}
-                  onClick={() => navigate(`/hr/candidates/${r.id}`)}
-                  lead={r.name}
-                  sub={`${r.position} · ${r.department}${r.docsIssue ? ' · document rejected' : ''}`}
-                  tag={<Tag tone={meta.tone}>{meta.label}</Tag>}
-                  trail={(
-                    <>
-                      <span className="hr-cell-sub" style={{ whiteSpace: 'nowrap' }}>
-                        {r.joiningDate ? <><Icon name="CalendarCheck" size={13} /> {formatDate(r.joiningDate)}</> : 'Joining not set'}
-                      </span>
-                      <Icon name="ChevronRight" size={16} />
-                    </>
-                  )}
-                />
-              );
-            })}
-          </div>
-        )}
-      </WorkListGroup>
+      <DataGrid
+        columns={COLUMNS}
+        rows={view.rows}
+        sort={view.sort}
+        onSort={view.onSort}
+        pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
+        empty={{ icon: 'Users', title: 'No candidates onboarding yet', message: 'Candidates appear here once a TA marks an offer accepted.' }}
+        renderRow={(r) => {
+          const meta = statusMeta(r.hrStatus);
+          return (
+            <tr key={r.id} onClick={() => navigate(`/hr/candidates/${r.id}`)} style={{ cursor: 'pointer' }}>
+              <td>
+                <span className="hr-cell-strong">{r.name}</span><br />
+                <span className="hr-cell-sub">{r.department}</span>
+              </td>
+              <td className="hr-cell-mute">{r.position}</td>
+              <td>
+                <Tag tone={meta.tone}>{meta.label}</Tag>
+                {r.docsIssue && <div className="hr-cell-sub" style={{ marginTop: 2, color: 'var(--tag-red-fg)' }}>Document rejected</div>}
+              </td>
+              <td className="hr-cell-mute">
+                {r.joiningDate ? <span><Icon name="CalendarCheck" size={13} /> {formatDate(r.joiningDate)}</span> : 'Not set'}
+              </td>
+              <td>
+                <span onClick={(e) => e.stopPropagation()}>
+                  <button className="hr-iconbtn" onClick={() => navigate(`/hr/candidates/${r.id}`)} aria-label="Open candidate">
+                    <Icon name="ChevronRight" size={17} />
+                  </button>
+                </span>
+              </td>
+            </tr>
+          );
+        }}
+      />
     </>
   );
 }

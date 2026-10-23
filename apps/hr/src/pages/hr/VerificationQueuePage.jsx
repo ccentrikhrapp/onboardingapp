@@ -3,12 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import HRHeader from '../../components/kit/HRHeader.jsx';
 import Card from '../../components/kit/Card.jsx';
 import Tag from '../../components/kit/Tag.jsx';
+import Button from '../../components/kit/Button.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
 import EmptyState from '../../components/kit/EmptyState.jsx';
-import { WorkListGroup, WorkListRow } from '../../components/kit/WorkList.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import { listVerifications } from '../../api/verification.js';
 
-/* Group the flat document_verifications rows into one row per candidate
+const STATUS_TONE = {
+  pending: 'grey',
+  under_review: 'amber',
+  approved: 'green',
+  rejected: 'red',
+  reupload_required: 'amber',
+};
+
+/* Group the flat document_verifications rows into one card per candidate
    application — this is the "Pre-Offer Verification Queue" (docs/requirements/
    03-recruitment-hr-integration.md §10). */
 function groupByApplication(rows) {
@@ -55,8 +64,6 @@ export default function VerificationQueuePage() {
     if (filter === 'action') return !g.verified;
     return true;
   });
-  const verifiedCount = groups.filter((g) => g.verified).length;
-  const actionCount = groups.length - verifiedCount;
 
   return (
     <>
@@ -81,36 +88,40 @@ export default function VerificationQueuePage() {
       )}
 
       {groups.length > 0 && (
-        <div className="hr-toolbar" style={{ marginBottom: 14 }}>
-          <button type="button" className={`hr-filterchip${filter === 'all' ? ' is-active' : ''}`} onClick={() => setFilter('all')}>All ({groups.length})</button>
-          <button type="button" className={`hr-filterchip${filter === 'verified' ? ' is-active' : ''}`} onClick={() => toggleFilter('verified')}>Verified ({verifiedCount})</button>
-          <button type="button" className={`hr-filterchip${filter === 'action' ? ' is-active' : ''}`} onClick={() => toggleFilter('action')}>Action required ({actionCount})</button>
-        </div>
+        <StatBar
+          items={[
+            { icon: 'ClipboardCheck', accent: 'blue', label: 'Candidates', value: groups.length, active: filter === 'all', onClick: () => setFilter('all') },
+            { icon: 'CheckCircle2', accent: 'green', label: 'Verified', value: groups.filter((g) => g.verified).length, active: filter === 'verified', onClick: () => toggleFilter('verified') },
+            { icon: 'AlertTriangle', accent: 'amber', label: 'Action required', value: groups.filter((g) => !g.verified).length, active: filter === 'action', onClick: () => toggleFilter('action') },
+          ]}
+        />
       )}
 
-      {groups.length > 0 && (
-        <WorkListGroup title="Candidates" count={visibleGroups.length} empty="No candidates match this filter.">
-          {visibleGroups.length > 0 && (
-            <div className="hr-pipe">
-              {visibleGroups.map((g) => (
-                <WorkListRow
-                  key={g.applicationId}
-                  onClick={() => navigate(`/hr/applications/${g.applicationId}`)}
-                  lead={g.candidateName || 'Candidate'}
-                  sub={`${g.jobTitle} · ${g.applicationCode}`}
-                  tag={<Tag tone={g.verified ? 'green' : g.rejected ? 'red' : 'amber'}>{g.verified ? 'Verified' : 'Action required'}</Tag>}
-                  trail={(
-                    <>
-                      <span className="hr-cell-sub" style={{ whiteSpace: 'nowrap' }}>{g.approved}/{g.total} approved{g.rejected ? ` · ${g.rejected} need action` : ''}</span>
-                      <Icon name="ChevronRight" size={16} />
-                    </>
-                  )}
-                />
-              ))}
-            </div>
-          )}
-        </WorkListGroup>
+      {groups.length > 0 && visibleGroups.length === 0 && (
+        <Card><p className="hr-cell-mute">No candidates match this filter.</p></Card>
       )}
+
+      <div className="hr-stack">
+        {visibleGroups.map((g) => (
+          <Card key={g.applicationId}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <div className="hr-cell-strong">{g.candidateName || 'Candidate'}</div>
+                <div className="hr-cell-sub">{g.jobTitle} · {g.applicationCode}</div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <span className="hr-cell-sub">{g.approved}/{g.total} approved{g.rejected ? ` · ${g.rejected} need action` : ''}</span>
+                <Tag tone={g.verified ? 'green' : g.rejected ? 'red' : 'amber'}>
+                  {g.verified ? 'Verified' : 'Action required'}
+                </Tag>
+                <Button variant="ghost" iconRight="ArrowRight" onClick={() => navigate(`/hr/applications/${g.applicationId}`)}>
+                  Review
+                </Button>
+              </div>
+            </div>
+          </Card>
+        ))}
+      </div>
     </>
   );
 }

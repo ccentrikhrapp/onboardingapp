@@ -1,15 +1,19 @@
 import Icon from '../common/Icon.jsx';
 import markWhite from '../../assets/centrik-logo-white.png';
+import markColor from '../../assets/ccentrik-logo.png';
 
 /**
- * The two-pane sign-in shell: a fixed identity panel on the left, a plain
- * form panel on the right. Deliberately not a marketing hero — no
- * animation, no illustrative cards.
+ * The two-pane sign-in shell — same pattern and quality bar as the
+ * recruitment app's candidate/TA sign-in (components/auth/AuthHeroLayout
+ * there), ported here in HR's own emerald identity so the two internal
+ * portals read as one product family.
  */
 export default function AuthHeroLayout({
-  title, // JSX — the pitch heading
+  floatIn, floatOut, // { icon, label } for the two floating corner cards
+  title, // JSX — the big pitch heading
   subtitle,
-  tags, // small caption under the pitch
+  journey, // [{ label, icon, desc, c, c2 }]
+  tags, // small caption under the journey card
   panelTitle,
   panelLede,
   error,
@@ -25,16 +29,49 @@ export default function AuthHeroLayout({
   return (
     <div className="wsauth">
       <aside className="wsauth__aside">
+        <span className="wsauth__blob wsauth__blob--1" aria-hidden="true" />
+        <span className="wsauth__blob wsauth__blob--2" aria-hidden="true" />
+        <span className="wsauth__blob wsauth__blob--3" aria-hidden="true" />
+
+        <figure className="wsfloat wsfloat--in" aria-hidden="true">
+          <span className="wsfloat__avatar"><Icon name={floatIn.icon} size={17} /></span>
+          <span className="wsfloat__body"><b>{floatIn.label}</b><i /><i /></span>
+        </figure>
+        <figure className="wsfloat wsfloat--out" aria-hidden="true">
+          <span className="wsfloat__avatar"><Icon name={floatOut.icon} size={17} /></span>
+          <span className="wsfloat__body"><b>{floatOut.label}</b></span>
+          <span className="wsfloat__check"><Icon name="Check" size={11} /></span>
+        </figure>
+
         <img className="wsauth__logo wsauth__logo--lg" src={markWhite} alt="Ccentrik" />
+
         <div className="wsauth__pitch">
           <h1>{title}</h1>
           <p>{subtitle}</p>
         </div>
-        <p className="wsauth__tags">{tags}</p>
+
+        <span className="wsauth__tick" aria-hidden="true" />
+
+        <ol className="wsjourney" aria-hidden="true">
+          <span className="wsjourney__rail"><span className="wsjourney__pulse" /></span>
+          {journey.map((s, i) => (
+            <li className="wsjourney__step" key={s.label} style={{ '--i': i, '--c': s.c, '--c2': s.c2 }}>
+              <span className="wsjourney__node"><Icon name={s.icon} size={19} /></span>
+              <span className="wsjourney__label">{s.label}</span>
+              <span className="wsjourney__desc">{s.desc}</span>
+              {i < journey.length - 1 && (
+                <span className="wsjourney__sep"><Icon name="ChevronRight" size={13} /></span>
+              )}
+            </li>
+          ))}
+        </ol>
+
+        <p className="wsauth__tags" aria-hidden="true">{tags}</p>
       </aside>
 
       <main className="wsauth__main">
         <div className="wsauth__panel">
+          <img className="wsauth__logo wsauth__logo--sm" src={markColor} alt="Ccentrik" />
           <h2>{panelTitle}</h2>
           <p className="wsauth__lede">{panelLede}</p>
 

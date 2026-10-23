@@ -4,6 +4,7 @@ import HRHeader from '../../components/kit/HRHeader.jsx';
 import Card from '../../components/kit/Card.jsx';
 import Tag from '../../components/kit/Tag.jsx';
 import Button from '../../components/kit/Button.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { listVerificationsForApplication, getVerificationDocumentUrl, getVerificationSummary } from '../../api/verification.js';
@@ -119,11 +120,13 @@ export default function VerificationWorkspacePage() {
       {docs === null && !error && <SkeletonBlock lines={4} />}
 
       {summary && (
-        <div className="hr-toolbar" style={{ marginBottom: 14 }}>
-          <button type="button" className={`hr-filterchip${statusFilter === 'all' ? ' is-active' : ''}`} onClick={() => setStatusFilter('all')}>Applicable ({summary.summary.applicable ?? 0})</button>
-          <button type="button" className={`hr-filterchip${statusFilter === 'approved' ? ' is-active' : ''}`} onClick={() => toggleFilter('approved')}>Approved ({summary.summary.approved ?? 0})</button>
-          <button type="button" className={`hr-filterchip${statusFilter === 'pending' ? ' is-active' : ''}`} onClick={() => toggleFilter('pending')}>Pending review ({(summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0)})</button>
-        </div>
+        <StatBar
+          items={[
+            { icon: 'FileCheck2', accent: 'blue', label: 'Applicable', value: summary.summary.applicable ?? 0, active: statusFilter === 'all', onClick: () => setStatusFilter('all') },
+            { icon: 'CheckCircle2', accent: 'green', label: 'Approved', value: summary.summary.approved ?? 0, active: statusFilter === 'approved', onClick: () => toggleFilter('approved') },
+            { icon: 'Clock3', accent: 'amber', label: 'Pending review', value: (summary.summary.pendingReview || 0) + (summary.summary.reasonSubmitted || 0), active: statusFilter === 'pending', onClick: () => toggleFilter('pending') },
+          ]}
+        />
       )}
 
       {docs !== null && (

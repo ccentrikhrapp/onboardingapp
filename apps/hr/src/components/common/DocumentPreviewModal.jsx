@@ -34,9 +34,9 @@ export default function DocumentPreviewModal({ open, onClose, url, fileName, tit
       {!url ? (
         <SkeletonBlock lines={4} />
       ) : kind === 'pdf' ? (
-        <iframe src={url} title={fileName || 'Document preview'} style={{ width: '100%', height: '75vh', border: 0, borderRadius: 'var(--hr-radius-sm)' }} />
+        <iframe src={url} title={fileName || 'Document preview'} style={{ width: '100%', height: '75vh', border: 0, borderRadius: 8 }} />
       ) : kind === 'image' ? (
-        <img src={url} alt={fileName || 'Document preview'} style={{ maxWidth: '100%', maxHeight: '75vh', display: 'block', margin: '0 auto', borderRadius: 'var(--hr-radius-sm)' }} />
+        <img src={url} alt={fileName || 'Document preview'} style={{ maxWidth: '100%', maxHeight: '75vh', display: 'block', margin: '0 auto', borderRadius: 8 }} />
       ) : (
         <p className="hr-cell-mute">
           <Icon name="FileText" size={16} /> Can't preview this file type in the browser.{' '}

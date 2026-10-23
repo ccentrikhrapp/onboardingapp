@@ -9,9 +9,9 @@
   --drl-text-3: #98a2b3;
   --drl-border: #e4e7ec;
   --drl-surface: #ffffff;
-  --drl-brand: var(--hr-blue, #4f46e5);
-  --drl-brand-hover: var(--hr-blue-ink, #3730a3);
-  --drl-brand-wash: var(--hr-blue-wash, #eef0fd);
+  --drl-brand: var(--hr-blue, #3157d5);
+  --drl-brand-hover: #2a4bbf;
+  --drl-brand-wash: #eef2fd;
   --drl-success: #12b76a;
   --drl-warning: #f79009;
   --drl-danger: #f04438;

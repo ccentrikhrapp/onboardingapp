@@ -2,14 +2,31 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import HRHeader from '../../components/kit/HRHeader.jsx';
+import StatBar from '../../components/kit/StatBar.jsx';
+import DataGrid from '../../components/kit/DataGrid.jsx';
 import Toolbar from '../../components/kit/Toolbar.jsx';
 import Tag from '../../components/kit/Tag.jsx';
-import { WorkListGroup, WorkListRow } from '../../components/kit/WorkList.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { listOnboardingCases } from '../../api/onboarding.js';
 import { listEmployeesWithTasks } from '../../api/onboardingTasks.js';
 import { formatDate } from '../../utils/format.js';
 import { SkeletonPage } from '../../components/kit/Skeleton.jsx';
+
+const COLUMNS = [
+  { key: 'full_name', label: 'Employee', sortable: true },
+  { key: 'designation', label: 'Position', sortable: true },
+  { key: 'department', label: 'Department', sortable: true },
+  { key: 'joining_date', label: 'Joined', sortable: true },
+  { key: 'readiness', label: 'Joining readiness' },
+  { key: 'actions', label: 'Actions' },
+];
+
+const DEPT_TONES = ['blue', 'violet', 'teal', 'green', 'amber'];
+function deptTone(name = '') {
+  let h = 0;
+  for (let i = 0; i < name.length; i += 1) h = (h * 31 + name.charCodeAt(i)) % 997;
+  return DEPT_TONES[h % DEPT_TONES.length];
+}
 
 function daysUntil(dateStr) {
   if (!dateStr) return null;
@@ -97,14 +114,20 @@ export default function HREmployeesPage() {
     readiness !== 'all' && { key: 'readiness', label: READINESS_META[readiness]?.label || readiness, onRemove: () => applyReadiness('all') },
   ].filter(Boolean);
 
+  const kpis = [
+    { icon: 'UserRoundCheck', accent: 'green', label: 'Onboarded', value: employees.length },
+    { icon: 'CalendarClock', accent: 'amber', label: 'Joining soon', value: joiningPending.length },
+    { icon: 'CalendarPlus', accent: 'blue', label: 'Joined this month', value: joinedThisMonth },
+    { icon: 'AlertTriangle', accent: 'red', label: 'Missing joining details', value: missingDetails },
+  ];
+
   if (remote.loading) return <SkeletonPage />;
 
   return (
     <>
-      <HRHeader
-        title="Employees"
-        subtitle={`${employees.length} onboarded · ${joinedThisMonth} joined this month${missingDetails ? ` · ${missingDetails} missing joining details` : ''}`}
-      />
+      <HRHeader title="Employees" subtitle={`${joiningPending.length} joining · ${employees.length} onboarded`} />
+
+      <StatBar items={kpis} />
 
       {joiningPending.length > 0 && (
         <div className="hr-upnext">
@@ -134,31 +157,27 @@ export default function HREmployeesPage() {
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
-      <WorkListGroup
-        title="Employees"
-        count={view.total}
-        empty="No employees onboarded yet — employees appear here once joining is confirmed from a candidate's page."
-      >
-        {view.rows.length > 0 && (
-          <div className="hr-pipe">
-            {view.rows.map((e) => (
-              <WorkListRow
-                key={e.id}
-                onClick={() => navigate(`/hr/employees/${e.id}`)}
-                lead={e.full_name}
-                sub={`${e.designation || 'No position set'}${e.department ? ` · ${e.department}` : ''} · ${e.employee_code}`}
-                tag={<Tag tone={READINESS_META[e.readiness].tone}>{READINESS_META[e.readiness].label}</Tag>}
-                trail={(
-                  <>
-                    <span className="hr-cell-sub" style={{ whiteSpace: 'nowrap' }}><Icon name="CalendarCheck" size={13} /> {formatDate(e.joining_date)}</span>
-                    <Icon name="ChevronRight" size={16} />
-                  </>
-                )}
-              />
-            ))}
-          </div>
+      <DataGrid
+        columns={COLUMNS}
+        rows={view.rows}
+        sort={view.sort}
+        onSort={view.onSort}
+        pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
+        empty={{ icon: 'UserRoundCheck', title: 'No employees onboarded yet', message: 'Employees appear here once joining is confirmed from a candidate’s page.' }}
+        renderRow={(e) => (
+          <tr key={e.id} onClick={() => navigate(`/hr/employees/${e.id}`)} style={{ cursor: 'pointer' }}>
+            <td>
+              <span className="hr-cell-strong">{e.full_name}</span><br />
+              <span className="hr-cell-sub">{e.employee_code}</span>
+            </td>
+            <td className="hr-cell-strong">{e.designation || '—'}</td>
+            <td>{e.department ? <Tag tone={deptTone(e.department)}>{e.department}</Tag> : <span className="hr-cell-mute">—</span>}</td>
+            <td className="hr-cell-mute"><Icon name="CalendarCheck" size={13} /> {formatDate(e.joining_date)}</td>
+            <td><Tag tone={READINESS_META[e.readiness].tone}>{READINESS_META[e.readiness].label}</Tag></td>
+            <td><Icon name="ChevronRight" size={17} /></td>
+          </tr>
         )}
-      </WorkListGroup>
+      />
     </>
   );
 }

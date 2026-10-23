@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import Icon from '../components/common/Icon.jsx';
+import markColor from '../assets/ccentrik-logo.png';
 import { useAuth } from '../context/AuthContext.jsx';
 import { sendSuperAdminOtp, verifySuperAdminOtp } from '../api/superAdminOtp.js';
 
@@ -95,9 +96,10 @@ export default function OtpVerificationPage() {
   };
 
   return (
-    <div className="wsauth" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', placeItems: 'center', minHeight: '100vh', boxSizing: 'border-box', overflowX: 'hidden', padding: 24 }}>
-      <div className="wsauth__panel" style={{ width: '100%', maxWidth: 420 }}>
-        <h2>Verify your identity</h2>
+    <div className="wsauth" style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1fr)', placeItems: 'center', minHeight: '100vh', boxSizing: 'border-box', overflowX: 'hidden', padding: 24, background: '#f4f5f7' }}>
+      <div className="wsauth__panel" style={{ width: '100%', maxWidth: 440, background: '#fff', borderRadius: 16, padding: 32, boxShadow: '0 8px 30px rgba(15,23,41,.08)' }}>
+        <img className="wsauth__logo wsauth__logo--sm" src={markColor} alt="Ccentrik" />
+        <h2>Verify Your Identity</h2>
         <p className="wsauth__lede">
           We&rsquo;ve sent a 6-digit verification code to your registered email address{maskedEmail ? <> (<strong>{maskedEmail}</strong>)</> : null}.
         </p>
@@ -118,7 +120,7 @@ export default function OtpVerificationPage() {
                 disabled={sending || verifying}
                 onChange={(e) => setDigit(i, e.target.value)}
                 onKeyDown={(e) => onKeyDown(i, e)}
-                style={{ width: 40, height: 48, textAlign: 'center', fontSize: 18, fontFamily: 'var(--font-mono)', border: '1px solid var(--hr-line)', borderRadius: 'var(--hr-radius-sm)', background: 'var(--hr-bg)' }}
+                style={{ width: 42, height: 50, textAlign: 'center', fontSize: 20, border: '1px solid #e2e8f0', borderRadius: 8 }}
               />
             ))}
           </div>
