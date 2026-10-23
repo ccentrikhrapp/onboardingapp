@@ -1,8 +1,7 @@
 /* ============================================================
    Ccentrik HR — sign-in.
-   A plain two-pane console, not a marketing hero: a fixed ink panel with
-   the wordmark and a one-line orientation, and a flat paper form panel.
-   No animation, no gradients, no floating cards.
+   Premium enterprise two-pane layout: a navy/indigo brand panel on the
+   left with a subtle abstract glow, a clean elevated card on the right.
    ============================================================ */
 
 .wsauth {
@@ -13,34 +12,50 @@
   --ws-accent-hover: var(--hr-blue-ink);
 
   min-height: 100vh; width: 100%;
-  display: grid; grid-template-columns: 1fr 1.3fr;
+  display: grid; grid-template-columns: 1fr 1.2fr;
   background: var(--hr-surface); color: var(--ws-ink);
   -webkit-font-smoothing: antialiased;
 }
 
 /* ---- left: identity panel ---- */
 .wsauth__aside {
+  position: relative; overflow: hidden;
   display: flex; flex-direction: column; justify-content: space-between;
   padding: clamp(28px, 5vh, 56px) clamp(28px, 4vw, 52px);
-  color: var(--hr-bg);
-  background: var(--hr-text);
+  color: #fff;
+  background: linear-gradient(160deg, var(--hr-navy) 0%, #1e1b4b 55%, var(--hr-blue-ink) 100%);
 }
-.wsauth__logo--lg { height: 30px; width: auto; filter: brightness(0) invert(1); }
-.wsauth__pitch { max-width: 420px; }
+.wsauth__aside::before {
+  content: ''; position: absolute; z-index: 0; pointer-events: none;
+  width: 60vw; height: 60vw; max-width: 620px; max-height: 620px;
+  top: -18vw; right: -20vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(124, 58, 237, 0.35), transparent 68%);
+}
+.wsauth__aside::after {
+  content: ''; position: absolute; z-index: 0; pointer-events: none;
+  width: 46vw; height: 46vw; max-width: 460px; max-height: 460px;
+  bottom: -16vw; left: -14vw; border-radius: 50%;
+  background: radial-gradient(circle, rgba(79, 70, 229, 0.3), transparent 66%);
+}
+.wsauth__logo--lg { position: relative; z-index: 1; height: 30px; width: auto; filter: brightness(0) invert(1); }
+.wsauth__pitch { position: relative; z-index: 1; max-width: 420px; }
 .wsauth__pitch h1 {
   margin: 0; font-family: var(--font-display);
-  font-size: clamp(22px, 2.6vw, 32px); line-height: 1.2;
-  font-weight: 600; letter-spacing: -0.01em;
+  font-size: clamp(24px, 2.8vw, 36px); line-height: 1.2;
+  font-weight: 700; letter-spacing: -0.02em;
 }
-.wsauth__pitch h1 span { color: var(--hr-blue); }
+.wsauth__pitch h1 span {
+  background: linear-gradient(92deg, #a5b4fc, #c4b5fd);
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
 .wsauth__pitch p {
-  margin: 12px 0 0; font-size: 13.5px; line-height: 1.55;
-  color: rgba(250, 248, 242, 0.68);
+  margin: 14px 0 0; font-size: 14px; line-height: 1.6;
+  color: rgba(255, 255, 255, 0.72);
 }
 .wsauth__tags {
-  margin: 0; font-family: var(--font-mono);
-  font-size: 10.5px; font-weight: 500; letter-spacing: 0.18em; text-transform: uppercase;
-  color: rgba(250, 248, 242, 0.42);
+  position: relative; z-index: 1; margin: 0;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
 }
 
 /* ---- right: form panel ---- */
@@ -50,20 +65,21 @@
   background: var(--hr-bg);
 }
 .wsauth__panel {
-  width: 100%; max-width: 380px;
-  padding: clamp(26px, 3.6vh, 36px) clamp(24px, 3vw, 32px);
+  width: 100%; max-width: 400px;
+  padding: clamp(32px, 4vh, 44px) clamp(28px, 3.4vw, 38px);
   background: var(--hr-surface);
   border: 1px solid var(--hr-line);
-  border-radius: var(--hr-radius);
+  border-radius: 20px;
+  box-shadow: var(--hr-shadow-hover);
 }
 .wsauth__logo--sm { display: none; } /* identity already shown on the left panel */
 
 .wsauth__panel h2 {
   margin: 0; text-align: left;
   font-family: var(--font-display);
-  font-size: 22px; font-weight: 600; letter-spacing: -0.01em;
+  font-size: 24px; font-weight: 700; letter-spacing: -0.015em;
 }
-.wsauth__lede { margin: 6px 0 22px; text-align: left; font-size: 13px; color: var(--ws-sub); }
+.wsauth__lede { margin: 6px 0 24px; text-align: left; font-size: 13.5px; color: var(--ws-sub); }
 
 .wsauth__alert {
   display: flex; align-items: center; gap: 8px;

@@ -1,13 +1,23 @@
 import Icon from '../common/Icon.jsx';
 
-/* A flat row inside a worklist group — label, one line of context, an
-   optional tag, a trailing element. Not a card and not a table row: the
+function initialsOf(name = '') {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((s) => s[0].toUpperCase())
+    .join('');
+}
+
+/* A flat row inside a worklist group — avatar, label, one line of context,
+   an optional tag, a trailing element. Not a card and not a table row: the
    row-list is this app's one list idiom, used for the "Today" worklist and
    every record list (candidates, employees, activity, …) in place of the
    stat-tiles + data-table pattern. */
-export function WorkListRow({ onClick, lead, sub, tag, trail }) {
+export function WorkListRow({ onClick, avatar, lead, sub, tag, trail }) {
   return (
     <button className="hr-pipe__row" onClick={onClick}>
+      {avatar !== false && <span className="hr-pipe__avatar">{initialsOf(avatar || lead)}</span>}
       <span className="hr-pipe__label">
         {lead}
         {sub && <><br /><span className="hr-cell-sub">{sub}</span></>}

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import HRHeader from '../../components/kit/HRHeader.jsx';
 import HRUniversalSearch from '../../components/hr/HRUniversalSearch.jsx';
 import Tag from '../../components/kit/Tag.jsx';
+import KpiCard from '../../components/kit/KpiCard.jsx';
 import Icon from '../../components/common/Icon.jsx';
 import { WorkListGroup as WorkGroup, WorkListRow as WorkRow } from '../../components/kit/WorkList.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
@@ -76,18 +77,42 @@ export default function HRDashboard() {
   return (
     <>
       <HRHeader
-        title="Today"
-        subtitle={`${profile?.full_name || profile?.email || ''} · ${now.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}`}
+        title="Dashboard"
+        subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`}
         search={<HRUniversalSearch cases={cases} employees={employees} />}
       />
 
-      <WorkGroup title="Needs you now" countTone={nothingUrgent ? undefined : 'attn'} count={nothingUrgent ? null : pendingRequests + awaitingReview.length + readyForJoining.length}>
+      <div className="hr-kpi-row" style={{ '--kpi-count': 4 }}>
+        <KpiCard
+          icon="FileSearch" accent="amber" label="Awaiting Document Review" value={awaitingReview.length}
+          meter={{ value: awaitingReview.length, max: Math.max(1, verifications.length) }}
+          onClick={() => navigate('/hr/verification')}
+        />
+        <KpiCard
+          icon="ClipboardCheck" accent="violet" label="Onboarding In Progress" value={activeOnboarding.length}
+          meter={{ value: activeOnboarding.length, max: Math.max(1, cases.length) }}
+          onClick={() => navigate('/hr/candidates')}
+        />
+        <KpiCard
+          icon="CalendarCheck" accent="blue" label="Ready for Joining" value={readyForJoining.length}
+          meter={{ value: readyForJoining.length, max: Math.max(1, cases.length) }}
+          onClick={() => navigate('/hr/candidates')}
+        />
+        <KpiCard
+          icon="UserRoundCheck" accent="green" label="Employees" value={employees.length}
+          note={`${joinedThisMonth} joined this month`}
+          onClick={() => navigate('/hr/employees')}
+        />
+      </div>
+
+      <WorkGroup title="Pending actions" countTone={nothingUrgent ? undefined : 'attn'} count={nothingUrgent ? null : pendingRequests + awaitingReview.length + readyForJoining.length}>
         {nothingUrgent ? (
           <p className="hr-cell-mute">Nothing urgent — the queues below are clear.</p>
         ) : (
           <div className="hr-pipe">
             {role === 'admin' && pendingRequests > 0 && (
               <WorkRow
+                avatar={false}
                 onClick={() => navigate('/hr/activity', { state: { type: 'account_requests' } })}
                 lead={`${pendingRequests} organisational account request${pendingRequests > 1 ? 's' : ''}`}
                 sub="waiting on Super Admin"
@@ -104,7 +129,7 @@ export default function HRDashboard() {
               />
             ))}
             {awaitingReview.length > 5 && (
-              <WorkRow onClick={() => navigate('/hr/verification')} lead={`${awaitingReview.length - 5} more document${awaitingReview.length - 5 === 1 ? '' : 's'} awaiting review`} trail={<Icon name="ArrowRight" size={15} />} />
+              <WorkRow avatar={false} onClick={() => navigate('/hr/verification')} lead={`${awaitingReview.length - 5} more document${awaitingReview.length - 5 === 1 ? '' : 's'} awaiting review`} trail={<Icon name="ArrowRight" size={15} />} />
             )}
             {readyForJoining.slice(0, 5).map((c) => (
               <WorkRow
@@ -146,7 +171,7 @@ export default function HRDashboard() {
       )}
 
       <WorkGroup
-        title="In motion"
+        title="Recent activity"
         count={activeOnboarding.length}
         empty="No one is currently in onboarding."
       >
