@@ -50,13 +50,16 @@ export function AuthProvider({ children }) {
       if (s?.access_token && s.user?.email && PASSWORD_ONLY_EMAILS.includes(s.user.email.toLowerCase())) {
         try {
           const payload = JSON.parse(atob(s.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')));
+          console.warn('[ccx-debug] password-only check, event=', _e, 'amr=', JSON.stringify(payload.amr)); // TEMP debug
           if (payload.amr?.[0]?.method === 'oauth') {
+            console.warn('[ccx-debug] guard firing, signing out'); // TEMP debug
             try { sessionStorage.setItem('ccx_auth_notice', 'This account can only sign in with a password.'); } catch { /* private mode */ }
             supabase.auth.signOut();
             return;
           }
-        } catch { /* malformed token — fall through to normal handling */ }
+        } catch (e) { console.warn('[ccx-debug] token decode threw', e?.message); /* malformed token — fall through to normal handling */ }
       }
+      console.warn('[ccx-debug] onAuthStateChange event=', _e, 'has session=', !!s); // TEMP debug
       setSession(s ?? null);
       if (!s) {
         setProfile(null);
