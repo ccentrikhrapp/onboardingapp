@@ -92,11 +92,13 @@ export default function ScheduleInterviewModal({ open, onClose, roundNumber, pla
         scheduledAt: date && time ? new Date(`${date}T${time}`).toISOString() : undefined,
         durationMinutes: duration ? Number(duration) : undefined,
       });
-      // A placeholder link for Google Meet means this TA's Google account
-      // isn't connected — never hand the candidate a link that doesn't
-      // actually go anywhere; ask them to connect it instead.
+      // A placeholder link means this TA's account for that platform isn't
+      // connected — never hand the candidate a link that doesn't actually go
+      // anywhere; ask them to connect it instead.
       if (result.mocked && value === 'google_meet') {
         setLinkError('Your Google account isn’t connected, so a real Meet link can’t be created. Connect it in Settings → Email, then pick Google Meet again.');
+      } else if (result.mocked && value === 'teams') {
+        setLinkError('Your Microsoft account isn’t connected, so a real Teams link can’t be created. Connect it in Settings → Microsoft Teams, then pick Teams again.');
       } else {
         setMeetingUrl(result.url);
       }

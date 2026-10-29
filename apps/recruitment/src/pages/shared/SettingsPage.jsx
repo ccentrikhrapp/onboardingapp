@@ -1,6 +1,7 @@
 import { Card } from '../../components/common/Card.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import EmailSettingsCard from '../../components/settings/EmailSettingsCard.jsx';
+import TeamsSettingsCard from '../../components/settings/TeamsSettingsCard.jsx';
 import EmailLogCard from '../../components/settings/EmailLogCard.jsx';
 
 export default function SettingsPage() {
@@ -16,6 +17,7 @@ export default function SettingsPage() {
         </p>
       </Card>
       <EmailSettingsCard />
+      <TeamsSettingsCard />
       <EmailLogCard />
     </div>
   );

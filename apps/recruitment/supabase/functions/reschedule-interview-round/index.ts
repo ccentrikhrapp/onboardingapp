@@ -77,9 +77,12 @@ Deno.serve(async (req) => {
       { roundName: round.name, scheduledAt: body.scheduledAt, durationMinutes: body.durationMinutes, actorEmail: profile.email ?? undefined },
       svc,
     );
-    // Same rule as schedule-interview: never let a fake Meet link through.
+    // Same rule as schedule-interview: never let a fake meeting link through.
     if (generated.mocked && body.meetingPlatform === "google_meet") {
       return fail("GOOGLE_NOT_CONNECTED", "Your Google account isn't connected, so a real Meet link can't be created. Connect it in Settings → Email, then try again.", 422, { meetingPlatform: "Connect Google in Settings to use Meet." });
+    }
+    if (generated.mocked && body.meetingPlatform === "teams") {
+      return fail("TEAMS_NOT_CONNECTED", "Your Microsoft account isn't connected, so a real Teams link can't be created. Connect it in Settings → Microsoft Teams, then try again.", 422, { meetingPlatform: "Connect Microsoft Teams in Settings to use Teams." });
     }
     meetingUrl = generated.url;
   }

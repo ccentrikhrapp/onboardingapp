@@ -10,12 +10,14 @@
 // falls back to a mock link if that TA hasn't connected Google (e.g. they
 // only ever used password sign-in).
 //
-// Teams: no API credentials configured yet (MS_TEAMS_CLIENT_ID /
-// MS_TEAMS_CLIENT_SECRET). Until they are, this returns a structurally-valid
-// link so the scheduling workflow keeps working end to end, flagged
-// `mocked: true`.
+// Teams: real, live — creates an actual Teams online meeting via Microsoft
+// Graph on the scheduling TA's own connected Microsoft account (see
+// microsoftGraph.ts, connected from Settings the same way Google is). Only
+// falls back to a mock link if they haven't connected Microsoft yet, or
+// MICROSOFT_CLIENT_ID/SECRET aren't configured on this project at all.
 
 import { createGoogleMeetEvent } from "./googleCalendar.ts";
+import { createTeamsOnlineMeeting } from "./microsoftGraph.ts";
 import type { SupabaseClient } from "jsr:@supabase/supabase-js@2";
 
 export type MeetingPlatform = "teams" | "google_meet";
@@ -30,14 +32,24 @@ function mockToken(): string {
   return crypto.randomUUID().replace(/-/g, "").slice(0, 16);
 }
 
-async function createTeamsMeeting(_opts: { roundName: string; scheduledAt: string; durationMinutes?: number }): Promise<MeetingLinkResult> {
-  const clientId = Deno.env.get("MS_TEAMS_CLIENT_ID");
-  const clientSecret = Deno.env.get("MS_TEAMS_CLIENT_SECRET");
-  if (clientId && clientSecret) {
-    // TODO: real integration point — create an online meeting via Microsoft
-    // Graph (`POST /me/onlineMeetings` or `/users/{id}/onlineMeetings`) using
-    // an app-only token, and return its `joinWebUrl`.
+async function createTeamsMeeting(
+  svc: SupabaseClient | undefined,
+  opts: { roundName: string; scheduledAt: string; durationMinutes?: number; actorEmail?: string },
+): Promise<MeetingLinkResult> {
+  if (svc && opts.actorEmail && Deno.env.get("MICROSOFT_CLIENT_ID") && Deno.env.get("MICROSOFT_CLIENT_SECRET")) {
+    const start = new Date(opts.scheduledAt);
+    const end = new Date(start.getTime() + (opts.durationMinutes ?? 30) * 60_000);
+    const meeting = await createTeamsOnlineMeeting(svc, {
+      actorEmail: opts.actorEmail,
+      subject: opts.roundName,
+      startISO: start.toISOString(),
+      endISO: end.toISOString(),
+    });
+    if (meeting) return { url: meeting.url, platform: "teams", mocked: false };
   }
+  // Fallback — Microsoft isn't configured yet, or this TA hasn't connected
+  // their account. A structurally-valid placeholder keeps the form usable,
+  // but every caller treats `mocked: true` as "do not send this to anyone".
   const token = mockToken();
   return { url: `https://teams.microsoft.com/l/meetup-join/${token}`, platform: "teams", mocked: true };
 }
@@ -69,5 +81,5 @@ export async function createMeetingLink(
   opts: { roundName: string; scheduledAt: string; durationMinutes?: number; actorEmail?: string },
   svc?: SupabaseClient,
 ): Promise<MeetingLinkResult> {
-  return platform === "teams" ? createTeamsMeeting(opts) : createGoogleMeet(svc, opts);
+  return platform === "teams" ? createTeamsMeeting(svc, opts) : createGoogleMeet(svc, opts);
 }
