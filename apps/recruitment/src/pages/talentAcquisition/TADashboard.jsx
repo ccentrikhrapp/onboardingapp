@@ -15,7 +15,7 @@ import {
   OFFER_STATUS,
   stageIndexForStatus,
 } from '../../constants/statuses.js';
-import { countInWindow, trendPercent, groupCounts, noticePeriodDays } from '../../utils/metrics.js';
+import { groupCounts, noticePeriodDays } from '../../utils/metrics.js';
 import { timeAgo } from '../../utils/format.js';
 import PipelineReminderPopup from '../../components/ta/PipelineReminderPopup.jsx';
 import UniversalSearch from '../../components/ta/UniversalSearch.jsx';
@@ -171,29 +171,26 @@ export default function TADashboard() {
   const scheduledInterviews = interviews.filter((i) => i.status === ROUND_STATUS.SCHEDULED).length;
   const kpis = [
     {
-      icon: 'Users', glyph: 'people', label: 'Total Candidates', value: apps.length,
+      tone: 'candidates', label: 'Total Candidates', value: apps.length,
       meter: { value: activeForNotice.length, max: Math.max(1, apps.length) },
-      trend: trendPercent(countInWindow(apps, 'submittedAt', 0), countInWindow(apps, 'submittedAt', 1)),
       note: `${activeForNotice.length} still active in the pipeline`,
       onClick: () => navigate('/ta/candidates'),
     },
     {
-      icon: 'Briefcase', glyph: 'briefcase', label: 'Open Jobs', value: jobs.length,
+      tone: 'jobs', label: 'Open Jobs', value: jobs.length,
       meter: { value: jobsWithApplicants, max: Math.max(1, jobs.length) },
       note: `${jobsWithApplicants} of ${jobs.length} receiving applicants`,
       onClick: () => navigate('/ta/jobs'),
     },
     {
-      icon: 'CalendarDays', glyph: 'calendar', label: 'Interviews Scheduled', value: scheduledInterviews,
+      tone: 'interviews', label: 'Interviews Scheduled', value: scheduledInterviews,
       meter: { value: interviewsDone, max: Math.max(1, interviewsDone + scheduledInterviews) },
-      trend: trendPercent(countInWindow(interviews, 'date', 0), countInWindow(interviews, 'date', 1)),
       note: `${interviewsDone} completed so far`,
       onClick: () => navigate('/ta/candidates?stage=interview'),
     },
     {
-      icon: 'FileCheck', glyph: 'certificate', label: 'Offers Extended', value: extendedOffers.length,
+      tone: 'offers', label: 'Offers Extended', value: extendedOffers.length,
       meter: { value: offersAccepted, max: Math.max(1, extendedOffers.length) },
-      trend: trendPercent(countInWindow(extendedOffers, 'createdAt', 0), countInWindow(extendedOffers, 'createdAt', 1)),
       note: `${offersAccepted} accepted`,
       onClick: () => navigate('/ta/candidates?stage=offer'),
     },
@@ -228,6 +225,10 @@ export default function TADashboard() {
 
   if (remote.apps === null) return <SkeletonPage />;
 
+  const firstName = (profile?.full_name || profile?.email || '').split(' ')[0].split('@')[0];
+  const hour = new Date().getHours();
+  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
+
   return (
     <>
       <TAHeader
@@ -237,6 +238,11 @@ export default function TADashboard() {
       />
 
       <PipelineReminderPopup />
+
+      <div className="ta-dash-hero">
+        <h1 className="ta-dash-hero__title">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
+        <p className="ta-dash-hero__sub">Here's what's happening across your recruitment pipeline.</p>
+      </div>
 
       <div className="ta-kpi-row">
         {kpis.map((k) => <KpiCard key={k.label} {...k} />)}

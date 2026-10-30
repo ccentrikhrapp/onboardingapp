@@ -1,58 +1,53 @@
+import { useEffect, useState } from 'react';
 import Icon from '../common/Icon.jsx';
 
-// Fluent UI System Icons (Microsoft, MIT licensed) "Color" variant — real
-// professional, multicolor product icons (not emoji/illustrations), served
-// from Iconify's public icon CDN. One consistent icon family across all tiles.
-const GLYPH_NAMES = {
-  people: 'people-team-24',
-  briefcase: 'briefcase-24',
-  calendar: 'calendar-clock-24',
-  certificate: 'certificate-24',
+// One Lucide icon per tone — same icon family throughout, no external images.
+const TONE_ICON = {
+  candidates: 'UsersRound',
+  jobs: 'Briefcase',
+  interviews: 'CalendarCheck',
+  offers: 'BadgeCheck',
 };
-function glyphUrl(name) {
-  const icon = GLYPH_NAMES[name];
-  if (!icon) return '';
-  return `https://api.iconify.design/fluent-color/${icon}.svg`;
-}
 
-/* One dashboard KPI tile — premium SaaS card, one unified navy design
-   language (no per-card accent colors): icon badge + label on top, the
-   number as the dominant element, then a short supporting line and (if
-   `meter` is given) a slim proportion line. `trend`/`note` use the data
-   exactly as passed in — nothing here invents or recalculates a metric. */
-export default function KpiCard({ icon, glyph, label, value, trend, note, meter, onClick }) {
+/* One dashboard KPI tile. `tone` picks the icon + its colour story (set as
+   CSS custom props on `.ta-kpi--<tone>`) — candidates/jobs/interviews/offers.
+   The number is the dominant element; `meter`, when given, becomes a slim
+   proportion line that animates in on mount (not continuously). When a
+   meter has literally nothing behind it yet (0 of 0), it renders as a quiet
+   dotted track instead of a 0%-filled bar. */
+export default function KpiCard({ tone = 'candidates', label, value, note, meter, onClick }) {
   const Tag = onClick ? 'button' : 'div';
   const pct = meter ? Math.max(0, Math.min(100, Math.round((meter.value / (meter.max || 1)) * 100))) : null;
+  const isEmpty = meter != null && meter.value === 0 && pct === 0;
+
+  const [barWidth, setBarWidth] = useState(0);
+  useEffect(() => {
+    if (pct == null) return;
+    const id = requestAnimationFrame(() => setBarWidth(pct));
+    return () => cancelAnimationFrame(id);
+  }, [pct]);
 
   return (
     <Tag
       type={onClick ? 'button' : undefined}
-      className={`ta-kpi${onClick ? ' ta-kpi--link' : ''}`}
+      className={`ta-kpi ta-kpi--${tone}${onClick ? ' ta-kpi--link' : ''}`}
       onClick={onClick}
     >
       <div className="ta-kpi__head">
-        <span className={`ta-kpi__icon${glyph ? ' ta-kpi__icon--glyph' : ''}`}>
-          {glyph ? <img src={glyphUrl(glyph)} alt="" width={20} height={20} loading="lazy" /> : <Icon name={icon} size={16} />}
-        </span>
-        <span className="ta-kpi__label">{label}</span>
-        {onClick && <Icon name="ArrowUpRight" size={14} className="ta-kpi__go" />}
+        <span className="ta-kpi__icon"><Icon name={TONE_ICON[tone]} size={20} strokeWidth={2} /></span>
+        {onClick && <Icon name="ArrowUpRight" size={18} className="ta-kpi__go" />}
       </div>
 
+      <div className="ta-kpi__label">{label}</div>
       <div className="ta-kpi__value">{value}</div>
-
-      <div className="ta-kpi__foot">
-        {note && <span className="ta-kpi__note">{note}</span>}
-        {trend != null && (
-          <span className={`ta-trend ${trend > 0 ? 'ta-trend--up' : 'ta-trend--down'}`}>
-            <Icon name={trend > 0 ? 'ArrowUp' : 'ArrowDown'} size={11} /> {Math.abs(trend)}%
-          </span>
-        )}
-      </div>
+      {note && <div className="ta-kpi__note">{note}</div>}
 
       {pct != null && (
-        <div className="ta-kpi__meter">
-          <span className="ta-kpi__meter-track"><span className="ta-kpi__meter-fill" style={{ width: `${pct}%` }} /></span>
-          <span className="ta-kpi__meter-pct">{pct}%</span>
+        <div className={`ta-kpi__meter${isEmpty ? ' ta-kpi__meter--empty' : ''}`}>
+          <span className="ta-kpi__meter-track">
+            {!isEmpty && <span className="ta-kpi__meter-fill" style={{ width: `${barWidth}%` }} />}
+          </span>
+          {!isEmpty && <span className="ta-kpi__meter-pct">{pct}%</span>}
         </div>
       )}
     </Tag>
