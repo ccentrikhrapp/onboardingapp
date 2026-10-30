@@ -171,27 +171,27 @@ export default function TADashboard() {
   const scheduledInterviews = interviews.filter((i) => i.status === ROUND_STATUS.SCHEDULED).length;
   const kpis = [
     {
-      icon: 'Users', glyph: 'people', label: 'Total Candidates', accent: 'blue', value: apps.length,
+      icon: 'Users', glyph: 'people', label: 'Total Candidates', value: apps.length,
       meter: { value: activeForNotice.length, max: Math.max(1, apps.length) },
       trend: trendPercent(countInWindow(apps, 'submittedAt', 0), countInWindow(apps, 'submittedAt', 1)),
       note: `${activeForNotice.length} still active in the pipeline`,
       onClick: () => navigate('/ta/candidates'),
     },
     {
-      icon: 'Briefcase', glyph: 'briefcase', label: 'Open Jobs', accent: 'violet', value: jobs.length,
+      icon: 'Briefcase', glyph: 'briefcase', label: 'Open Jobs', value: jobs.length,
       meter: { value: jobsWithApplicants, max: Math.max(1, jobs.length) },
       note: `${jobsWithApplicants} of ${jobs.length} receiving applicants`,
       onClick: () => navigate('/ta/jobs'),
     },
     {
-      icon: 'CalendarDays', glyph: 'calendar', label: 'Interviews Scheduled', accent: 'amber', value: scheduledInterviews,
+      icon: 'CalendarDays', glyph: 'calendar', label: 'Interviews Scheduled', value: scheduledInterviews,
       meter: { value: interviewsDone, max: Math.max(1, interviewsDone + scheduledInterviews) },
       trend: trendPercent(countInWindow(interviews, 'date', 0), countInWindow(interviews, 'date', 1)),
       note: `${interviewsDone} completed so far`,
       onClick: () => navigate('/ta/candidates?stage=interview'),
     },
     {
-      icon: 'FileCheck', glyph: 'certificate', label: 'Offers Extended', accent: 'green', value: extendedOffers.length,
+      icon: 'FileCheck', glyph: 'certificate', label: 'Offers Extended', value: extendedOffers.length,
       meter: { value: offersAccepted, max: Math.max(1, extendedOffers.length) },
       trend: trendPercent(countInWindow(extendedOffers, 'createdAt', 0), countInWindow(extendedOffers, 'createdAt', 1)),
       note: `${offersAccepted} accepted`,
