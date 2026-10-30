@@ -1,27 +1,26 @@
 import Icon from '../common/Icon.jsx';
 
-// Microsoft Fluent Emoji — 3D/glossy illustrated set, MIT licensed, served
-// from jsDelivr's public CDN off the microsoft/fluentui-emoji repo — real
-// glossy 3D illustrations instead of a flat line icon.
-const FLUENT_3D = 'https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets';
-const FLUENT_SLUGS = {
-  people: { folder: 'Busts in silhouette', file: 'busts_in_silhouette' },
-  briefcase: { folder: 'Briefcase', file: 'briefcase' },
-  calendar: { folder: 'Calendar', file: 'calendar' },
-  handshake: { folder: 'Handshake', file: 'handshake' },
+// Fluent UI System Icons (Microsoft, MIT licensed) "Color" variant — real
+// professional, multicolor product icons (not emoji/illustrations), served
+// from Iconify's public icon CDN.
+const GLYPH_NAMES = {
+  people: 'people-team-24',
+  briefcase: 'briefcase-24',
+  calendar: 'calendar-clock-24',
+  certificate: 'certificate-24',
 };
-function emojiUrl(name) {
-  const slug = FLUENT_SLUGS[name];
-  if (!slug) return '';
-  return `${FLUENT_3D}/${encodeURIComponent(slug.folder)}/3D/${slug.file}_3d.png`;
+function glyphUrl(name) {
+  const icon = GLYPH_NAMES[name];
+  if (!icon) return '';
+  return `https://api.iconify.design/fluent-color/${icon}.svg`;
 }
 
 /* One dashboard KPI: label + top-right icon, big number, a thick proportion bar
    (`meter` { value, max }) with a % badge, then a footer line — either the
    ↑/↓ `trend` vs last month, or a plain `note`. `accent` is a tag tone.
-   `emoji`, when given (one of FLUENT_SLUGS' keys), renders a glossy 3D Fluent
-   Emoji badge instead of the flat lucide `icon`. */
-export default function KpiCard({ icon, emoji, label, value, trend, note, meter, accent = 'blue', onClick }) {
+   `glyph`, when given (one of GLYPH_NAMES' keys), renders a colorful Fluent
+   product icon badge instead of the flat lucide `icon`. */
+export default function KpiCard({ icon, glyph, label, value, trend, note, meter, accent = 'blue', onClick }) {
   const fg = `var(--tag-${accent}-fg)`;
   const wash = `var(--tag-${accent}-bg)`;
 
@@ -51,8 +50,8 @@ export default function KpiCard({ icon, emoji, label, value, trend, note, meter,
     >
       <div className="ta-kpi__head">
         <span className="ta-kpi__label">{label}</span>
-        <span className={`ta-kpi__icon${emoji ? ' ta-kpi__icon--emoji' : ''}`}>
-          {emoji ? <img src={emojiUrl(emoji)} alt="" width={20} height={20} loading="lazy" /> : <Icon name={icon} size={16} />}
+        <span className={`ta-kpi__icon${glyph ? ' ta-kpi__icon--glyph' : ''}`}>
+          {glyph ? <img src={glyphUrl(glyph)} alt="" width={20} height={20} loading="lazy" /> : <Icon name={icon} size={16} />}
         </span>
       </div>
 
