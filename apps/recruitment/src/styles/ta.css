@@ -533,6 +533,12 @@
   background: var(--k-fg, var(--ta-blue)); color: #fff;
   box-shadow: 0 4px 10px -3px color-mix(in srgb, var(--k-fg) 55%, transparent);
 }
+.ta-kpi__icon--emoji {
+  width: 38px; height: 38px; border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 4px 10px -4px color-mix(in srgb, var(--k-fg) 35%, transparent), inset 0 0 0 1.5px color-mix(in srgb, var(--k-fg) 35%, transparent);
+}
+.ta-kpi__icon--emoji img { display: block; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.12)); }
 .ta-kpi__value { font-size: 28px; font-weight: 800; color: #0c0e13; line-height: 1; letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
 .ta-kpi__bar { display: flex; align-items: center; gap: 10px; margin-top: 13px; }
 .ta-kpi__bar-track {
@@ -613,6 +619,34 @@
 .ta-pipe__count { font-size: 13px; font-weight: 700; font-variant-numeric: tabular-nums; display: inline-flex; align-items: baseline; gap: 7px; }
 .ta-pipe__pct { font-size: 11px; font-weight: 600; color: var(--ta-text-mute); min-width: 30px; text-align: right; }
 .ta-pipe-wrap { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 22px; align-items: center; }
+
+/* Candidates Pipeline — horizontal bar list (replaces the old trapezoid funnel) */
+.ta-pbars { display: flex; flex-direction: column; gap: 6px; }
+.ta-pbars__row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 9px 10px; border-radius: 10px; border: 1px solid transparent;
+  background: transparent; font: inherit; text-align: left; cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.ta-pbars__row:hover, .ta-pbars__row.is-active { background: var(--ta-bg); }
+.ta-pbars__row:hover { transform: translateX(2px); }
+.ta-pbars__icon {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--p-bg, var(--ta-bg)); color: var(--p-fg, var(--ta-text-soft));
+}
+.ta-pbars__label { width: 92px; flex-shrink: 0; font-size: 12.5px; font-weight: 600; color: var(--ta-text); }
+.ta-pbars__track {
+  flex: 1; height: 10px; border-radius: 999px; overflow: hidden;
+  background: var(--p-bg, var(--ta-bg));
+}
+.ta-pbars__fill {
+  display: block; height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--p-fg) 70%, #fff), var(--p-fg));
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.ta-pbars__count { width: 30px; flex-shrink: 0; text-align: right; font-size: 13px; font-weight: 700; color: var(--ta-text); font-variant-numeric: tabular-nums; }
+.ta-pbars__pct { width: 38px; flex-shrink: 0; text-align: right; font-size: 11.5px; font-weight: 600; color: var(--ta-text-mute); font-variant-numeric: tabular-nums; }
 
 /* Employee Lifecycle Funnel — horizontal gradient bars */
 .ta-lcf { display: flex; flex-direction: column; gap: 13px; margin-top: 6px; }

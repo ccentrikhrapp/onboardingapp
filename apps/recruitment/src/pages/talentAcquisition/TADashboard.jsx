@@ -5,7 +5,7 @@ import TAHeader from '../../components/ta/TAHeader.jsx';
 import Card from '../../components/ta/Card.jsx';
 import KpiCard from '../../components/ta/KpiCard.jsx';
 import DonutChart from '../../components/ta/DonutChart.jsx';
-import FunnelChart from '../../components/ta/FunnelChart.jsx';
+import PipelineBars from '../../components/ta/PipelineBars.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { listApplications, listRecentEvents, subscribeApplications } from '../../api/applications.js';
 import { applicationFromDb } from '../../api/mappers.js';
@@ -171,27 +171,27 @@ export default function TADashboard() {
   const scheduledInterviews = interviews.filter((i) => i.status === ROUND_STATUS.SCHEDULED).length;
   const kpis = [
     {
-      icon: 'Users', label: 'Total Candidates', accent: 'blue', value: apps.length,
+      icon: 'Users', emoji: 'people', label: 'Total Candidates', accent: 'blue', value: apps.length,
       meter: { value: activeForNotice.length, max: Math.max(1, apps.length) },
       trend: trendPercent(countInWindow(apps, 'submittedAt', 0), countInWindow(apps, 'submittedAt', 1)),
       note: `${activeForNotice.length} still active in the pipeline`,
       onClick: () => navigate('/ta/candidates'),
     },
     {
-      icon: 'Briefcase', label: 'Open Jobs', accent: 'violet', value: jobs.length,
+      icon: 'Briefcase', emoji: 'briefcase', label: 'Open Jobs', accent: 'violet', value: jobs.length,
       meter: { value: jobsWithApplicants, max: Math.max(1, jobs.length) },
       note: `${jobsWithApplicants} of ${jobs.length} receiving applicants`,
       onClick: () => navigate('/ta/jobs'),
     },
     {
-      icon: 'CalendarDays', label: 'Interviews Scheduled', accent: 'amber', value: scheduledInterviews,
+      icon: 'CalendarDays', emoji: 'calendar', label: 'Interviews Scheduled', accent: 'amber', value: scheduledInterviews,
       meter: { value: interviewsDone, max: Math.max(1, interviewsDone + scheduledInterviews) },
       trend: trendPercent(countInWindow(interviews, 'date', 0), countInWindow(interviews, 'date', 1)),
       note: `${interviewsDone} completed so far`,
       onClick: () => navigate('/ta/candidates?stage=interview'),
     },
     {
-      icon: 'FileCheck', label: 'Offers Extended', accent: 'green', value: extendedOffers.length,
+      icon: 'FileCheck', emoji: 'handshake', label: 'Offers Extended', accent: 'green', value: extendedOffers.length,
       meter: { value: offersAccepted, max: Math.max(1, extendedOffers.length) },
       trend: trendPercent(countInWindow(extendedOffers, 'createdAt', 0), countInWindow(extendedOffers, 'createdAt', 1)),
       note: `${offersAccepted} accepted`,
@@ -203,7 +203,6 @@ export default function TADashboard() {
     ...s,
     value: activeApps.filter((a) => stageIndexForStatus(a.status) >= s.reach).length,
   }));
-  const busiest = stageRows.reduce((top, s) => (s.value > top.value ? s : top), stageRows[0]);
 
   // Candidates who can join within SOON_THRESHOLD_DAYS — the ones a TA should reach out to now.
   const soonCount = activeForNotice.filter((a) => {
@@ -276,30 +275,10 @@ export default function TADashboard() {
 
       <div className="ta-bento">
         <Card title="Candidates Pipeline" action={periodSelect}>
-          <div className="ta-pipe-wrap">
-            <div className="ta-pipe">
-              {stageRows.map((s) => (
-                <button
-                  key={s.label}
-                  className={`ta-pipe__row${s.label === busiest.label ? ' ta-pipe__row--active' : ''}`}
-                  onClick={() => navigate(`/ta/candidates?stage=${s.key}`)}
-                >
-                  <span
-                    className="ta-pipe__icon"
-                    style={{ '--p-bg': `var(--tag-${s.tone}-bg)`, '--p-fg': `var(--tag-${s.tone}-fg)` }}
-                  >
-                    <Icon name={s.icon} size={15} />
-                  </span>
-                  <span className="ta-pipe__label">{s.label}</span>
-                  <span className="ta-pipe__count">{s.value}</span>
-                </button>
-              ))}
-            </div>
-            <FunnelChart
-              stages={stageRows}
-              onSegmentClick={(i) => navigate(`/ta/candidates?stage=${stageRows[i].key}`)}
-            />
-          </div>
+          <PipelineBars
+            stages={stageRows}
+            onSegmentClick={(i) => navigate(`/ta/candidates?stage=${stageRows[i].key}`)}
+          />
         </Card>
 
         <Card title="Applications Overview" action={periodSelect}>
