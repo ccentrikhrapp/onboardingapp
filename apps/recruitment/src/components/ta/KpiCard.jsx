@@ -1,17 +1,18 @@
 import { useEffect, useState } from 'react';
 import Icon from '../common/Icon.jsx';
 
-// Fluent UI System Color Icons (Microsoft, MIT licensed) — real multicolor
-// product icons, served via Iconify's public icon CDN. One consistent
-// family across all four tiles.
+// Microsoft Fluent Emoji — 3D/glossy illustrated set (MIT licensed), served
+// from jsDelivr's public CDN. Real glossy illustrations, not flat icons —
+// same consistent art style across all four tiles.
 const TONE_GLYPH = {
-  candidates: 'people-team-24',
-  jobs: 'briefcase-24',
-  interviews: 'calendar-clock-24',
-  offers: 'certificate-24',
+  candidates: { folder: 'Busts in silhouette', file: 'busts_in_silhouette' },
+  jobs: { folder: 'Briefcase', file: 'briefcase' },
+  interviews: { folder: 'Calendar', file: 'calendar' },
+  offers: { folder: 'Handshake', file: 'handshake' },
 };
 function glyphUrl(tone) {
-  return `https://api.iconify.design/fluent-color/${TONE_GLYPH[tone]}.svg`;
+  const { folder, file } = TONE_GLYPH[tone];
+  return `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(folder)}/3D/${file}_3d.png`;
 }
 
 /* One dashboard KPI tile. `tone` picks the icon + its colour story (set as
