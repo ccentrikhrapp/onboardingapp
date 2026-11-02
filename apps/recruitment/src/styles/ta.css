@@ -112,7 +112,12 @@
 .ta-collapse-btn:hover { color: var(--ta-blue); border-color: var(--ta-blue-wash); }
 
 .ta-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
-.ta-nav__link {
+/* `.ta-sidebar a { color: inherit }` above has higher specificity (class +
+   element) than a bare `.ta-nav__link` (class only), so it was silently
+   winning and inheriting the page's dark body text color onto this dark
+   sidebar — invisible labels. Every rule here is scoped under `.ta-sidebar`
+   too so it actually wins. */
+.ta-sidebar .ta-nav__link {
   position: relative;
   display: flex; align-items: center; gap: 10px;
   padding: 8px 10px; border-radius: 999px;
@@ -120,16 +125,16 @@
   white-space: nowrap; overflow: hidden;
   transition: background 0.15s ease, color 0.15s ease;
 }
-.ta-nav__link::before { display: none; }
-.ta-nav__link svg {
+.ta-sidebar .ta-nav__link::before { display: none; }
+.ta-sidebar .ta-nav__link svg {
   flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 999px;
   box-sizing: border-box; background: transparent; color: var(--ta-ink-soft);
   transition: background 0.15s ease, color 0.15s ease;
 }
-.ta-nav__link:hover { color: #fff; }
-.ta-nav__link:hover svg { background: rgba(255, 255, 255, 0.08); color: #fff; }
-.ta-nav__link.active { background: #fff; color: var(--ta-ink); font-weight: 600; }
-.ta-nav__link.active svg { background: transparent; color: var(--ta-ink); box-shadow: none; }
+.ta-sidebar .ta-nav__link:hover { color: #fff; }
+.ta-sidebar .ta-nav__link:hover svg { background: rgba(255, 255, 255, 0.08); color: #fff; }
+.ta-sidebar .ta-nav__link.active { background: #fff; color: var(--ta-ink); font-weight: 600; }
+.ta-sidebar .ta-nav__link.active svg { background: transparent; color: var(--ta-ink); box-shadow: none; }
 .ta-nav__count {
   flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
   background: var(--tag-amber-bg); color: var(--tag-amber-fg);
@@ -543,8 +548,8 @@
 
 .ta-kpi {
   position: relative; overflow: hidden;
-  background: linear-gradient(165deg, color-mix(in srgb, var(--kpi-top-a) 13%, #fff), color-mix(in srgb, var(--kpi-top-b) 6%, #fff) 60%, #fff 100%);
-  border: 1px solid color-mix(in srgb, var(--kpi-top-a) 18%, #E7EAF0);
+  background: #fff;
+  border: 1px solid #E7EAF0;
   border-radius: 14px;
   box-shadow: 0 4px 18px rgba(16, 24, 40, 0.045);
   padding: 12px 14px;
