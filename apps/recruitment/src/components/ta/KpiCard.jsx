@@ -5,9 +5,9 @@ import Icon from '../common/Icon.jsx';
 // unsplash.com/license), not icons or illustrations. One per tone.
 const TONE_PHOTO = {
   candidates: '1758518731296-20e24e58846f', // team of professionals
-  jobs: '1692291051778-014c9b193830', // open briefcase
-  interviews: '1769596722510-b92780d03424', // desk calendar
-  offers: '1758518730384-be3d205838e8', // handshake
+  jobs: '1787675315614-dbec146cbb9a', // leather briefcase, clearly in frame
+  interviews: '1770250959829-de36726e99c4', // large wall calendar
+  offers: '1696861270495-7f35c35c3273', // close-up handshake
 };
 function glyphUrl(tone) {
   return `https://images.unsplash.com/photo-${TONE_PHOTO[tone]}?w=96&h=96&fit=crop&q=80&auto=format`;
