@@ -6,14 +6,14 @@
    ============================================================ */
 
 :root {
-  --ta-bg: #FAF7F2;
+  --ta-bg: #FAF8F4;
   --ta-surface: #ffffff;
   --ta-surface-soft: #F7F5F1;
-  --ta-line: #ECE7DF;
-  --ta-line-soft: #F1EDE5;
+  --ta-line: #E8E3DB;
+  --ta-line-soft: #F0ECE6;
   --ta-text: #171717;
-  --ta-text-soft: #6b6560;
-  --ta-text-mute: #9c968f;
+  --ta-text-soft: #666666;
+  --ta-text-mute: #8A8A8A;
   --ta-blue: #3b6ef5;
   --ta-blue-ink: #2a53c8;
   --ta-blue-wash: #eef3ff;
@@ -37,19 +37,26 @@
   --viz-magenta: #e87ba4;
 
   /* Warm pastel SaaS theme — cream backdrop, a light rounded sidebar panel
-     (not dark), soft pastel accents, charcoal for text/primary actions. */
+     (not dark), soft pastel accents, charcoal for text/primary actions.
+     Exact values per the design spec, not picked freehand. */
   --ta-ink: #171717;
-  --ta-ink-soft: #8A8580;
+  --ta-ink-hover: #2A2A2A;
+  --ta-ink-soft: #8A8A8A;
   --ta-ink-line: rgba(23, 23, 23, 0.07);
-  --ta-backdrop: #FAF7F2;
+  --ta-backdrop: #FAF8F4;
   --ta-panel-radius: 24px;
   --ta-rail-gap: 14px;
 
-  --ta-pastel-pink: #F06B9A;    --ta-pastel-pink-wash: #FDE6ED;
-  --ta-pastel-amber: #F8C66A;   --ta-pastel-amber-wash: #FEF3DE;
-  --ta-pastel-green: #8FD28A;   --ta-pastel-green-wash: #D8F3C3;
-  --ta-pastel-lavender: #B49CE8; --ta-pastel-lavender-wash: #DCCEF5;
-  --ta-pastel-blue: #6FA8D8;    --ta-pastel-blue-wash: #CFE5F7;
+  --ta-pastel-pink: #EF6C9B;     --ta-pastel-pink-wash: #FCE2EB;     --ta-pastel-pink-ink: #B33D68;
+  --ta-pastel-amber: #F6C566;    --ta-pastel-amber-wash: #FFF0CF;    --ta-pastel-amber-ink: #9A6A00;
+  --ta-pastel-green: #B9E7A3;    --ta-pastel-green-wash: #E4F7DA;    --ta-pastel-green-ink: #247A3F;
+  --ta-pastel-lavender: #CDBBEF; --ta-pastel-lavender-wash: #EEE7FA; --ta-pastel-lavender-ink: #7657B8;
+  --ta-pastel-blue: #BFDDF4;     --ta-pastel-blue-wash: #E5F2FB;     --ta-pastel-blue-ink: #3576A8;
+  --ta-pastel-peach: #F5C7A9;    --ta-pastel-peach-wash: #FBE9DD;    --ta-pastel-peach-ink: #A85D2A;
+
+  --ta-sidebar-bg: #FFFDFC;
+  --ta-sidebar-active: #D9EAF7;
+  --ta-sidebar-hover: #F4F0EA;
 }
 
 /* `.ta-surface-page` = a plain premium page canvas (used outside the app shell). */
@@ -65,23 +72,21 @@
   background: var(--ta-backdrop);
   color: var(--ta-text);
   font-size: 13px;
-  padding: var(--ta-rail-gap);
-  gap: var(--ta-rail-gap);
   box-sizing: border-box;
 }
 .ta-shell h1, .ta-shell h2, .ta-shell h3 { letter-spacing: -0.02em; }
 
-/* ---------- Sidebar ---------- */
+/* ---------- Sidebar ----------
+   A conventional edge-to-edge sidebar per the spec (width/bg/border-right),
+   not a floating rounded panel — that was an earlier direction this spec
+   explicitly supersedes. */
 .ta-sidebar {
   width: var(--ta-sidebar-w);
   flex-shrink: 0;
-  background: var(--ta-surface);
-  border: 1px solid var(--ta-line);
-  border-radius: var(--ta-panel-radius);
+  background: var(--ta-sidebar-bg);
+  border-right: 1px solid var(--ta-line);
   display: flex; flex-direction: column;
-  padding: 18px 14px;
-  position: fixed; inset: var(--ta-rail-gap) auto var(--ta-rail-gap) var(--ta-rail-gap); z-index: 40;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+  position: fixed; inset: 0 auto 0 0; z-index: 40;
   transition: width 0.2s ease;
 }
 /* No global anchor reset exists in this app, so a NavLink's <a> falls back to
@@ -126,21 +131,22 @@
 .ta-sidebar .ta-nav__link {
   position: relative;
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 14px;
-  color: var(--ta-text-soft); font-size: 13px; font-weight: 500;
+  min-height: 42px;
+  padding: 8px 10px; border-radius: 11px;
+  color: var(--ta-text-soft); font-size: 13.5px; font-weight: 500;
   white-space: nowrap; overflow: hidden;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: background 0.18s ease, color 0.18s ease;
 }
 .ta-sidebar .ta-nav__link::before { display: none; }
 .ta-sidebar .ta-nav__link svg {
-  flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 10px;
-  box-sizing: border-box; background: transparent; color: var(--ta-text-mute);
-  transition: background 0.15s ease, color 0.15s ease;
+  flex-shrink: 0; width: 28px; height: 18px; padding: 0;
+  box-sizing: content-box; background: transparent; color: var(--ta-text-mute);
+  transition: color 0.18s ease;
 }
-.ta-sidebar .ta-nav__link:hover { color: var(--ta-ink); }
-.ta-sidebar .ta-nav__link:hover svg { background: var(--ta-surface-soft); color: var(--ta-ink); }
-.ta-sidebar .ta-nav__link.active { background: var(--ta-pastel-blue-wash); color: var(--ta-ink); font-weight: 600; }
-.ta-sidebar .ta-nav__link.active svg { background: transparent; color: var(--ta-ink); box-shadow: none; }
+.ta-sidebar .ta-nav__link:hover { background: var(--ta-sidebar-hover); color: var(--ta-ink); }
+.ta-sidebar .ta-nav__link:hover svg { color: var(--ta-ink); }
+.ta-sidebar .ta-nav__link.active { background: var(--ta-sidebar-active); color: var(--ta-ink); font-weight: 600; }
+.ta-sidebar .ta-nav__link.active svg { color: var(--ta-ink); }
 .ta-nav__count {
   flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
   background: var(--tag-amber-bg); color: var(--tag-amber-fg);
@@ -210,22 +216,19 @@
 /* ---------- Main column ---------- */
 .ta-main {
   flex: 1; min-width: 0;
-  margin-left: calc(var(--ta-sidebar-w) + var(--ta-rail-gap));
+  margin-left: var(--ta-sidebar-w);
   display: flex; flex-direction: column;
   overflow-x: hidden;
-  background: var(--ta-surface);
-  border-radius: var(--ta-panel-radius);
-  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
   transition: margin-left 0.2s ease;
 }
 
 .ta-topbar {
-  min-height: 52px; flex-shrink: 0;
+  min-height: 56px; flex-shrink: 0;
   display: flex; align-items: center; gap: 12px;
   padding: 10px 28px;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(250, 248, 244, 0.92);
   backdrop-filter: saturate(180%) blur(8px);
-  border-radius: var(--ta-panel-radius) var(--ta-panel-radius) 0 0;
+  border-bottom: 1px solid var(--ta-line);
   position: sticky; top: 0; z-index: 30;
 }
 .ta-topbar__head { display: flex; flex-direction: column; min-width: 0; margin-right: auto; }
@@ -248,15 +251,16 @@
 .ta-search:focus-within { border-color: var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash); }
 .ta-search input { border: 0; outline: 0; background: transparent; flex: 1; min-width: 0; font: inherit; font-size: 12.5px; text-overflow: ellipsis; }
 .ta-search svg { color: var(--ta-text-mute); flex-shrink: 0; }
-.ta-shell .ta-search { background: #F1F2F6; border-color: transparent; }
+.ta-shell .ta-search { background: var(--ta-surface-soft); border-color: var(--ta-line); border-radius: 11px; }
 
 /* The topbar's own icon buttons (not every `.ta-iconbtn` in the app, which
    also appears as a plain "remove row" control in candidate-facing forms) —
-   dark filled circles, matching the floating-panel theme's accent button. */
+   neutral white circular buttons per spec §46 (unread state gets its own
+   pastel dot via `.ta-iconbtn__dot`, already wired up). */
 .ta-shell .ta-topbar .ta-iconbtn {
-  border: none; border-radius: 999px; background: var(--ta-ink); color: #fff;
+  border: 1px solid var(--ta-line); border-radius: 999px; background: var(--ta-surface); color: var(--ta-text-soft);
 }
-.ta-shell .ta-topbar .ta-iconbtn:hover { background: #2a2b35; color: #fff; }
+.ta-shell .ta-topbar .ta-iconbtn:hover { background: var(--ta-surface-soft); color: var(--ta-ink); }
 
 .ta-iconbtn {
   position: relative;
@@ -282,8 +286,7 @@
 }
 
 .ta-page {
-  padding: 14px 28px 80px; max-width: 1720px; width: 100%; margin: 0 auto; min-width: 0; box-sizing: border-box;
-  background: radial-gradient(circle at 10% 0%, rgba(79, 107, 255, 0.045), transparent 28%);
+  padding: 24px 32px 80px; width: 100%; min-width: 0; box-sizing: border-box;
 }
 .ta-shell .page-body { padding: 0; max-width: none; margin: 0; }
 .ta-page__title { font-size: 20px; font-weight: 700; }
@@ -532,10 +535,11 @@
 /* ---------- Dashboard hero ---------- */
 .ta-dash-hero {
   position: relative; overflow: hidden;
-  background: linear-gradient(135deg, var(--ta-pastel-green-wash), var(--ta-pastel-blue-wash) 120%);
+  min-height: 190px; display: flex; flex-direction: column; justify-content: center;
+  background: linear-gradient(120deg, #DDF5C9, #D7EDF5 130%);
   border-radius: 22px;
-  padding: 28px 32px;
-  margin-bottom: 20px;
+  padding: 32px 36px;
+  margin-bottom: 24px;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
 .ta-dash-hero__blob {
@@ -543,20 +547,20 @@
 }
 .ta-dash-hero__blob--a { width: 170px; height: 170px; top: -70px; right: 60px; background: var(--ta-pastel-amber); opacity: 0.35; }
 .ta-dash-hero__blob--b { width: 120px; height: 120px; bottom: -50px; right: -20px; background: var(--ta-pastel-pink); opacity: 0.3; }
-.ta-dash-hero__eyebrow { position: relative; display: block; font-size: 14px; font-weight: 600; color: #3f6b46; margin-bottom: 6px; }
+.ta-dash-hero__eyebrow { position: relative; display: block; font-size: 15px; font-weight: 600; color: #3f6b46; margin-bottom: 8px; }
 .ta-dash-hero__title {
   position: relative;
-  font-size: 28px; font-weight: 800; line-height: 1.25; letter-spacing: -0.5px; color: var(--ta-ink);
-  max-width: 560px; margin: 0 0 20px;
+  font-size: 32px; font-weight: 800; line-height: 1.25; letter-spacing: -0.5px; color: var(--ta-ink);
+  max-width: 580px; margin: 0 0 22px;
 }
 .ta-dash-hero__cta {
   position: relative;
   background: var(--ta-ink); color: #fff; border: 0; cursor: pointer;
   font: inherit; font-size: 13px; font-weight: 600;
-  padding: 11px 20px; border-radius: 12px;
-  transition: transform 0.18s ease, box-shadow 0.18s ease;
+  padding: 11px 20px; border-radius: 11px; height: 40px;
+  transition: background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
-.ta-dash-hero__cta:hover { transform: translateY(-2px); box-shadow: 0 8px 18px -8px rgba(23, 23, 23, 0.4); }
+.ta-dash-hero__cta:hover { background: var(--ta-ink-hover); transform: translateY(-1px); box-shadow: 0 4px 12px -4px rgba(23, 23, 23, 0.3); }
 
 /* ---------- KPI row ----------
    Four tones (candidates/jobs/interviews/offers), each its own icon-badge
@@ -564,91 +568,89 @@
    `.ta-kpi--<tone>` and read by the shared rules below via custom props. */
 .ta-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
 
-/* Pastel-per-tone per the design system: candidates=pink, jobs=amber,
-   interviews=green, offers=lavender. */
-.ta-kpi--candidates { --kpi-icon-a: var(--ta-pastel-pink-wash); --kpi-icon-b: #FCD4E2; --kpi-icon-fg: #C23D71; --kpi-top-a: #F06B9A; --kpi-top-b: #D94E80; --kpi-bar-a: #F06B9A; --kpi-bar-b: #C23D71; --kpi-glow: rgba(240, 107, 154, 0.22); }
-.ta-kpi--jobs { --kpi-icon-a: var(--ta-pastel-amber-wash); --kpi-icon-b: #FBE3AC; --kpi-icon-fg: #A66A12; --kpi-top-a: #F8C66A; --kpi-top-b: #E8A93D; --kpi-bar-a: #F8C66A; --kpi-bar-b: #A66A12; --kpi-glow: rgba(248, 198, 106, 0.25); }
-.ta-kpi--interviews { --kpi-icon-a: var(--ta-pastel-green-wash); --kpi-icon-b: #C3E8B3; --kpi-icon-fg: #3F7A33; --kpi-top-a: #8FD28A; --kpi-top-b: #5FAE58; --kpi-bar-a: #8FD28A; --kpi-bar-b: #3F7A33; --kpi-glow: rgba(143, 210, 138, 0.25); }
-.ta-kpi--offers { --kpi-icon-a: var(--ta-pastel-lavender-wash); --kpi-icon-b: #CBB8EE; --kpi-icon-fg: #6A4CA8; --kpi-top-a: #B49CE8; --kpi-top-b: #9478D6; --kpi-bar-a: #B49CE8; --kpi-bar-b: #6A4CA8; --kpi-glow: rgba(180, 156, 232, 0.25); }
+/* Exact dashboard color mapping per spec §8: Total Candidates = solid pink
+   (white text), Open Jobs = solid amber (dark text), Interviews = light
+   green wash with a green accent, Offers = light lavender wash with a
+   lavender accent. `featured` (candidates/jobs) gets the solid fill;
+   the other two stay a light tinted card. */
+.ta-kpi--candidates { --kpi-solid: var(--ta-pastel-pink); --kpi-solid-text: #fff; --kpi-icon-a: var(--ta-pastel-pink-wash); --kpi-icon-b: var(--ta-pastel-pink-wash); --kpi-icon-fg: var(--ta-pastel-pink-ink); --kpi-top-a: var(--ta-pastel-pink); --kpi-bar-a: var(--ta-pastel-pink); --kpi-bar-b: var(--ta-pastel-pink-ink); --kpi-glow: rgba(239, 108, 155, 0.22); }
+.ta-kpi--jobs { --kpi-solid: var(--ta-pastel-amber); --kpi-solid-text: var(--ta-ink); --kpi-icon-a: var(--ta-pastel-amber-wash); --kpi-icon-b: var(--ta-pastel-amber-wash); --kpi-icon-fg: var(--ta-pastel-amber-ink); --kpi-top-a: var(--ta-pastel-amber); --kpi-bar-a: var(--ta-pastel-amber); --kpi-bar-b: var(--ta-pastel-amber-ink); --kpi-glow: rgba(246, 197, 102, 0.25); }
+.ta-kpi--interviews { --kpi-wash: var(--ta-pastel-green-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: #299A55; --kpi-top-a: #299A55; --kpi-bar-a: #299A55; --kpi-bar-b: #247A3F; --kpi-glow: rgba(41, 154, 85, 0.2); }
+.ta-kpi--offers { --kpi-wash: var(--ta-pastel-lavender-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: #7657B8; --kpi-top-a: #7657B8; --kpi-bar-a: #7657B8; --kpi-bar-b: #6A4CA8; --kpi-glow: rgba(118, 87, 184, 0.2); }
 
 .ta-kpi {
   position: relative; overflow: hidden;
-  background: #fff;
-  border: 1px solid #E7EAF0;
-  border-radius: 14px;
-  box-shadow: 0 4px 18px rgba(16, 24, 40, 0.045);
-  padding: 12px 14px;
-  min-height: 122px;
-  display: flex; flex-direction: column; gap: 5px;
+  background: var(--ta-surface);
+  border: 1px solid var(--ta-line);
+  border-radius: 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.035);
+  padding: 18px 20px;
+  min-height: 130px;
+  display: flex; flex-direction: column; gap: 6px;
   animation: ta-kpi-in 0.45s ease-out both;
-  transition: box-shadow 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), transform 0.22s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.22s ease;
+  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
 }
 .ta-kpi-row > .ta-kpi:nth-child(1) { animation-delay: 0ms; }
 .ta-kpi-row > .ta-kpi:nth-child(2) { animation-delay: 70ms; }
 .ta-kpi-row > .ta-kpi:nth-child(3) { animation-delay: 140ms; }
 .ta-kpi-row > .ta-kpi:nth-child(4) { animation-delay: 210ms; }
 @keyframes ta-kpi-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-.ta-kpi::before {
-  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, var(--kpi-top-a), var(--kpi-top-b));
-}
+/* Interviews/Offers: a flat light pastel wash instead of white. */
+.ta-kpi--interviews, .ta-kpi--offers { background: var(--kpi-wash); border-color: transparent; }
 .ta-kpi:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.08);
-  border-color: color-mix(in srgb, var(--kpi-top-a) 32%, #E7EAF0);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
 }
 .ta-kpi:hover .ta-kpi__icon { transform: scale(1.05); }
-.ta-kpi:hover .ta-kpi__go { color: #4F6BFF; transform: translate(2px, -2px); }
+.ta-kpi:hover .ta-kpi__go { color: var(--ta-ink); transform: translate(2px, -2px); }
 .ta-kpi--link { text-align: left; font: inherit; cursor: pointer; }
-.ta-kpi--link:active { transform: translateY(-2px); }
-.ta-kpi--link:focus-visible { outline: none; box-shadow: 0 0 0 3px #EEF2FF; }
+.ta-kpi--link:active { transform: translateY(0); }
+.ta-kpi--link:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--ta-sidebar-active); }
 
 .ta-kpi__head { display: flex; align-items: flex-start; justify-content: space-between; }
 .ta-kpi__icon {
-  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, var(--kpi-icon-a), var(--kpi-icon-b));
+  background: var(--kpi-icon-a);
   color: var(--kpi-icon-fg);
   transition: transform 0.2s ease-out;
 }
 .ta-kpi__go { color: #98A2B3; flex-shrink: 0; margin-top: 2px; transition: transform 0.2s ease, color 0.2s ease; }
-.ta-kpi__label { font-size: 12px; font-weight: 600; line-height: 15px; color: #475467; }
-.ta-kpi__value { font-size: 24px; font-weight: 700; line-height: 28px; letter-spacing: -0.6px; color: #101828; font-variant-numeric: tabular-nums; }
-.ta-kpi__note { font-size: 11px; color: #667085; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ta-kpi__label { font-size: 12.5px; font-weight: 600; line-height: 16px; color: var(--ta-text-soft); }
+.ta-kpi__value { font-size: 26px; font-weight: 700; line-height: 30px; letter-spacing: -0.5px; color: var(--ta-ink); font-variant-numeric: tabular-nums; }
+.ta-kpi__note { font-size: 11.5px; color: var(--ta-ink-soft); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .ta-kpi__meter { display: flex; align-items: center; gap: 8px; margin-top: auto; }
 .ta-kpi__meter-track {
-  flex: 1; height: 5px; border-radius: 999px; overflow: hidden;
-  background: color-mix(in srgb, var(--kpi-top-a) 14%, #EAECF0);
+  flex: 1; height: 6px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--kpi-top-a) 18%, #fff);
 }
 .ta-kpi__meter-fill {
   display: block; height: 100%; border-radius: 999px;
   background: linear-gradient(90deg, var(--kpi-bar-a), var(--kpi-bar-b));
-  box-shadow: 0 0 8px var(--kpi-glow);
   transition: width 0.8s ease-out;
 }
-.ta-kpi__meter-pct { font-size: 12px; font-weight: 600; color: #667085; font-variant-numeric: tabular-nums; flex-shrink: 0; }
+.ta-kpi__meter-pct { font-size: 12px; font-weight: 600; color: var(--ta-text-soft); font-variant-numeric: tabular-nums; flex-shrink: 0; }
 .ta-kpi__meter--empty .ta-kpi__meter-track {
   background: repeating-linear-gradient(90deg, #E5E7EB 0 6px, transparent 6px 10px);
 }
 
-/* Featured tiles — solid gradient fill (not just a white card with a tint),
-   matching the dashboard's "hero stat card" look. Still reuses each tone's
-   own colors, just inverted to foreground. */
+/* Featured tiles (candidates/jobs) — solid flat fill per spec §8, each
+   with its own correct text color for contrast (white on pink, dark on
+   amber — a flat yellow card needs dark text, not white). */
 .ta-kpi--featured {
-  background: linear-gradient(145deg, var(--kpi-top-a), var(--kpi-top-b));
+  background: var(--kpi-solid);
   border-color: transparent;
 }
-.ta-kpi--featured::before { display: none; }
-.ta-kpi--featured .ta-kpi__label { color: rgba(255, 255, 255, 0.85); }
-.ta-kpi--featured .ta-kpi__value { color: #fff; }
-.ta-kpi--featured .ta-kpi__note { color: rgba(255, 255, 255, 0.75); }
-.ta-kpi--featured .ta-kpi__go { color: rgba(255, 255, 255, 0.6); }
-.ta-kpi--featured:hover .ta-kpi__go { color: #fff; }
-.ta-kpi--featured .ta-kpi__icon { background: rgba(255, 255, 255, 0.22); color: #fff; box-shadow: none; }
-.ta-kpi--featured .ta-kpi__meter-track { background: rgba(255, 255, 255, 0.25); }
-.ta-kpi--featured .ta-kpi__meter-fill { background: #fff; box-shadow: none; }
-.ta-kpi--featured .ta-kpi__meter-pct { color: rgba(255, 255, 255, 0.85); }
+.ta-kpi--featured .ta-kpi__label { color: color-mix(in srgb, var(--kpi-solid-text) 85%, transparent); }
+.ta-kpi--featured .ta-kpi__value { color: var(--kpi-solid-text); }
+.ta-kpi--featured .ta-kpi__note { color: color-mix(in srgb, var(--kpi-solid-text) 70%, transparent); }
+.ta-kpi--featured .ta-kpi__go { color: color-mix(in srgb, var(--kpi-solid-text) 55%, transparent); }
+.ta-kpi--featured:hover .ta-kpi__go { color: var(--kpi-solid-text); }
+.ta-kpi--featured .ta-kpi__icon { background: color-mix(in srgb, var(--kpi-solid-text) 22%, transparent); color: var(--kpi-solid-text); }
+.ta-kpi--featured .ta-kpi__meter-track { background: color-mix(in srgb, var(--kpi-solid-text) 25%, transparent); }
+.ta-kpi--featured .ta-kpi__meter-fill { background: var(--kpi-solid-text); }
+.ta-kpi--featured .ta-kpi__meter-pct { color: color-mix(in srgb, var(--kpi-solid-text) 85%, transparent); }
 .ta-kpi--featured:hover { border-color: transparent; }
 .ta-kpi--featured.ta-kpi--link:focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5); }
 
@@ -846,8 +848,8 @@
 
 /* Candidate updates — slim inbox on the TA dashboard */
 .ta-updates {
-  background: #fff; border: 1px solid #E7EAF0;
-  border-radius: 18px; box-shadow: 0 4px 18px rgba(16, 24, 40, 0.04);
+  background: var(--ta-surface); border: 1px solid var(--ta-line);
+  border-radius: 18px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.035);
   margin-bottom: 14px; overflow: hidden;
 }
 .ta-updates__head {
@@ -855,16 +857,16 @@
   padding: 14px 18px; border: 0; background: transparent; font: inherit;
   text-align: left; cursor: pointer;
 }
-.ta-updates__head:hover { background: #F8FAFF; }
-.ta-updates__list { border-top: 1px solid #F0F2F5; }
-.ta-updates__lead { display: inline-flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; color: #101828; }
+.ta-updates__head:hover { background: var(--ta-surface-soft); }
+.ta-updates__list { border-top: 1px solid var(--ta-line-soft); }
+.ta-updates__lead { display: inline-flex; align-items: center; gap: 9px; font-size: 15px; font-weight: 700; color: var(--ta-ink); }
 .ta-updates__toggle { display: inline-flex; align-items: center; gap: 12px; }
 .ta-updates__toggle svg { color: var(--ta-text-mute); }
 .ta-updates__toggle .ta-link { cursor: pointer; }
 .ta-updates__count {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 24px; height: 24px; padding: 0 7px; border-radius: 999px;
-  background: #EEF2FF; color: #4F6BFF; font-size: 12px; font-weight: 700;
+  background: var(--ta-pastel-blue-wash); color: var(--ta-pastel-blue-ink); font-size: 12px; font-weight: 700;
 }
 .ta-updates__list { display: flex; flex-direction: column; }
 .ta-updates__row {
@@ -872,16 +874,16 @@
   padding: 12px 18px; border: 0; background: transparent; font: inherit;
   text-align: left; cursor: pointer; transition: background 0.15s;
 }
-.ta-updates__row + .ta-updates__row { border-top: 1px solid #F0F2F5; }
-.ta-updates__row:hover { background: #F8FAFF; }
+.ta-updates__row + .ta-updates__row { border-top: 1px solid var(--ta-line-soft); }
+.ta-updates__row:hover { background: var(--ta-surface-soft); }
 .ta-updates__icon {
-  width: 36px; height: 36px; border-radius: 12px; flex-shrink: 0;
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
   display: inline-flex; align-items: center; justify-content: center;
-  background: #EEF2FF; color: #4F6BFF;
+  background: var(--ta-pastel-blue-wash); color: var(--ta-pastel-blue-ink);
 }
 .ta-updates__body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.ta-updates__title { font-size: 13px; font-weight: 600; color: #101828; }
-.ta-updates__body .ta-cell-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: #667085; }
+.ta-updates__title { font-size: 13px; font-weight: 600; color: var(--ta-ink); }
+.ta-updates__body .ta-cell-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--ta-text-soft); }
 .ta-updates__when {
   display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
   font-size: 11.5px; color: #667085;
@@ -2211,11 +2213,9 @@
   .ta-shell--collapsed .ta-help,
   .ta-shell--collapsed .ta-usercard { justify-content: flex-start; gap: 10px; }
   .ta-collapse-btn { display: none; }
-  .ta-shell { padding: 0; gap: 0; }
-  .ta-sidebar { inset: 0 auto 0 0; border-radius: 0; transform: translateX(-100%); transition: transform 0.22s ease; box-shadow: var(--ta-shadow-hover); }
+  .ta-sidebar { transform: translateX(-100%); transition: transform 0.22s ease; box-shadow: var(--ta-shadow-hover); }
   .ta-sidebar--open { transform: translateX(0); }
-  .ta-main { margin-left: 0; border-radius: 0; }
-  .ta-topbar { border-radius: 0; }
+  .ta-main { margin-left: 0; }
   .ta-menubtn { display: flex; }
   .ta-page { padding: 12px 14px 88px; }
   .ta-topbar { padding: 8px 14px; gap: 9px; }
