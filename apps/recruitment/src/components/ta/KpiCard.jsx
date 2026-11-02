@@ -1,24 +1,21 @@
 import { useEffect, useState } from 'react';
 import Icon from '../common/Icon.jsx';
 
-// Real photographs (Unsplash, free under the standard Unsplash License —
-// unsplash.com/license), not icons or illustrations. One per tone.
-const TONE_PHOTO = {
-  candidates: '1758518731296-20e24e58846f', // team of professionals
-  jobs: '1787675315614-dbec146cbb9a', // leather briefcase, clearly in frame
-  interviews: '1770250959829-de36726e99c4', // large wall calendar
-  offers: '1696861270495-7f35c35c3273', // close-up handshake
+// One Lucide line icon per tone — consistent icon language across the
+// dashboard, per the pastel SaaS design system (no photos/3D/emoji).
+const TONE_ICON = {
+  candidates: 'UsersRound',
+  jobs: 'Briefcase',
+  interviews: 'CalendarCheck',
+  offers: 'BadgeCheck',
 };
-function glyphUrl(tone) {
-  return `https://images.unsplash.com/photo-${TONE_PHOTO[tone]}?w=96&h=96&fit=crop&q=80&auto=format`;
-}
 
-/* One dashboard KPI tile. `tone` picks the icon + its colour story (set as
-   CSS custom props on `.ta-kpi--<tone>`) — candidates/jobs/interviews/offers.
-   The number is the dominant element; `meter`, when given, becomes a slim
-   proportion line that animates in on mount (not continuously). When a
-   meter has literally nothing behind it yet (0 of 0), it renders as a quiet
-   dotted track instead of a 0%-filled bar. */
+/* One dashboard KPI tile. `tone` picks the icon + its pastel colour story
+   (set as CSS custom props on `.ta-kpi--<tone>`) — candidates/jobs/
+   interviews/offers. The number is the dominant element; `meter`, when
+   given, becomes a slim proportion line that animates in on mount (not
+   continuously). When a meter has literally nothing behind it yet (0 of
+   0), it renders as a quiet dotted track instead of a 0%-filled bar. */
 export default function KpiCard({ tone = 'candidates', label, value, note, meter, onClick, featured = false }) {
   const Tag = onClick ? 'button' : 'div';
   const pct = meter ? Math.max(0, Math.min(100, Math.round((meter.value / (meter.max || 1)) * 100))) : null;
@@ -38,7 +35,7 @@ export default function KpiCard({ tone = 'candidates', label, value, note, meter
       onClick={onClick}
     >
       <div className="ta-kpi__head">
-        <span className="ta-kpi__icon"><img src={glyphUrl(tone)} alt="" width={22} height={22} loading="lazy" /></span>
+        <span className="ta-kpi__icon"><Icon name={TONE_ICON[tone]} size={18} strokeWidth={2} /></span>
         {onClick && <Icon name="ArrowUpRight" size={16} className="ta-kpi__go" />}
       </div>
 

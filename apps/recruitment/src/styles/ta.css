@@ -6,13 +6,14 @@
    ============================================================ */
 
 :root {
-  --ta-bg: #f7f8fa;
+  --ta-bg: #FAF7F2;
   --ta-surface: #ffffff;
-  --ta-line: #ecedf1;
-  --ta-line-soft: #f1f2f5;
-  --ta-text: #161a23;
-  --ta-text-soft: #6b7280;
-  --ta-text-mute: #99a0ac;
+  --ta-surface-soft: #F7F5F1;
+  --ta-line: #ECE7DF;
+  --ta-line-soft: #F1EDE5;
+  --ta-text: #171717;
+  --ta-text-soft: #6b6560;
+  --ta-text-mute: #9c968f;
   --ta-blue: #3b6ef5;
   --ta-blue-ink: #2a53c8;
   --ta-blue-wash: #eef3ff;
@@ -35,14 +36,20 @@
   --viz-aqua: #1baf7a;
   --viz-magenta: #e87ba4;
 
-  /* "Floating panel" theme — dark rounded sidebar rail + a white content
-     panel floating on a cool lavender-grey backdrop, pill controls. */
-  --ta-ink: #17181F;
-  --ta-ink-soft: #AFB2C3;
-  --ta-ink-line: rgba(255, 255, 255, 0.08);
-  --ta-backdrop: #E8E9F2;
-  --ta-panel-radius: 26px;
+  /* Warm pastel SaaS theme — cream backdrop, a light rounded sidebar panel
+     (not dark), soft pastel accents, charcoal for text/primary actions. */
+  --ta-ink: #171717;
+  --ta-ink-soft: #8A8580;
+  --ta-ink-line: rgba(23, 23, 23, 0.07);
+  --ta-backdrop: #FAF7F2;
+  --ta-panel-radius: 24px;
   --ta-rail-gap: 14px;
+
+  --ta-pastel-pink: #F06B9A;    --ta-pastel-pink-wash: #FDE6ED;
+  --ta-pastel-amber: #F8C66A;   --ta-pastel-amber-wash: #FEF3DE;
+  --ta-pastel-green: #8FD28A;   --ta-pastel-green-wash: #D8F3C3;
+  --ta-pastel-lavender: #B49CE8; --ta-pastel-lavender-wash: #DCCEF5;
+  --ta-pastel-blue: #6FA8D8;    --ta-pastel-blue-wash: #CFE5F7;
 }
 
 /* `.ta-surface-page` = a plain premium page canvas (used outside the app shell). */
@@ -68,12 +75,13 @@
 .ta-sidebar {
   width: var(--ta-sidebar-w);
   flex-shrink: 0;
-  background: var(--ta-ink);
+  background: var(--ta-surface);
+  border: 1px solid var(--ta-line);
   border-radius: var(--ta-panel-radius);
   display: flex; flex-direction: column;
   padding: 18px 14px;
   position: fixed; inset: var(--ta-rail-gap) auto var(--ta-rail-gap) var(--ta-rail-gap); z-index: 40;
-  box-shadow: 0 20px 40px -20px rgba(23, 24, 31, 0.45);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
   transition: width 0.2s ease;
 }
 /* No global anchor reset exists in this app, so a NavLink's <a> falls back to
@@ -82,7 +90,7 @@
    a site-wide `a` rule that could affect unrelated pages. */
 .ta-sidebar a { text-decoration: none; color: inherit; }
 
-.ta-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--ta-ink-line); }
+.ta-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--ta-line); }
 .ta-brand__mark {
   width: 30px; height: 30px; border-radius: 999px; flex-shrink: 0;
   background: linear-gradient(150deg, #4b7bf7, #2a53c8);
@@ -90,7 +98,7 @@
 }
 .ta-brand__mark svg { width: 17px; height: 17px; }
 .ta-brand__text { display: flex; flex-direction: column; min-width: 0; }
-.ta-brand__name { font-size: 14px; font-weight: 700; line-height: 1.2; color: #fff; }
+.ta-brand__name { font-size: 14px; font-weight: 700; line-height: 1.2; color: var(--ta-ink); }
 .ta-brand__sub { font-size: 11px; color: var(--ta-ink-soft); }
 .ta-brand__logo { height: 34px; width: auto; display: block; flex-shrink: 0; }
 .ta-brand__badge {
@@ -114,26 +122,24 @@
 .ta-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 /* `.ta-sidebar a { color: inherit }` above has higher specificity (class +
    element) than a bare `.ta-nav__link` (class only), so it was silently
-   winning and inheriting the page's dark body text color onto this dark
-   sidebar — invisible labels. Every rule here is scoped under `.ta-sidebar`
-   too so it actually wins. */
+   winning — scope every nav rule under `.ta-sidebar` so it actually wins. */
 .ta-sidebar .ta-nav__link {
   position: relative;
   display: flex; align-items: center; gap: 10px;
-  padding: 8px 10px; border-radius: 999px;
-  color: var(--ta-ink-soft); font-size: 13px; font-weight: 500;
+  padding: 8px 10px; border-radius: 14px;
+  color: var(--ta-text-soft); font-size: 13px; font-weight: 500;
   white-space: nowrap; overflow: hidden;
   transition: background 0.15s ease, color 0.15s ease;
 }
 .ta-sidebar .ta-nav__link::before { display: none; }
 .ta-sidebar .ta-nav__link svg {
-  flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 999px;
-  box-sizing: border-box; background: transparent; color: var(--ta-ink-soft);
+  flex-shrink: 0; width: 30px; height: 30px; padding: 6px; border-radius: 10px;
+  box-sizing: border-box; background: transparent; color: var(--ta-text-mute);
   transition: background 0.15s ease, color 0.15s ease;
 }
-.ta-sidebar .ta-nav__link:hover { color: #fff; }
-.ta-sidebar .ta-nav__link:hover svg { background: rgba(255, 255, 255, 0.08); color: #fff; }
-.ta-sidebar .ta-nav__link.active { background: #fff; color: var(--ta-ink); font-weight: 600; }
+.ta-sidebar .ta-nav__link:hover { color: var(--ta-ink); }
+.ta-sidebar .ta-nav__link:hover svg { background: var(--ta-surface-soft); color: var(--ta-ink); }
+.ta-sidebar .ta-nav__link.active { background: var(--ta-pastel-blue-wash); color: var(--ta-ink); font-weight: 600; }
 .ta-sidebar .ta-nav__link.active svg { background: transparent; color: var(--ta-ink); box-shadow: none; }
 .ta-nav__count {
   flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
@@ -145,27 +151,27 @@
 
 .ta-help {
   display: flex; align-items: center; gap: 9px;
-  background: rgba(255, 255, 255, 0.06); border: 1px solid var(--ta-ink-line);
+  background: var(--ta-surface-soft); border: 1px solid var(--ta-line);
   border-radius: 16px; padding: 9px; margin-bottom: 8px; overflow: hidden;
 }
 .ta-help__icon {
   width: 28px; height: 28px; border-radius: 999px; flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.1); color: #fff;
+  background: var(--ta-pastel-blue-wash); color: var(--ta-ink);
   display: flex; align-items: center; justify-content: center;
 }
 .ta-help__text { display: flex; flex-direction: column; min-width: 0; }
-.ta-help__title { font-size: 12px; font-weight: 600; white-space: nowrap; color: #fff; }
+.ta-help__title { font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ta-ink); }
 .ta-help__sub { font-size: 11px; color: var(--ta-ink-soft); white-space: nowrap; }
 
 .ta-usercard {
   display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 8px; border: 1px solid var(--ta-ink-line); border-radius: 16px;
-  background: rgba(255, 255, 255, 0.06); cursor: pointer; text-align: left; overflow: hidden;
+  padding: 8px; border: 1px solid var(--ta-line); border-radius: 16px;
+  background: var(--ta-surface); cursor: pointer; text-align: left; overflow: hidden;
   transition: border-color 0.15s, background 0.15s;
 }
-.ta-usercard:hover { border-color: rgba(255,255,255,0.18); background: rgba(255, 255, 255, 0.1); }
+.ta-usercard:hover { border-color: var(--ta-line); background: var(--ta-surface-soft); }
 .ta-usercard__text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
-.ta-usercard__name { font-size: 12px; font-weight: 600; white-space: nowrap; color: #fff; }
+.ta-usercard__name { font-size: 12px; font-weight: 600; white-space: nowrap; color: var(--ta-ink); }
 .ta-usercard__role { font-size: 11px; color: var(--ta-ink-soft); white-space: nowrap; }
 .ta-usercard svg { flex-shrink: 0; color: var(--ta-ink-soft); }
 
@@ -523,13 +529,34 @@
 }
 .ta-link:hover { color: var(--ta-blue-ink); }
 
-/* ---------- Dashboard greeting ---------- */
-.ta-dash-hero { margin-bottom: 20px; }
-.ta-dash-hero__title {
-  font-size: 30px; font-weight: 700; line-height: 38px; letter-spacing: -0.6px; color: #111827;
+/* ---------- Dashboard hero ---------- */
+.ta-dash-hero {
+  position: relative; overflow: hidden;
+  background: linear-gradient(135deg, var(--ta-pastel-green-wash), var(--ta-pastel-blue-wash) 120%);
+  border-radius: 22px;
+  padding: 28px 32px;
+  margin-bottom: 20px;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
 }
-.ta-dash-hero__sub { font-size: 14px; font-weight: 400; line-height: 22px; color: #667085; margin-top: 2px; }
+.ta-dash-hero__blob {
+  position: absolute; border-radius: 999px; filter: blur(2px); opacity: 0.55; pointer-events: none;
+}
+.ta-dash-hero__blob--a { width: 170px; height: 170px; top: -70px; right: 60px; background: var(--ta-pastel-amber); opacity: 0.35; }
+.ta-dash-hero__blob--b { width: 120px; height: 120px; bottom: -50px; right: -20px; background: var(--ta-pastel-pink); opacity: 0.3; }
+.ta-dash-hero__eyebrow { position: relative; display: block; font-size: 14px; font-weight: 600; color: #3f6b46; margin-bottom: 6px; }
+.ta-dash-hero__title {
+  position: relative;
+  font-size: 28px; font-weight: 800; line-height: 1.25; letter-spacing: -0.5px; color: var(--ta-ink);
+  max-width: 560px; margin: 0 0 20px;
+}
+.ta-dash-hero__cta {
+  position: relative;
+  background: var(--ta-ink); color: #fff; border: 0; cursor: pointer;
+  font: inherit; font-size: 13px; font-weight: 600;
+  padding: 11px 20px; border-radius: 12px;
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.ta-dash-hero__cta:hover { transform: translateY(-2px); box-shadow: 0 8px 18px -8px rgba(23, 23, 23, 0.4); }
 
 /* ---------- KPI row ----------
    Four tones (candidates/jobs/interviews/offers), each its own icon-badge
@@ -537,14 +564,12 @@
    `.ta-kpi--<tone>` and read by the shared rules below via custom props. */
 .ta-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
 
-/* Each tone's palette is pulled from its own photo, not an arbitrary
-   accent — candidates: navy business suits; jobs: tan leather + wood;
-   interviews: the plant's green against the white wall; offers: warm
-   skin tones + charcoal sleeves. */
-.ta-kpi--candidates { --kpi-icon-a: #EEF1F6; --kpi-icon-b: #E2E8F0; --kpi-icon-fg: #334155; --kpi-top-a: #475569; --kpi-top-b: #1E293B; --kpi-bar-a: #64748B; --kpi-bar-b: #1E293B; --kpi-glow: rgba(51, 65, 85, 0.18); }
-.ta-kpi--jobs { --kpi-icon-a: #FDF4E7; --kpi-icon-b: #F5E6D3; --kpi-icon-fg: #92400E; --kpi-top-a: #D97706; --kpi-top-b: #92400E; --kpi-bar-a: #D97706; --kpi-bar-b: #92400E; --kpi-glow: rgba(180, 83, 9, 0.18); }
-.ta-kpi--interviews { --kpi-icon-a: #ECFDF5; --kpi-icon-b: #D1FAE5; --kpi-icon-fg: #047857; --kpi-top-a: #10B981; --kpi-top-b: #047857; --kpi-bar-a: #34D399; --kpi-bar-b: #047857; --kpi-glow: rgba(16, 185, 129, 0.18); }
-.ta-kpi--offers { --kpi-icon-a: #FDF2E9; --kpi-icon-b: #FAE5D3; --kpi-icon-fg: #8B4A33; --kpi-top-a: #C2694A; --kpi-top-b: #8B4A33; --kpi-bar-a: #D08860; --kpi-bar-b: #8B4A33; --kpi-glow: rgba(194, 105, 74, 0.18); }
+/* Pastel-per-tone per the design system: candidates=pink, jobs=amber,
+   interviews=green, offers=lavender. */
+.ta-kpi--candidates { --kpi-icon-a: var(--ta-pastel-pink-wash); --kpi-icon-b: #FCD4E2; --kpi-icon-fg: #C23D71; --kpi-top-a: #F06B9A; --kpi-top-b: #D94E80; --kpi-bar-a: #F06B9A; --kpi-bar-b: #C23D71; --kpi-glow: rgba(240, 107, 154, 0.22); }
+.ta-kpi--jobs { --kpi-icon-a: var(--ta-pastel-amber-wash); --kpi-icon-b: #FBE3AC; --kpi-icon-fg: #A66A12; --kpi-top-a: #F8C66A; --kpi-top-b: #E8A93D; --kpi-bar-a: #F8C66A; --kpi-bar-b: #A66A12; --kpi-glow: rgba(248, 198, 106, 0.25); }
+.ta-kpi--interviews { --kpi-icon-a: var(--ta-pastel-green-wash); --kpi-icon-b: #C3E8B3; --kpi-icon-fg: #3F7A33; --kpi-top-a: #8FD28A; --kpi-top-b: #5FAE58; --kpi-bar-a: #8FD28A; --kpi-bar-b: #3F7A33; --kpi-glow: rgba(143, 210, 138, 0.25); }
+.ta-kpi--offers { --kpi-icon-a: var(--ta-pastel-lavender-wash); --kpi-icon-b: #CBB8EE; --kpi-icon-fg: #6A4CA8; --kpi-top-a: #B49CE8; --kpi-top-b: #9478D6; --kpi-bar-a: #B49CE8; --kpi-bar-b: #6A4CA8; --kpi-glow: rgba(180, 156, 232, 0.25); }
 
 .ta-kpi {
   position: relative; overflow: hidden;
@@ -580,12 +605,12 @@
 
 .ta-kpi__head { display: flex; align-items: flex-start; justify-content: space-between; }
 .ta-kpi__icon {
-  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
-  overflow: hidden;
-  box-shadow: 0 3px 8px -3px var(--kpi-glow), 0 0 0 1.5px color-mix(in srgb, var(--kpi-top-a) 30%, #fff);
+  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, var(--kpi-icon-a), var(--kpi-icon-b));
+  color: var(--kpi-icon-fg);
   transition: transform 0.2s ease-out;
 }
-.ta-kpi__icon img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .ta-kpi__go { color: #98A2B3; flex-shrink: 0; margin-top: 2px; transition: transform 0.2s ease, color 0.2s ease; }
 .ta-kpi__label { font-size: 12px; font-weight: 600; line-height: 15px; color: #475467; }
 .ta-kpi__value { font-size: 24px; font-weight: 700; line-height: 28px; letter-spacing: -0.6px; color: #101828; font-variant-numeric: tabular-nums; }
@@ -620,7 +645,7 @@
 .ta-kpi--featured .ta-kpi__note { color: rgba(255, 255, 255, 0.75); }
 .ta-kpi--featured .ta-kpi__go { color: rgba(255, 255, 255, 0.6); }
 .ta-kpi--featured:hover .ta-kpi__go { color: #fff; }
-.ta-kpi--featured .ta-kpi__icon { box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.5); }
+.ta-kpi--featured .ta-kpi__icon { background: rgba(255, 255, 255, 0.22); color: #fff; box-shadow: none; }
 .ta-kpi--featured .ta-kpi__meter-track { background: rgba(255, 255, 255, 0.25); }
 .ta-kpi--featured .ta-kpi__meter-fill { background: #fff; box-shadow: none; }
 .ta-kpi--featured .ta-kpi__meter-pct { color: rgba(255, 255, 255, 0.85); }
@@ -861,17 +886,15 @@
   display: inline-flex; align-items: center; gap: 5px; flex-shrink: 0;
   font-size: 11.5px; color: #667085;
 }
-/* Most recent update reads as the "featured" row — dark pill, like the
-   floating-panel theme's highlighted list item. */
+/* Most recent update reads as the "featured" row — a soft pastel pill,
+   not a heavy dark block (dark is reserved for primary actions). */
 .ta-updates__list > .ta-updates__row:first-child {
-  background: var(--ta-ink); border-radius: 14px; margin: 6px; width: calc(100% - 12px);
+  background: var(--ta-pastel-blue-wash); border-radius: 14px; margin: 6px; width: calc(100% - 12px);
 }
-.ta-updates__list > .ta-updates__row:first-child:hover { background: #2a2b35; }
+.ta-updates__list > .ta-updates__row:first-child:hover { background: #C0DCF0; }
 .ta-updates__list > .ta-updates__row:first-child + .ta-updates__row { border-top: 0; }
-.ta-updates__list > .ta-updates__row:first-child .ta-updates__icon { background: rgba(255, 255, 255, 0.12); color: #fff; }
-.ta-updates__list > .ta-updates__row:first-child .ta-updates__title { color: #fff; }
-.ta-updates__list > .ta-updates__row:first-child .ta-cell-sub,
-.ta-updates__list > .ta-updates__row:first-child .ta-updates__when { color: rgba(255, 255, 255, 0.65); }
+.ta-updates__list > .ta-updates__row:first-child .ta-updates__icon { background: rgba(255, 255, 255, 0.6); color: var(--ta-ink); }
+.ta-updates__list > .ta-updates__row:first-child .ta-updates__title { color: var(--ta-ink); }
 
 /* joiners list — compact, colour-coded rows (HR dashboard + employees page) */
 .hr-joiners { display: grid; grid-template-columns: repeat(auto-fill, minmax(258px, 1fr)); gap: 6px; }

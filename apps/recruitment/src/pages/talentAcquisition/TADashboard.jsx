@@ -249,8 +249,13 @@ export default function TADashboard() {
       <PipelineReminderPopup />
 
       <div className="ta-dash-hero">
-        <h1 className="ta-dash-hero__title">{greeting}{firstName ? `, ${firstName}` : ''}</h1>
-        <p className="ta-dash-hero__sub">Here's what's happening across your recruitment pipeline.</p>
+        <div className="ta-dash-hero__blob ta-dash-hero__blob--a" aria-hidden="true" />
+        <div className="ta-dash-hero__blob ta-dash-hero__blob--b" aria-hidden="true" />
+        <span className="ta-dash-hero__eyebrow">{greeting}{firstName ? `, ${firstName}` : ''}</span>
+        <h1 className="ta-dash-hero__title">Here's what's happening with your recruitment today</h1>
+        <button type="button" className="ta-dash-hero__cta" onClick={() => navigate('/ta/candidates')}>
+          View Recruitment Activity
+        </button>
       </div>
 
       <div className="ta-kpi-row">
