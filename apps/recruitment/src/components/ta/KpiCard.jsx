@@ -1,18 +1,16 @@
 import { useEffect, useState } from 'react';
 import Icon from '../common/Icon.jsx';
 
-// Microsoft Fluent Emoji — 3D/glossy illustrated set (MIT licensed), served
-// from jsDelivr's public CDN. Real glossy illustrations, not flat icons —
-// same consistent art style across all four tiles.
-const TONE_GLYPH = {
-  candidates: { folder: 'Busts in silhouette', file: 'busts_in_silhouette' },
-  jobs: { folder: 'Briefcase', file: 'briefcase' },
-  interviews: { folder: 'Calendar', file: 'calendar' },
-  offers: { folder: 'Handshake', file: 'handshake' },
+// Real photographs (Unsplash, free under the standard Unsplash License —
+// unsplash.com/license), not icons or illustrations. One per tone.
+const TONE_PHOTO = {
+  candidates: '1758518731296-20e24e58846f', // team of professionals
+  jobs: '1692291051778-014c9b193830', // open briefcase
+  interviews: '1769596722510-b92780d03424', // desk calendar
+  offers: '1758518730384-be3d205838e8', // handshake
 };
 function glyphUrl(tone) {
-  const { folder, file } = TONE_GLYPH[tone];
-  return `https://cdn.jsdelivr.net/gh/microsoft/fluentui-emoji@main/assets/${encodeURIComponent(folder)}/3D/${file}_3d.png`;
+  return `https://images.unsplash.com/photo-${TONE_PHOTO[tone]}?w=96&h=96&fit=crop&q=80&auto=format`;
 }
 
 /* One dashboard KPI tile. `tone` picks the icon + its colour story (set as
