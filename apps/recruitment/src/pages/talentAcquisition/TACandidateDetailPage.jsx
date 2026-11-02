@@ -87,6 +87,7 @@ function AtsCard({ ats }) {
     ['JD Keywords', ats.jdKeywordMatch],
     ['Education', ats.educationMatch],
   ];
+  const totalReq = (ats.matchedSkills?.length || 0) + (ats.missingSkills?.length || 0);
   return (
     <div className="ta-ats">
       <div className="ta-ats__metrics">
@@ -104,28 +105,52 @@ function AtsCard({ ats }) {
           <Tag tone={ATS_RECOMMENDATION_TONE[ats.recommendation] || 'grey'}>{ats.recommendation}</Tag>
         </div>
         <ScoreRing value={ats.overall} />
+        {totalReq > 0 && <span className="ta-cell-sub">{ats.matchedSkills.length} of {totalReq} requirements matched</span>}
       </div>
 
-      {(ats.matchedSkills?.length > 0 || ats.missingSkills?.length > 0) && (
+      {totalReq > 0 && (
         <div className="ta-ats__skills">
-          {ats.matchedSkills?.length > 0 && (
-            <div style={{ marginBottom: ats.missingSkills?.length > 0 ? 12 : 0 }}>
-              <span className="ta-info__label">Matched skills</span>
-              <div className="ta-skills" style={{ marginTop: 6 }}>
-                {ats.matchedSkills.map((s) => <span key={s} className="ta-skill">✓ {s}</span>)}
-              </div>
-            </div>
-          )}
-          {ats.missingSkills?.length > 0 && (
-            <div>
-              <span className="ta-info__label">Missing / lower match</span>
-              <div className="ta-skills" style={{ marginTop: 6 }}>
-                {ats.missingSkills.map((s) => <span key={s} className="ta-skill">{s}</span>)}
-              </div>
-            </div>
-          )}
+          <span className="ta-info__label">Skill & experience requirements</span>
+          <div className="ta-ats__checklist">
+            {ats.matchedSkills.map((s) => (
+              <span key={s} className="ta-ats__check is-met"><Icon name="Check" size={13} /> {s}</span>
+            ))}
+            {ats.missingSkills.map((s) => (
+              <span key={s} className="ta-ats__check"><Icon name="X" size={13} /> {s}</span>
+            ))}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+const STAGE_ICON = {
+  application: 'FileText', ta_review: 'Eye', interview: 'CalendarDays',
+  documents: 'FileCheck', offer: 'Gift', onboarding_verification: 'ShieldCheck', onboarding: 'UserRoundCheck',
+};
+const STAGE_LABEL = {
+  application: 'Applied', ta_review: 'Screening', interview: 'Interview',
+  documents: 'Documents', offer: 'Offer', onboarding_verification: 'Verification', onboarding: 'Hired',
+};
+/* Horizontal stage stepper — built from the same PIPELINE_STAGES/
+   stageIndexForStatus this app already uses for the table badge, just
+   drawn as nodes + a connecting line instead of a flat progress bar. */
+function StageStepper({ status }) {
+  const currentIdx = stageIndexForStatus(status);
+  return (
+    <div className="ta-stagesteps">
+      {PIPELINE_STAGES.map((s, i) => (
+        <Fragment key={s.key}>
+          <div className={`ta-stagesteps__step${i === currentIdx ? ' is-current' : ''}${i < currentIdx ? ' is-done' : ''}`}>
+            <span className="ta-stagesteps__dot">
+              {i < currentIdx ? <Icon name="Check" size={13} /> : <Icon name={STAGE_ICON[s.key]} size={13} />}
+            </span>
+            <span className="ta-stagesteps__label">{STAGE_LABEL[s.key]}</span>
+          </div>
+          {i < PIPELINE_STAGES.length - 1 && <span className={`ta-stagesteps__sep${i < currentIdx ? ' is-done' : ''}`} />}
+        </Fragment>
+      ))}
     </div>
   );
 }
@@ -341,9 +366,7 @@ export default function TACandidateDetailPage() {
   const pr = app.professional;
   const badge = stageBadgeForStatus(app.status);
 
-  const stageIdx = Math.max(0, stageIndexForStatus(app.status));
   const rejected = app.status === APP_STATUS.REJECTED;
-  const progress = rejected ? 0 : Math.round(((stageIdx + 1) / PIPELINE_STAGES.length) * 100);
 
   const doAssign = async () => {
     if (!assignTo) return;
@@ -536,25 +559,25 @@ export default function TACandidateDetailPage() {
           the cross-cutting actions (reassign, open Activity) all stay
           visible no matter which of the 4 info tiles below is open. ---------- */}
       <Card>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-          <div style={{
-            width: 46, height: 46, borderRadius: 999, flexShrink: 0,
-            background: 'var(--ta-blue-wash)', color: 'var(--ta-blue-ink)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontWeight: 700, fontSize: 15,
-          }}>
-            {initialsOf(name) || <Icon name="UserRound" size={20} />}
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
+          <div className="ta-profile-avatar">
+            {initialsOf(name) || <Icon name="UserRound" size={22} />}
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 17 }}>{name}</strong>
+              <strong style={{ fontSize: 19 }}>{name}</strong>
               <Tag tone={badge.tone}>{badge.label}</Tag>
             </div>
-            <div className="ta-cell-sub" style={{ marginTop: 2 }}>
-              {app.candidateId}{app.candidateCode ? ` · ${app.candidateCode}` : ''} · {app.jobTitle}
-            </div>
+            {(pr.currentJobTitle || p.currentLocation) && (
+              <div className="ta-profile-meta">
+                {pr.currentJobTitle && (
+                  <span><Icon name="Briefcase" size={13} /> {pr.currentJobTitle}{pr.currentCompany ? ` at ${pr.currentCompany}` : ''}</span>
+                )}
+                {p.currentLocation && <span><Icon name="MapPin" size={13} /> {p.currentLocation}</span>}
+              </div>
+            )}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
             {isAdminTier && (
               <>
                 <select className="ta-select" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} aria-label="Assign to">
@@ -568,21 +591,26 @@ export default function TACandidateDetailPage() {
                 a side drawer the TA opens on demand, not a permanent block
                 of page width. */}
             <Button variant="ghost" icon="History" onClick={() => setActivityOpen(true)}>Activity</Button>
+            {p.email && (
+              <a className="ta-btn ta-btn--primary" href={`mailto:${p.email}`}>
+                <Icon name="Mail" size={14} /> Send Email
+              </a>
+            )}
           </div>
         </div>
 
-        {/* The stage name itself is already the Tag next to the candidate's
-            name above — repeating it here too ("Documents" / "Document
-            Verification · 71%") said the same thing twice in one card, so
-            this row now only adds what the Tag doesn't: overall progress
-            through the full candidate journey (TA review through HR
-            onboarding), not just the current stage's name again. */}
-        {!rejected && (
-          <div className="ta-progress-row" style={{ marginTop: 14, marginBottom: 0 }}>
-            <div className="ta-progress"><div className="ta-progress__bar" style={{ width: `${progress}%` }} /></div>
-            <span className="ta-cell-sub">{progress}% through the full recruitment journey</span>
-          </div>
-        )}
+        <div className="ta-profile-stats">
+          <div><span className="ta-info__label">Applied on</span><span className="ta-info__value">{formatDate(app.submittedAt)}</span></div>
+          <div><span className="ta-info__label">Job Applied</span><span className="ta-info__value">{app.jobTitle}</span></div>
+          <div><span className="ta-info__label">Current Stage</span><span className="ta-info__value">{badge.label}</span></div>
+          {openRound?.scheduled_at && (
+            <div><span className="ta-info__label">Next Interview</span><span className="ta-info__value">{formatDate(openRound.scheduled_at)}</span></div>
+          )}
+        </div>
+
+        {/* Replaces the old flat progress bar — the same stage data
+            (stageIndexForStatus/PIPELINE_STAGES), drawn as a stepper. */}
+        {!rejected && <StageStepper status={app.status} />}
         {app.status === APP_STATUS.RETURNED && (
           <div className="ta-note ta-note--warn" style={{ marginTop: 12, marginBottom: 0 }}><Icon name="RotateCcw" size={15} /> Returned to candidate: {app.returnReason}</div>
         )}
