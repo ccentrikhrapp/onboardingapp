@@ -6,58 +6,67 @@
    ============================================================ */
 
 :root {
-  --ta-bg: #F7F3EA;
-  --ta-surface: #FFFDF8;
-  --ta-surface-soft: #F3EEE3;
-  --ta-line: #DDD7CA;
-  --ta-line-soft: #ECE7DC;
-  --ta-text: #171717;
-  --ta-text-soft: #706D66;
-  --ta-text-mute: #8A867D;
+  --ta-bg: #F7F5F2;
+  --ta-surface: #FFFFFF;
+  --ta-surface-soft: #F2F0EC;
+  --ta-line: #E7E3DC;
+  --ta-line-soft: #EFECE6;
+  --ta-text: #1A1A1A;
+  --ta-text-soft: #716C64;
+  --ta-text-mute: #948F86;
   --ta-blue: #4267C7;
   --ta-blue-ink: #33509C;
   --ta-blue-wash: #E7EEF9;
-  --ta-radius: 16px;
-  --ta-radius-sm: 11px;
+  --ta-radius: 20px;
+  --ta-radius-sm: 12px;
   --ta-shadow: 0 4px 20px rgba(40, 35, 25, 0.05);
   --ta-shadow-hover: 0 8px 24px rgba(40, 35, 25, 0.09);
   --ta-sidebar-w: 212px;
+
+  /* HireOn palette — coral is the one brand accent (nav active state,
+     primary buttons, "See Details" pills); everything else stays neutral
+     warm-grey so the coral reads as intentional, not everywhere. */
+  --ta-coral: #E8603C;
+  --ta-coral-dark: #D1502E;
+  --ta-coral-wash: #FBE1D7;
+  --ta-coral-ink: #C84F2F;
+  --ta-yellow: #F2C14E;
+  --ta-yellow-wash: #FCEDC9;
 
   /* Soft pastel status badges — Documents=blue, Screening=lavender, Interview/
      Pending=amber, Hired=green, Rejected=red. */
   --tag-blue-bg: #E7EEF9;      --tag-blue-fg: #33509C;
   --tag-violet-bg: #EBE4F6;    --tag-violet-fg: #6B4FA0;
-  --tag-amber-bg: #FBEDD2;     --tag-amber-fg: #8C690F;
+  --tag-amber-bg: #FCEDC9;     --tag-amber-fg: #8C690F;
   --tag-teal-bg: #DFF0E6;      --tag-teal-fg: #227750;
   --tag-green-bg: #DFF0E6;     --tag-green-fg: #247756;
-  --tag-red-bg: #FBE3E3;       --tag-red-fg: #B8453F;
-  --tag-grey-bg: #ECE7DC;      --tag-grey-fg: #706D66;
+  --tag-red-bg: #FBE1D7;       --tag-red-fg: #C84F2F;
+  --tag-grey-bg: #EFECE6;      --tag-grey-fg: #716C64;
 
   --viz-blue: #2a78d6;
   --viz-orange: #eb6834;
   --viz-aqua: #1baf7a;
   --viz-magenta: #e87ba4;
 
-  /* Warm editorial SaaS theme — ivory backdrop, a light sidebar panel,
-     restrained pastel accents, deep ink for text/primary actions.
-     Exact values per the latest design spec, not picked freehand. */
-  --ta-ink: #171717;
+  /* Warm neutral shell + one coral accent, per the HireOn reference —
+     this supersedes every earlier color direction this session. */
+  --ta-ink: #1A1A1A;
   --ta-ink-hover: #2A2A2A;
-  --ta-ink-soft: #706D66;
+  --ta-ink-soft: #716C64;
   --ta-ink-line: rgba(23, 23, 23, 0.07);
-  --ta-backdrop: #F7F3EA;
-  --ta-panel-radius: 20px;
+  --ta-backdrop: #F7F5F2;
+  --ta-panel-radius: 22px;
   --ta-rail-gap: 14px;
 
-  --ta-pastel-pink: #D95C5C;     --ta-pastel-pink-wash: #FBE3E3;     --ta-pastel-pink-ink: #B8453F;
-  --ta-pastel-amber: #D99A25;    --ta-pastel-amber-wash: #FBEDD2;    --ta-pastel-amber-ink: #8C690F;
+  --ta-pastel-pink: #E8603C;     --ta-pastel-pink-wash: #FBE1D7;     --ta-pastel-pink-ink: #C84F2F;
+  --ta-pastel-amber: #F2C14E;    --ta-pastel-amber-wash: #FCEDC9;    --ta-pastel-amber-ink: #8C690F;
   --ta-pastel-green: #32966A;    --ta-pastel-green-wash: #DFF0E6;    --ta-pastel-green-ink: #247756;
   --ta-pastel-lavender: #8C72C9; --ta-pastel-lavender-wash: #EBE4F6; --ta-pastel-lavender-ink: #6B4FA0;
   --ta-pastel-blue: #4267C7;     --ta-pastel-blue-wash: #E7EEF9;     --ta-pastel-blue-ink: #33509C;
-  --ta-pastel-peach: #D99A25;    --ta-pastel-peach-wash: #FBEDD2;    --ta-pastel-peach-ink: #8C690F;
+  --ta-pastel-peach: #F2C14E;    --ta-pastel-peach-wash: #FCEDC9;    --ta-pastel-peach-ink: #8C690F;
 
-  --ta-sidebar-bg: #FFFDF8;
-  --ta-sidebar-active: #E7EEF9;
+  --ta-sidebar-bg: #FFFFFF;
+  --ta-sidebar-active: var(--ta-coral-wash);
   --ta-sidebar-hover: #F3EEE3;
 }
 
@@ -66,7 +75,7 @@
 .ta-surface-page h1, .ta-surface-page h2, .ta-surface-page h3 { letter-spacing: -0.02em; }
 
 .ta-shell {
-  display: flex;
+  display: flex; flex-direction: column;
   min-height: calc(100vh / var(--app-zoom, 1));
   width: 100%;
   max-width: calc(100vw / var(--app-zoom, 1));
@@ -78,54 +87,29 @@
 }
 .ta-shell h1, .ta-shell h2, .ta-shell h3 { letter-spacing: -0.02em; }
 
-/* ---------- Sidebar ----------
-   A conventional edge-to-edge sidebar per the spec (width/bg/border-right),
-   not a floating rounded panel — that was an earlier direction this spec
-   explicitly supersedes. */
-.ta-sidebar {
-  width: var(--ta-sidebar-w);
-  flex-shrink: 0;
-  background: var(--ta-sidebar-bg);
-  border-right: 1px solid var(--ta-line);
-  display: flex; flex-direction: column;
-  padding: 18px 14px;
-  position: fixed; inset: 0 auto 0 0; z-index: 40;
+/* ---------- Top navigation ----------
+   Replaces the left sidebar — a single horizontal bar: logo, pill nav
+   links (coral active state), sticky above the page-title bar. */
+.ta-topnav {
+  display: flex; align-items: center; gap: 28px;
+  padding: 12px 28px;
+  background: var(--ta-surface);
+  border-bottom: 1px solid var(--ta-line);
+  position: sticky; top: 0; z-index: 41;
 }
-/* No global anchor reset exists in this app, so a NavLink's <a> falls back to
-   the browser's default blue/underlined link style wherever a scoped rule
-   doesn't explicitly win — scope the reset to the sidebar rather than adding
-   a site-wide `a` rule that could affect unrelated pages. */
-.ta-sidebar a { text-decoration: none; color: inherit; }
-
-.ta-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--ta-line); }
-.ta-brand__logo { height: 32px; width: auto; display: block; flex-shrink: 0; }
-.ta-brand__text { display: flex; flex-direction: column; min-width: 0; }
-.ta-brand__sub { font-size: 11px; font-weight: 600; color: var(--ta-ink-soft); }
-
-.ta-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
-/* `.ta-sidebar a { color: inherit }` above has higher specificity (class +
-   element) than a bare `.ta-nav__link` (class only), so it was silently
-   winning — scope every nav rule under `.ta-sidebar` so it actually wins. */
-.ta-sidebar .ta-nav__link {
-  position: relative;
-  display: flex; align-items: center; gap: 10px;
-  min-height: 40px;
-  padding: 8px 12px; border-radius: 10px;
-  color: var(--ta-text-soft); font-size: 13.5px; font-weight: 500;
-  white-space: nowrap; overflow: hidden;
+.ta-topnav__brand { display: flex; align-items: center; gap: 9px; flex-shrink: 0; }
+.ta-topnav__logo { height: 28px; width: auto; display: block; }
+.ta-topnav__name { font-size: 15px; font-weight: 700; color: var(--ta-ink); }
+.ta-topnav__links { display: flex; align-items: center; gap: 4px; overflow-x: auto; }
+.ta-topnav__link {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 14px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; color: var(--ta-text-soft); white-space: nowrap;
+  text-decoration: none;
   transition: background 0.18s ease, color 0.18s ease;
 }
-.ta-sidebar .ta-nav__link::before { display: none; }
-.ta-sidebar .ta-nav__link svg { flex-shrink: 0; }
-.ta-sidebar .ta-nav__link:hover { background: var(--ta-sidebar-hover); color: var(--ta-ink); }
-.ta-sidebar .ta-nav__link.active { background: var(--ta-sidebar-active); color: var(--ta-ink); font-weight: 600; }
-.ta-nav__count {
-  flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
-  background: var(--tag-amber-bg); color: var(--tag-amber-fg);
-  font-size: 10.5px; font-weight: 700; text-align: center; line-height: 18px;
-}
-
-.ta-sidebar__spacer { flex: 1; }
+.ta-topnav__link:hover { background: var(--ta-surface-soft); color: var(--ta-ink); }
+.ta-topnav__link.active { background: var(--ta-coral-wash); color: var(--ta-coral-ink); font-weight: 600; }
 
 .ta-usercard {
   display: flex; align-items: center; gap: 9px; width: 100%;
@@ -139,25 +123,11 @@
 .ta-usercard__role { font-size: 11px; color: var(--ta-ink-soft); white-space: nowrap; }
 .ta-usercard svg { flex-shrink: 0; color: var(--ta-ink-soft); }
 
-.ta-menu {
-  position: absolute; bottom: 64px; left: 12px; right: 12px;
-  background: #fff; border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
-  box-shadow: var(--ta-shadow-hover); padding: 5px; z-index: 50; animation: pop 0.14s ease;
-}
-.ta-menu__item {
-  display: flex; align-items: center; gap: 9px; width: 100%;
-  padding: 8px 9px; border-radius: 8px; background: transparent; border: 0;
-  font-size: 12px; color: var(--ta-text); cursor: pointer; text-align: left; white-space: nowrap;
-}
-.ta-menu__item:hover { background: var(--ta-bg); }
-
 /* ---------- Main column ---------- */
 .ta-main {
   flex: 1; min-width: 0;
-  margin-left: var(--ta-sidebar-w);
   display: flex; flex-direction: column;
   overflow-x: hidden;
-  transition: margin-left 0.2s ease;
 }
 
 .ta-topbar {
@@ -2140,7 +2110,6 @@
 
 /* ---------- Responsive ---------- */
 .ta-bottomnav { display: none; }
-.ta-menubtn { display: none; }
 
 @media (max-width: 1160px) {
   .ta-kpi-row { grid-template-columns: repeat(2, 1fr); }
@@ -2151,10 +2120,8 @@
 }
 
 @media (max-width: 860px) {
-  .ta-sidebar { transform: translateX(-100%); transition: transform 0.22s ease; box-shadow: var(--ta-shadow-hover); }
-  .ta-sidebar--open { transform: translateX(0); }
-  .ta-main { margin-left: 0; }
-  .ta-menubtn { display: flex; }
+  .ta-topnav { padding: 10px 14px; gap: 14px; }
+  .ta-topnav__name { display: none; }
   .ta-page { padding: 12px 14px 88px; }
   .ta-topbar { padding: 8px 14px; gap: 9px; }
   .ta-topbar__title, .ta-topbar__sub { display: none; }

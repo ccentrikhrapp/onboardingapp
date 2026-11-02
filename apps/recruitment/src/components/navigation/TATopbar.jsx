@@ -5,17 +5,13 @@ import { useApp } from '../../context/AppContext.jsx';
 import { ROLE_META } from '../../constants/roles.js';
 
 /* Single header band: page title (from <TAHeader>) on the left, tools on the right. */
-export default function TATopbar({ head, onMenu }) {
+export default function TATopbar({ head }) {
   const { profile, role, signOut } = useApp();
   const name = profile?.full_name || profile?.email || 'Account';
   const roleLabel = ROLE_META[role]?.label || 'Talent Acquisition';
 
   return (
     <header className="ta-topbar">
-      <button className="ta-iconbtn ta-menubtn" onClick={onMenu} aria-label="Open navigation">
-        <Icon name="Menu" size={18} />
-      </button>
-
       <div className="ta-topbar__head">
         {head?.backTo && (
           <button className="ta-topbar__back" onClick={head.onBack}>

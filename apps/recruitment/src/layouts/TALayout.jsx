@@ -1,7 +1,7 @@
 import { Suspense, useMemo, useState } from 'react';
 import { SkeletonPage } from '../components/common/States.jsx';
 import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import TASidebar from '../components/navigation/TASidebar.jsx';
+import TATopNav from '../components/navigation/TATopNav.jsx';
 import TATopbar from '../components/navigation/TATopbar.jsx';
 import Icon from '../components/common/Icon.jsx';
 import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
@@ -14,22 +14,17 @@ const BOTTOM_NAV = [
 ];
 
 export default function TALayout() {
-  const [open, setOpen] = useState(false); // mobile drawer
   const [head, setHead] = useState(null);
   const { pathname } = useLocation();
 
   const ctx = useMemo(() => ({ setHead }), []);
 
   return (
-    <div className="ta-shell">
-      <TASidebar
-        open={open}
-        onNavigate={() => setOpen(false)}
-      />
-      {open && <div className="overlay" style={{ zIndex: 39 }} onClick={() => setOpen(false)} />}
+    <div className="ta-shell ta-shell--topnav">
+      <TATopNav />
 
       <div className="ta-main">
-        <TATopbar head={head} onMenu={() => setOpen(true)} />
+        <TATopbar head={head} />
         <ConnectGoogleBanner needCalendar settingsPath="/ta/settings" />
         <div className="ta-page" key={pathname}>
           <Suspense fallback={<SkeletonPage />}><Outlet context={ctx} /></Suspense>

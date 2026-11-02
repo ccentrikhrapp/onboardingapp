@@ -14,43 +14,31 @@ const NAV = [
 const TEAMS_NAV = { to: '/ta/team', label: 'Teams', icon: 'ShieldCheck' };
 // Super Admin only — the database enforces it too (RLS on document_requirements).
 
-export default function TASidebar({ open, onNavigate }) {
+/* Horizontal top navigation, per the HireOn reference — replaces the left
+   sidebar. Same routes/links as the sidebar it replaces; only the
+   orientation changed. */
+export default function TATopNav() {
   const { role } = useApp();
   const nav = role === 'admin' || role === 'admin_ta' ? [...NAV, TEAMS_NAV] : NAV;
   return (
-    <aside className={`ta-sidebar${open ? ' ta-sidebar--open' : ''}`}>
-      <div className="ta-brand">
-        <img className="ta-brand__logo" src={logo} alt="Ccentrik" />
-        <span className="ta-brand__text">
-          <span className="ta-brand__sub">TA Portal</span>
-        </span>
+    <nav className="ta-topnav">
+      <div className="ta-topnav__brand">
+        <img className="ta-topnav__logo" src={logo} alt="Ccentrik" />
+        <span className="ta-topnav__name">Ccentrik</span>
       </div>
-
-      <nav className="ta-nav">
+      <div className="ta-topnav__links">
         {nav.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.end}
-            className={({ isActive }) => `ta-nav__link${isActive ? ' active' : ''}`}
-            onClick={onNavigate}
+            className={({ isActive }) => `ta-topnav__link${isActive ? ' active' : ''}`}
           >
-            <Icon name={item.icon} size={18} />
-            <span className="ta-nav__label">{item.label}</span>
+            <Icon name={item.icon} size={15} />
+            {item.label}
           </NavLink>
         ))}
-      </nav>
-
-      <div className="ta-sidebar__spacer" />
-
-      <a className="ta-nav__link" href="mailto:support@ccentrik.app">
-        <Icon name="LifeBuoy" size={18} />
-        <span className="ta-nav__label">Need help?</span>
-      </a>
-      <NavLink to="/ta/settings" className={({ isActive }) => `ta-nav__link${isActive ? ' active' : ''}`}>
-        <Icon name="Settings" size={18} />
-        <span className="ta-nav__label">Settings</span>
-      </NavLink>
-    </aside>
+      </div>
+    </nav>
   );
 }
