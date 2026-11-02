@@ -13,34 +13,17 @@ const BOTTOM_NAV = [
   { to: '/ta/jobs', label: 'Jobs', icon: 'Briefcase' },
 ];
 
-const COLLAPSE_KEY = 'talentflow.ta.sidebar.collapsed';
-
-function readCollapsed() {
-  try { return localStorage.getItem(COLLAPSE_KEY) === '1'; } catch { return false; }
-}
-
 export default function TALayout() {
   const [open, setOpen] = useState(false); // mobile drawer
-  const [collapsed, setCollapsed] = useState(readCollapsed);
   const [head, setHead] = useState(null);
   const { pathname } = useLocation();
 
   const ctx = useMemo(() => ({ setHead }), []);
 
-  const toggleCollapse = () => {
-    setCollapsed((c) => {
-      const next = !c;
-      try { localStorage.setItem(COLLAPSE_KEY, next ? '1' : '0'); } catch { /* ignore */ }
-      return next;
-    });
-  };
-
   return (
-    <div className={`ta-shell${collapsed ? ' ta-shell--collapsed' : ''}`}>
+    <div className="ta-shell">
       <TASidebar
         open={open}
-        collapsed={collapsed}
-        onToggleCollapse={toggleCollapse}
         onNavigate={() => setOpen(false)}
       />
       {open && <div className="overlay" style={{ zIndex: 39 }} onClick={() => setOpen(false)} />}
