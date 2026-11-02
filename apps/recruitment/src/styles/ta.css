@@ -6,59 +6,59 @@
    ============================================================ */
 
 :root {
-  --ta-bg: #FAF8F4;
+  --ta-bg: #F7F4EC;
   --ta-surface: #ffffff;
-  --ta-surface-soft: #F7F5F1;
-  --ta-line: #E8E3DB;
-  --ta-line-soft: #F0ECE6;
+  --ta-surface-soft: #F1EBDD;
+  --ta-line: #DDD8CC;
+  --ta-line-soft: #ECE8DE;
   --ta-text: #171717;
-  --ta-text-soft: #666666;
-  --ta-text-mute: #8A8A8A;
-  --ta-blue: #3b6ef5;
-  --ta-blue-ink: #2a53c8;
-  --ta-blue-wash: #eef3ff;
+  --ta-text-soft: #68645D;
+  --ta-text-mute: #99948B;
+  --ta-blue: #4D72D8;
+  --ta-blue-ink: #3C5BB8;
+  --ta-blue-wash: #DDECF8;
   --ta-radius: 14px;
   --ta-radius-sm: 10px;
-  --ta-shadow: 0 1px 2px rgba(20, 28, 51, 0.04), 0 8px 22px -12px rgba(20, 28, 51, 0.10);
-  --ta-shadow-hover: 0 2px 6px rgba(20, 28, 51, 0.06), 0 14px 30px -14px rgba(20, 28, 51, 0.16);
-  --ta-sidebar-w: 222px;
+  --ta-shadow: 0 2px 8px rgba(20, 20, 20, 0.04);
+  --ta-shadow-hover: 0 8px 24px rgba(20, 20, 20, 0.08);
+  --ta-sidebar-w: 184px;
 
-  /* Soft pastel status badges per spec §33 — Documents=blue, Screening=
-     violet/lavender, Interview/Pending=amber, Hired=green, Rejected=pink. */
-  --tag-blue-bg: #E5F2FB;      --tag-blue-fg: #3576A8;
-  --tag-violet-bg: #EEE7FA;    --tag-violet-fg: #7657B8;
-  --tag-amber-bg: #FFF0CF;     --tag-amber-fg: #9A6A00;
-  --tag-teal-bg: #E4F7DA;      --tag-teal-fg: #2E8B6E;
-  --tag-green-bg: #E4F7DA;     --tag-green-fg: #247A3F;
-  --tag-red-bg: #FCE2EB;       --tag-red-fg: #B33D68;
-  --tag-grey-bg: #F0ECE6;      --tag-grey-fg: #6A6A6A;
+  /* Soft pastel status badges — Documents=blue, Screening=purple, Interview/
+     Pending=amber, Hired=green, Rejected=pink. */
+  --tag-blue-bg: #DDECF8;      --tag-blue-fg: #3C5BB8;
+  --tag-violet-bg: #E7DDF4;    --tag-violet-fg: #6B4FA0;
+  --tag-amber-bg: #FDECC8;     --tag-amber-fg: #96650A;
+  --tag-teal-bg: #DCEFD8;      --tag-teal-fg: #2E8B5C;
+  --tag-green-bg: #DCEFD8;     --tag-green-fg: #2A8558;
+  --tag-red-bg: #FBE1EA;       --tag-red-fg: #C2436F;
+  --tag-grey-bg: #ECE8DE;      --tag-grey-fg: #68645D;
 
   --viz-blue: #2a78d6;
   --viz-orange: #eb6834;
   --viz-aqua: #1baf7a;
   --viz-magenta: #e87ba4;
 
-  /* Warm pastel SaaS theme — cream backdrop, a light rounded sidebar panel
-     (not dark), soft pastel accents, charcoal for text/primary actions.
+  /* Warm editorial SaaS theme — cream backdrop, a light sidebar panel,
+     restrained pastel accents, near-black for text/primary actions.
      Exact values per the design spec, not picked freehand. */
   --ta-ink: #171717;
   --ta-ink-hover: #2A2A2A;
-  --ta-ink-soft: #8A8A8A;
+  --ta-ink-soft: #68645D;
   --ta-ink-line: rgba(23, 23, 23, 0.07);
-  --ta-backdrop: #FAF8F4;
-  --ta-panel-radius: 24px;
+  --ta-backdrop: #F7F4EC;
+  --ta-panel-radius: 20px;
   --ta-rail-gap: 14px;
 
-  --ta-pastel-pink: #EF6C9B;     --ta-pastel-pink-wash: #FCE2EB;     --ta-pastel-pink-ink: #B33D68;
-  --ta-pastel-amber: #F6C566;    --ta-pastel-amber-wash: #FFF0CF;    --ta-pastel-amber-ink: #9A6A00;
-  --ta-pastel-green: #B9E7A3;    --ta-pastel-green-wash: #E4F7DA;    --ta-pastel-green-ink: #247A3F;
-  --ta-pastel-lavender: #CDBBEF; --ta-pastel-lavender-wash: #EEE7FA; --ta-pastel-lavender-ink: #7657B8;
-  --ta-pastel-blue: #BFDDF4;     --ta-pastel-blue-wash: #E5F2FB;     --ta-pastel-blue-ink: #3576A8;
+  --ta-pastel-pink: #E85B91;     --ta-pastel-pink-wash: #FBE1EA;     --ta-pastel-pink-ink: #C2436F;
+  --ta-pastel-amber: #FFB91F;    --ta-pastel-amber-wash: #FDECC8;    --ta-pastel-amber-ink: #96650A;
+  --ta-pastel-green: #9FD98F;    --ta-pastel-green-wash: #DCEFD8;    --ta-pastel-green-ink: #2A8558;
+  --ta-pastel-lavender: #8064B8; --ta-pastel-lavender-wash: #E7DDF4; --ta-pastel-lavender-ink: #6B4FA0;
+  --ta-pastel-blue: #4D72D8;     --ta-pastel-blue-wash: #DDECF8;     --ta-pastel-blue-ink: #3C5BB8;
   --ta-pastel-peach: #F5C7A9;    --ta-pastel-peach-wash: #FBE9DD;    --ta-pastel-peach-ink: #A85D2A;
 
-  --ta-sidebar-bg: #FFFDFC;
-  --ta-sidebar-active: #D9EAF7;
-  --ta-sidebar-hover: #F4F0EA;
+  --ta-sidebar-bg: #FBF9F4;
+  --ta-sidebar-active: #DDECF8;
+  --ta-sidebar-hover: #F1EBDD;
 }
 
 /* `.ta-surface-page` = a plain premium page canvas (used outside the app shell). */
@@ -291,7 +291,7 @@
   padding: 24px 32px 80px; width: 100%; min-width: 0; box-sizing: border-box;
 }
 .ta-shell .page-body { padding: 0; max-width: none; margin: 0; }
-.ta-page__title { font-size: 26px; font-weight: 700; color: var(--ta-ink); letter-spacing: -0.3px; }
+.ta-page__title { font-size: 28px; font-weight: 700; color: var(--ta-ink); letter-spacing: -0.3px; }
 .ta-page__sub { font-size: 13.5px; color: #777777; margin-top: 4px; }
 .ta-page__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
 
@@ -300,9 +300,9 @@
 .ta-btn {
   position: relative; overflow: hidden;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  min-height: 40px;
-  padding: 9px 16px; border-radius: 10px; border: 1px solid transparent;
-  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  min-height: 36px;
+  padding: 8px 15px; border-radius: 9px; border: 1px solid transparent;
+  font-size: 12.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, transform 0.08s ease;
 }
 .ta-btn:active { transform: translateY(1px); }
@@ -529,8 +529,8 @@
 .ta-dash-hero {
   position: relative; overflow: hidden;
   min-height: 190px; display: flex; flex-direction: column; justify-content: center;
-  background: linear-gradient(120deg, #DDF5C9, #D7EDF5 130%);
-  border-radius: 22px;
+  background: linear-gradient(120deg, #E8F2D8, #F1EBDD 130%);
+  border-radius: 20px;
   padding: 32px 36px;
   margin-bottom: 24px;
   -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;
@@ -568,8 +568,8 @@
    the other two stay a light tinted card. */
 .ta-kpi--candidates { --kpi-solid: var(--ta-pastel-pink); --kpi-solid-text: #fff; --kpi-icon-a: var(--ta-pastel-pink-wash); --kpi-icon-b: var(--ta-pastel-pink-wash); --kpi-icon-fg: var(--ta-pastel-pink-ink); --kpi-top-a: var(--ta-pastel-pink); --kpi-bar-a: var(--ta-pastel-pink); --kpi-bar-b: var(--ta-pastel-pink-ink); --kpi-glow: rgba(239, 108, 155, 0.22); }
 .ta-kpi--jobs { --kpi-solid: var(--ta-pastel-amber); --kpi-solid-text: var(--ta-ink); --kpi-icon-a: var(--ta-pastel-amber-wash); --kpi-icon-b: var(--ta-pastel-amber-wash); --kpi-icon-fg: var(--ta-pastel-amber-ink); --kpi-top-a: var(--ta-pastel-amber); --kpi-bar-a: var(--ta-pastel-amber); --kpi-bar-b: var(--ta-pastel-amber-ink); --kpi-glow: rgba(246, 197, 102, 0.25); }
-.ta-kpi--interviews { --kpi-wash: var(--ta-pastel-green-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: #299A55; --kpi-top-a: #299A55; --kpi-bar-a: #299A55; --kpi-bar-b: #247A3F; --kpi-glow: rgba(41, 154, 85, 0.2); }
-.ta-kpi--offers { --kpi-wash: var(--ta-pastel-lavender-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: #7657B8; --kpi-top-a: #7657B8; --kpi-bar-a: #7657B8; --kpi-bar-b: #6A4CA8; --kpi-glow: rgba(118, 87, 184, 0.2); }
+.ta-kpi--interviews { --kpi-wash: var(--ta-pastel-green-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: var(--ta-pastel-green-ink); --kpi-top-a: var(--ta-pastel-green-ink); --kpi-bar-a: var(--ta-pastel-green-ink); --kpi-bar-b: var(--ta-pastel-green-ink); --kpi-glow: rgba(42, 133, 88, 0.2); }
+.ta-kpi--offers { --kpi-wash: var(--ta-pastel-lavender-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: var(--ta-pastel-lavender-ink); --kpi-top-a: var(--ta-pastel-lavender-ink); --kpi-bar-a: var(--ta-pastel-lavender-ink); --kpi-bar-b: var(--ta-pastel-lavender-ink); --kpi-glow: rgba(107, 79, 160, 0.2); }
 
 .ta-kpi {
   position: relative; overflow: hidden;
@@ -1034,6 +1034,7 @@
 .ta-table th.sortable:hover { color: var(--ta-ink); }
 .ta-table td { padding: 10px 20px; border-bottom: 1px solid #F0ECE6; vertical-align: middle; line-height: 1.3; height: 58px; box-sizing: border-box; }
 .ta-table td .ta-tag { padding: 2px 8px; }
+.ta-table input[type="checkbox"] { accent-color: var(--ta-ink); width: 15px; height: 15px; border-radius: 4px; cursor: pointer; }
 /* row action buttons: borderless + small inside the table so they don't
    bloat the row height (the whole row is clickable anyway) */
 .ta-table .ta-iconbtn {
