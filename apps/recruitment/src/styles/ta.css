@@ -513,10 +513,14 @@
    `.ta-kpi--<tone>` and read by the shared rules below via custom props. */
 .ta-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
 
-.ta-kpi--candidates { --kpi-icon-a: #F1EDFF; --kpi-icon-b: #EDE9FE; --kpi-icon-fg: #7C5CFC; --kpi-top-a: #4F6BFF; --kpi-top-b: #7C5CFC; --kpi-bar-a: #7C5CFC; --kpi-bar-b: #4F6BFF; --kpi-glow: rgba(79, 107, 255, 0.18); }
-.ta-kpi--jobs { --kpi-icon-a: #EEF4FF; --kpi-icon-b: #E8F8FF; --kpi-icon-fg: #4F6BFF; --kpi-top-a: #4F6BFF; --kpi-top-b: #20B8D5; --kpi-bar-a: #4F6BFF; --kpi-bar-b: #20B8D5; --kpi-glow: rgba(32, 184, 213, 0.18); }
-.ta-kpi--interviews { --kpi-icon-a: #EAFBFE; --kpi-icon-b: #ECFDF3; --kpi-icon-fg: #0891B2; --kpi-top-a: #20B8D5; --kpi-top-b: #16B364; --kpi-bar-a: #20B8D5; --kpi-bar-b: #16B364; --kpi-glow: rgba(22, 179, 100, 0.18); }
-.ta-kpi--offers { --kpi-icon-a: #FFF7E8; --kpi-icon-b: #FFF1E8; --kpi-icon-fg: #F79009; --kpi-top-a: #F79009; --kpi-top-b: #FB923C; --kpi-bar-a: #F79009; --kpi-bar-b: #FB923C; --kpi-glow: rgba(247, 144, 9, 0.18); }
+/* Each tone's palette is pulled from its own photo, not an arbitrary
+   accent — candidates: navy business suits; jobs: tan leather + wood;
+   interviews: the plant's green against the white wall; offers: warm
+   skin tones + charcoal sleeves. */
+.ta-kpi--candidates { --kpi-icon-a: #EEF1F6; --kpi-icon-b: #E2E8F0; --kpi-icon-fg: #334155; --kpi-top-a: #475569; --kpi-top-b: #1E293B; --kpi-bar-a: #64748B; --kpi-bar-b: #1E293B; --kpi-glow: rgba(51, 65, 85, 0.18); }
+.ta-kpi--jobs { --kpi-icon-a: #FDF4E7; --kpi-icon-b: #F5E6D3; --kpi-icon-fg: #92400E; --kpi-top-a: #D97706; --kpi-top-b: #92400E; --kpi-bar-a: #D97706; --kpi-bar-b: #92400E; --kpi-glow: rgba(180, 83, 9, 0.18); }
+.ta-kpi--interviews { --kpi-icon-a: #ECFDF5; --kpi-icon-b: #D1FAE5; --kpi-icon-fg: #047857; --kpi-top-a: #10B981; --kpi-top-b: #047857; --kpi-bar-a: #34D399; --kpi-bar-b: #047857; --kpi-glow: rgba(16, 185, 129, 0.18); }
+.ta-kpi--offers { --kpi-icon-a: #FDF2E9; --kpi-icon-b: #FAE5D3; --kpi-icon-fg: #8B4A33; --kpi-top-a: #C2694A; --kpi-top-b: #8B4A33; --kpi-bar-a: #D08860; --kpi-bar-b: #8B4A33; --kpi-glow: rgba(194, 105, 74, 0.18); }
 
 .ta-kpi {
   position: relative; overflow: hidden;
