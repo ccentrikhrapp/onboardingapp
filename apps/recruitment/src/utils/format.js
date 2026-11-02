@@ -45,6 +45,16 @@ export function initialsOf(name = '') {
     .join('');
 }
 
+// Deterministic (same name -> same color every time, no flicker on
+// re-render) pastel avatar tone, cycling through the design system's
+// palette instead of every avatar being the same flat blue.
+const AVATAR_TONES = ['pink', 'amber', 'green', 'lavender', 'blue', 'peach'];
+export function avatarToneOf(name = '') {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  return AVATAR_TONES[hash % AVATAR_TONES.length];
+}
+
 export function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }

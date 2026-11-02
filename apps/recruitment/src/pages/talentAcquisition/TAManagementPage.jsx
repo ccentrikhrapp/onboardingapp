@@ -12,7 +12,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { taWorkloadCounts } from '../../api/staff.js';
 import { listTeam, inviteMember, resendInvitation, setMemberRole, setMemberActive, deleteMember, updateMemberDetails } from '../../api/team.js';
 import { emailError, nameError } from '../../utils/validation.js';
-import { formatDate } from '../../utils/format.js';
+import { formatDate, initialsOf, avatarToneOf } from '../../utils/format.js';
 
 // Optional, international formats allowed (+91 98765 43210) — mirrors team-invite.
 const phoneProblem = (p) => phoneError(p, { required: false });
@@ -213,8 +213,13 @@ This removes their account, revokes their Google access and blocks ${m.email} fr
         renderRow={(m) => (
           <tr key={m.id}>
             <td>
-              <span className="ta-cell-strong">{m.fullName || '—'}</span><br />
-              <span className="ta-cell-sub">{m.email}{m.phone ? ` · ${m.phone}` : ''}</span>
+              <span className="ta-cell-cand">
+                <span className={`ta-avatar ta-avatar--${avatarToneOf(m.fullName || m.email)}`}>{initialsOf(m.fullName || m.email)}</span>
+                <span>
+                  <span className="ta-cell-strong">{m.fullName || '—'}</span><br />
+                  <span className="ta-cell-sub">{m.email}{m.phone ? ` · ${m.phone}` : ''}</span>
+                </span>
+              </span>
             </td>
             <td><Tag tone={ROLE_TONE[m.role]}>{ROLE_LABEL[m.role] || m.role}</Tag></td>
             <td><Tag tone={ACCOUNT_TONE[m.accountStatus]}>{ACCOUNT_LABEL[m.accountStatus]}</Tag></td>

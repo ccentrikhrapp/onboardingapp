@@ -14,7 +14,7 @@ import { useToast } from '../../context/ToastContext.jsx';
 import { listPipelineCandidates, setPipelineArchived, deletePipelineCandidates } from '../../api/pipeline.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { pipelineStatus, PIPELINE_STATUS_TONE } from '../../utils/pipelineForm.js';
-import { formatDate } from '../../utils/format.js';
+import { formatDate, initialsOf, avatarToneOf } from '../../utils/format.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 const COLUMNS = [
@@ -174,8 +174,13 @@ export default function PipelineCandidatesPage() {
                 </td>
               )}
               <td>
-                <span className="ta-cell-cand__name">{r.name}</span><br />
-                <span className="ta-cell-cand__sub">{r.code}</span>
+                <span className="ta-cell-cand">
+                  <span className={`ta-avatar ta-avatar--${avatarToneOf(r.name)}`}>{initialsOf(r.name)}</span>
+                  <span>
+                    <span className="ta-cell-cand__name">{r.name}</span><br />
+                    <span className="ta-cell-cand__sub">{r.code}</span>
+                  </span>
+                </span>
               </td>
               <td className="ta-cell-strong">{r.position}</td>
               <td className="ta-cell-mute">{r.organisation}</td>

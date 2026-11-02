@@ -13,7 +13,7 @@ import { listApplications, subscribeApplications, assignApplications, deleteAppl
 import { listTAs } from '../../api/staff.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { APP_STATUS, stageBadgeForStatus } from '../../constants/statuses.js';
-import { formatDate } from '../../utils/format.js';
+import { formatDate, initialsOf, avatarToneOf } from '../../utils/format.js';
 
 /* Friendly stage buckets for the filter dropdown. */
 const STAGE_GROUPS = {
@@ -340,8 +340,13 @@ export default function TACandidatesPage() {
                 </td>
               )}
               <td>
-                <span className="ta-cell-cand__name">{r.name}</span><br />
-                <span className="ta-cell-cand__sub">{experienceLabel(r.experience)}</span>
+                <span className="ta-cell-cand">
+                  <span className={`ta-avatar ta-avatar--${avatarToneOf(r.name)}`}>{initialsOf(r.name)}</span>
+                  <span>
+                    <span className="ta-cell-cand__name">{r.name}</span><br />
+                    <span className="ta-cell-cand__sub">{experienceLabel(r.experience)}</span>
+                  </span>
+                </span>
               </td>
               <td className="ta-cell-mute">{r.candidateCode}</td>
               <td className="ta-cell-mute">{r.email}</td>
