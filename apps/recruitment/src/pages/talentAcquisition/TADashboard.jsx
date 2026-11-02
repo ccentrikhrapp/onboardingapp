@@ -39,18 +39,20 @@ const UPDATE_ICON = {
 /* The five pipeline stages shown in the funnel + list, with the index in
    PIPELINE_STAGES a candidate must have reached to be counted. */
 const STAGES = [
-  { label: 'Applied', icon: 'FileText', tone: 'blue', reach: 0, color: '#4b7bf7', key: 'applied' },
-  { label: 'Screening', icon: 'Eye', tone: 'violet', reach: 1, color: '#8b7ff0', key: 'screening' },
-  { label: 'Interview', icon: 'CalendarDays', tone: 'amber', reach: 2, color: '#f6a04a', key: 'interview' },
-  { label: 'Offer', icon: 'FileCheck', tone: 'green', reach: 4, color: '#46c98a', key: 'offer' },
-  { label: 'Hired', icon: 'UserRoundCheck', tone: 'green', reach: 5, color: '#a5ddc2', key: 'hired' },
+  { label: 'Applied', icon: 'FileText', tone: 'blue', reach: 0, color: 'var(--ta-pastel-blue)', key: 'applied' },
+  { label: 'Screening', icon: 'Eye', tone: 'violet', reach: 1, color: 'var(--ta-pastel-lavender)', key: 'screening' },
+  { label: 'Interview', icon: 'CalendarDays', tone: 'amber', reach: 2, color: 'var(--ta-pastel-amber)', key: 'interview' },
+  { label: 'Offer', icon: 'FileCheck', tone: 'green', reach: 4, color: 'var(--ta-pastel-green-ink)', key: 'offer' },
+  { label: 'Hired', icon: 'UserRoundCheck', tone: 'green', reach: 5, color: 'var(--ta-pastel-green)', key: 'hired' },
 ];
 
+// Per the chart color spec: Referral=green, Job Portal=blue, Social=pink,
+// Direct=lavender — muted pastel tones, not a rainbow chart.
 const SOURCE_COLOR = {
-  Direct: 'var(--viz-blue)',
-  'Job Board': 'var(--viz-orange)',
-  Referral: 'var(--viz-aqua)',
-  Social: 'var(--viz-magenta)',
+  Direct: 'var(--ta-pastel-lavender)',
+  'Job Board': 'var(--ta-pastel-blue)',
+  Referral: 'var(--ta-pastel-green-ink)',
+  Social: 'var(--ta-pastel-pink)',
 };
 
 const PERIODS = [
