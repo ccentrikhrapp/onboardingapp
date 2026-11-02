@@ -171,13 +171,13 @@ export default function TADashboard() {
   const scheduledInterviews = interviews.filter((i) => i.status === ROUND_STATUS.SCHEDULED).length;
   const kpis = [
     {
-      tone: 'candidates', label: 'Total Candidates', value: apps.length,
+      tone: 'candidates', featured: true, label: 'Total Candidates', value: apps.length,
       meter: { value: activeForNotice.length, max: Math.max(1, apps.length) },
       note: `${activeForNotice.length} still active in the pipeline`,
       onClick: () => navigate('/ta/candidates'),
     },
     {
-      tone: 'jobs', label: 'Open Jobs', value: jobs.length,
+      tone: 'jobs', featured: true, label: 'Open Jobs', value: jobs.length,
       meter: { value: jobsWithApplicants, max: Math.max(1, jobs.length) },
       note: `${jobsWithApplicants} of ${jobs.length} receiving applicants`,
       onClick: () => navigate('/ta/jobs'),
@@ -218,9 +218,18 @@ export default function TADashboard() {
 
   // ----- JSX -----
   const periodSelect = (
-    <select className="ta-period" value={period} onChange={(e) => setPeriod(e.target.value)} aria-label="Time period">
-      {PERIODS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
-    </select>
+    <div className="ta-period-pills" role="group" aria-label="Time period">
+      {PERIODS.map((p) => (
+        <button
+          key={p.value}
+          type="button"
+          className={`ta-period-pill${p.value === period ? ' is-active' : ''}`}
+          onClick={() => setPeriod(p.value)}
+        >
+          {p.value === 'all' ? 'All' : `${p.days}d`}
+        </button>
+      ))}
+    </div>
   );
 
   if (remote.apps === null) return <SkeletonPage />;
