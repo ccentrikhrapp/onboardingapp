@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
 import Icon from '../common/Icon.jsx';
 
-// One Lucide icon per tone — same icon family throughout, no external images.
-const TONE_ICON = {
-  candidates: 'UsersRound',
-  jobs: 'Briefcase',
-  interviews: 'CalendarCheck',
-  offers: 'BadgeCheck',
+// Fluent UI System Color Icons (Microsoft, MIT licensed) — real multicolor
+// product icons, served via Iconify's public icon CDN. One consistent
+// family across all four tiles.
+const TONE_GLYPH = {
+  candidates: 'people-team-24',
+  jobs: 'briefcase-24',
+  interviews: 'calendar-clock-24',
+  offers: 'certificate-24',
 };
+function glyphUrl(tone) {
+  return `https://api.iconify.design/fluent-color/${TONE_GLYPH[tone]}.svg`;
+}
 
 /* One dashboard KPI tile. `tone` picks the icon + its colour story (set as
    CSS custom props on `.ta-kpi--<tone>`) — candidates/jobs/interviews/offers.
@@ -34,8 +39,8 @@ export default function KpiCard({ tone = 'candidates', label, value, note, meter
       onClick={onClick}
     >
       <div className="ta-kpi__head">
-        <span className="ta-kpi__icon"><Icon name={TONE_ICON[tone]} size={20} strokeWidth={2} /></span>
-        {onClick && <Icon name="ArrowUpRight" size={18} className="ta-kpi__go" />}
+        <span className="ta-kpi__icon"><img src={glyphUrl(tone)} alt="" width={22} height={22} loading="lazy" /></span>
+        {onClick && <Icon name="ArrowUpRight" size={16} className="ta-kpi__go" />}
       </div>
 
       <div className="ta-kpi__label">{label}</div>
