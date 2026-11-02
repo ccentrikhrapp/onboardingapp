@@ -1346,9 +1346,21 @@
 .ta-shell .modal__header, .ta-shell .drawer__header,
 .ta-shell .modal__footer, .ta-shell .drawer__footer { border-color: var(--ta-line); }
 .ta-shell .empty-state__icon { border-radius: 10px; background: var(--ta-pastel-blue-wash); color: var(--ta-pastel-blue-ink); }
-.ta-shell .skeleton-card { border-color: var(--ta-line); border-radius: var(--ta-radius); }
+.ta-shell .skeleton-card { border-color: var(--ta-line); border-radius: var(--ta-radius); background: var(--ta-surface); }
+.ta-shell .skeleton { background: linear-gradient(90deg, #E9E5DC 25%, #F1EDE3 37%, #E9E5DC 63%); background-size: 400% 100%; }
 .ta-shell .icon-btn:hover { background: var(--ta-surface-soft); color: var(--ta-ink); }
 .toast-container--ta .toast { background: var(--ta-ink); box-shadow: 0 8px 24px rgba(23, 23, 23, 0.2); border-radius: 10px; }
+
+/* Notifications dropdown (NotificationBell, variant="ta") — shares
+   .dropdown-panel/.notif-item with the candidate-facing pages' bell, so
+   scoped here rather than restyled globally. */
+.ta-shell .dropdown-panel {
+  border-radius: 14px; border-color: var(--ta-line); box-shadow: 0 8px 24px rgba(20, 20, 20, 0.08);
+}
+.ta-shell .dropdown-panel__header { font-size: 13px; font-weight: 700; color: var(--ta-ink); border-color: var(--ta-line-soft); }
+.ta-shell .notif-item { border-color: var(--ta-line-soft); }
+.ta-shell .notif-item--unread { background: var(--ta-pastel-blue-wash); }
+.ta-shell .ta-iconbtn__dot { background: var(--ta-pastel-pink); border-color: var(--ta-surface); }
 /* The interview-scheduling dialogs (ScheduleInterviewModal, RescheduleInterviewModal,
    InterviewFeedbackModal, ReasonModal, CreateJobDrawer) and the generic Modal's own
    default footer buttons use components/common/Button.jsx — never migrated to the
