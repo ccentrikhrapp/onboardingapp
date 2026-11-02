@@ -21,7 +21,7 @@
   --ta-radius-sm: 11px;
   --ta-shadow: 0 4px 20px rgba(40, 35, 25, 0.05);
   --ta-shadow-hover: 0 8px 24px rgba(40, 35, 25, 0.09);
-  --ta-sidebar-w: 84px;
+  --ta-sidebar-w: 212px;
 
   /* Soft pastel status badges — Documents=blue, Screening=lavender, Interview/
      Pending=amber, Hired=green, Rejected=red. */
@@ -87,8 +87,8 @@
   flex-shrink: 0;
   background: var(--ta-sidebar-bg);
   border-right: 1px solid var(--ta-line);
-  display: flex; flex-direction: column; align-items: center;
-  padding: 18px 12px;
+  display: flex; flex-direction: column;
+  padding: 18px 14px;
   position: fixed; inset: 0 auto 0 0; z-index: 40;
 }
 /* No global anchor reset exists in this app, so a NavLink's <a> falls back to
@@ -97,45 +97,35 @@
    a site-wide `a` rule that could affect unrelated pages. */
 .ta-sidebar a { text-decoration: none; color: inherit; }
 
-.ta-brand { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 4px 0 16px; margin-bottom: 6px; border-bottom: 1px solid var(--ta-line); }
-.ta-brand__logo { height: 30px; width: auto; display: block; flex-shrink: 0; }
+.ta-brand { display: flex; align-items: center; gap: 10px; padding: 4px 6px 18px; margin-bottom: 6px; border-bottom: 1px solid var(--ta-line); }
+.ta-brand__logo { height: 32px; width: auto; display: block; flex-shrink: 0; }
+.ta-brand__text { display: flex; flex-direction: column; min-width: 0; }
+.ta-brand__sub { font-size: 11px; font-weight: 600; color: var(--ta-ink-soft); }
 
-.ta-collapse-btn {
-  width: 20px; height: 20px; border-radius: 999px;
-  border: 1px solid var(--ta-line); background: var(--ta-surface);
-  display: flex; align-items: center; justify-content: center;
-  color: var(--ta-text-soft); cursor: pointer; flex-shrink: 0;
-  transition: color 0.15s, border-color 0.15s;
-}
-.ta-collapse-btn:hover { color: var(--ta-blue); border-color: var(--ta-blue-wash); }
-
-/* Icon-only nav rail (per the dashboard reference) — every item centered,
-   no label text (the `title` attribute on each link carries the name as a
-   native tooltip instead). */
-.ta-nav { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; align-items: center; }
+.ta-nav { display: flex; flex-direction: column; gap: 3px; margin-top: 4px; }
 /* `.ta-sidebar a { color: inherit }` above has higher specificity (class +
    element) than a bare `.ta-nav__link` (class only), so it was silently
    winning — scope every nav rule under `.ta-sidebar` so it actually wins. */
 .ta-sidebar .ta-nav__link {
   position: relative;
-  display: flex; align-items: center; justify-content: center;
-  width: 44px; height: 44px; border-radius: 12px;
-  color: var(--ta-text-mute);
+  display: flex; align-items: center; gap: 10px;
+  min-height: 40px;
+  padding: 8px 12px; border-radius: 10px;
+  color: var(--ta-text-soft); font-size: 13.5px; font-weight: 500;
+  white-space: nowrap; overflow: hidden;
   transition: background 0.18s ease, color 0.18s ease;
 }
 .ta-sidebar .ta-nav__link::before { display: none; }
-.ta-sidebar .ta-nav__label { display: none; }
+.ta-sidebar .ta-nav__link svg { flex-shrink: 0; }
 .ta-sidebar .ta-nav__link:hover { background: var(--ta-sidebar-hover); color: var(--ta-ink); }
-.ta-sidebar .ta-nav__link.active { background: var(--ta-ink); color: #fff; }
+.ta-sidebar .ta-nav__link.active { background: var(--ta-sidebar-active); color: var(--ta-ink); font-weight: 600; }
 .ta-nav__count {
-  position: absolute; top: 2px; right: 2px;
-  min-width: 15px; height: 15px; padding: 0 3px; border-radius: 999px;
-  background: var(--tag-amber-bg); color: var(--tag-amber-fg); border: 1.5px solid var(--ta-sidebar-bg);
-  font-size: 9px; font-weight: 700; text-align: center; line-height: 14px;
+  flex-shrink: 0; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--tag-amber-bg); color: var(--tag-amber-fg);
+  font-size: 10.5px; font-weight: 700; text-align: center; line-height: 18px;
 }
 
 .ta-sidebar__spacer { flex: 1; }
-.ta-sidebar .ta-nav__link[href] { margin-bottom: 2px; }
 
 .ta-usercard {
   display: flex; align-items: center; gap: 9px; width: 100%;
@@ -2161,14 +2151,6 @@
 }
 
 @media (max-width: 860px) {
-  /* On the mobile off-canvas drawer, show full labels — icon-only makes
-     sense for a slim permanent desktop rail, not a full-width drawer. */
-  --ta-sidebar-w: 222px;
-  .ta-sidebar { width: 222px; align-items: stretch; }
-  .ta-nav { align-items: stretch; }
-  .ta-sidebar .ta-nav__link { width: auto; height: auto; justify-content: flex-start; gap: 10px; padding: 10px 12px; }
-  .ta-nav__label { display: inline !important; font-size: 13.5px; font-weight: 500; }
-  .ta-collapse-btn { display: none; }
   .ta-sidebar { transform: translateX(-100%); transition: transform 0.22s ease; box-shadow: var(--ta-shadow-hover); }
   .ta-sidebar--open { transform: translateX(0); }
   .ta-main { margin-left: 0; }
