@@ -6,6 +6,7 @@ import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
+import AvatarStack from '../../components/ta/AvatarStack.jsx';
 import ReasonModal from '../../components/workflow/ReasonModal.jsx';
 import ScheduleInterviewModal from '../../components/workflow/ScheduleInterviewModal.jsx';
 import RescheduleInterviewModal from '../../components/workflow/RescheduleInterviewModal.jsx';
@@ -819,8 +820,13 @@ export default function TACandidateDetailPage() {
                         </div>
                         <div className="ta-cell-sub">
                           {formatDate(r.scheduled_at)} {new Date(r.scheduled_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                          {panel.length > 0 ? ` · Panel: ${panel.join(', ')}` : ''}
                         </div>
+                        {panel.length > 0 && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                            <AvatarStack names={panel} size={24} />
+                            <span className="ta-cell-sub">{panel.join(', ')}</span>
+                          </div>
+                        )}
                         <div className="ta-cell-sub" style={{ marginTop: 2 }}>
                           {r.meeting_type === 'in_person' ? (
                             <>In-Person{r.location ? ` · ${r.location}` : ''}{r.location_details ? ` — ${r.location_details}` : ''}</>
@@ -958,7 +964,7 @@ export default function TACandidateDetailPage() {
             <ol className="ta-timeline">
               {(showAllAct ? app.events : app.events.slice(0, 8)).map((a) => (
                 <li key={a.id}>
-                  <span className="ta-timeline__dot" />
+                  <span className="ta-timeline__dot"><Icon name="Check" size={9} /></span>
                   <div>
                     <div className="ta-cell-strong">{a.title}</div>
                     <div className="ta-cell-sub">{formatDate(a.at)} · {a.actor}</div>

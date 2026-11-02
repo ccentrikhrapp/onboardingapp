@@ -1064,6 +1064,20 @@
   box-shadow: 0 0 0 2px #fff;
 }
 .ta-avatar--sm { width: 26px; height: 26px; font-size: 10px; }
+
+/* ---------- Avatar stack — overlapping circles + a "+N" overflow circle ---------- */
+.ta-avatarstack { display: inline-flex; align-items: center; }
+.ta-avatarstack__item {
+  width: var(--ta-avstack-size, 28px); height: var(--ta-avstack-size, 28px);
+  border-radius: 999px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 600;
+  background: var(--ta-pastel-blue-wash); color: var(--ta-pastel-blue-ink);
+  border: 2px solid var(--ta-surface);
+  margin-left: -8px;
+}
+.ta-avatarstack__item:first-child { margin-left: 0; }
+.ta-avatarstack__item--more { background: var(--ta-ink); color: #fff; }
 .ta-avatar { overflow: hidden; }
 .ta-avatar img, .ta-avatar-sq img, .cx-usermenu__btn img {
   width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block;
@@ -1487,13 +1501,14 @@
 .ta-timeline li:nth-child(4) { animation-delay: 0.17s; }
 .ta-timeline li:nth-child(n+5) { animation-delay: 0.22s; }
 @keyframes ta-tl-in { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: none; } }
-.ta-timeline li:not(:last-child)::before { content: ''; position: absolute; left: 4px; top: 14px; bottom: -15px; width: 2px; background: var(--ta-line-soft); }
+.ta-timeline li:not(:last-child)::before { content: ''; position: absolute; left: 8px; top: 20px; bottom: -15px; width: 2px; background: var(--ta-line-soft); }
 .ta-timeline__dot {
-  width: 10px; height: 10px; border-radius: 999px; flex-shrink: 0; margin-top: 3px; z-index: 1;
-  background: #fff; border: 2px solid var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash);
+  width: 18px; height: 18px; border-radius: 999px; flex-shrink: 0; z-index: 1;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff; border: 2px solid var(--ta-blue); color: var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash);
 }
 .ta-timeline li:first-child .ta-timeline__dot {
-  background: var(--ta-blue);
+  background: var(--ta-blue); color: #fff;
   animation: ta-dot-pulse 2.2s ease-in-out infinite;
 }
 @keyframes ta-dot-pulse {
