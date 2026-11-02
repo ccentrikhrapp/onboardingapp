@@ -1489,6 +1489,32 @@
   background: var(--ta-bg); color: var(--ta-text-soft); border: 1px solid var(--ta-line);
 }
 
+/* ---------- ATS match (candidate profile) ---------- */
+.ta-ats { display: grid; grid-template-columns: 1fr auto; gap: 14px; margin-bottom: 14px; }
+.ta-ats__metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start; }
+.ta-ats__tile {
+  background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
+  box-shadow: var(--ta-shadow); padding: 16px 18px;
+}
+.ta-ats__pct { font-size: 26px; font-weight: 800; color: var(--ta-ink); letter-spacing: -0.4px; }
+.ta-ats__label { font-size: 12px; color: var(--ta-text-soft); margin-top: 2px; }
+.ta-ats__score {
+  background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
+  box-shadow: var(--ta-shadow); padding: 16px 20px;
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  min-width: 180px;
+}
+.ta-ats__score-head { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ta-ink); }
+.ta-ats__skills {
+  grid-column: 1 / -1;
+  background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
+  box-shadow: var(--ta-shadow); padding: 14px 18px;
+}
+@media (max-width: 720px) {
+  .ta-ats { grid-template-columns: 1fr; }
+  .ta-ats__metrics { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ---------- Full resume tab ---------- */
 .ta-resumeview__bar {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;

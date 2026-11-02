@@ -50,11 +50,36 @@ const CANDIDATE_RESPONSE = {
 };
 const ATS_RECOMMENDATION_TONE = { 'Strong Match': 'green', 'Good Match': 'blue', 'Partial Match': 'amber', 'Low Match': 'red' };
 const PLATFORM_LABEL = { teams: 'Microsoft Teams', google_meet: 'Google Meet' };
+/* A ring gauge drawn with two stacked SVG circles (track + progress arc) —
+   no chart library needed for one number. */
+function ScoreRing({ value = 0, size = 128, stroke = 12, color = 'var(--ta-coral)' }) {
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const pct = Math.max(0, Math.min(100, value));
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--ta-line-soft)" strokeWidth={stroke} />
+        <circle
+          cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={c} strokeDashoffset={c - (pct / 100) * c} strokeLinecap="round"
+        />
+      </svg>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 30, fontWeight: 800, color: 'var(--ta-ink)',
+      }}>
+        {Math.round(pct)}
+      </div>
+    </div>
+  );
+}
+
 /* Server-computed match between this application and its job (see
    supabase/functions/_shared/ats.ts) — informational for TA, never gates
-   the review actions below it. */
+   the review actions below it. Every number here is a real computed
+   field (ats.*) — nothing invented. */
 function AtsCard({ ats }) {
-  const [expanded, setExpanded] = useState(false);
   if (!ats) return null;
   const metrics = [
     ['Skills', ats.skillsMatch],
@@ -63,43 +88,28 @@ function AtsCard({ ats }) {
     ['Education', ats.educationMatch],
   ];
   return (
-    <div style={{ width: 'fit-content', marginBottom: 14 }}>
-      <button
-        type="button"
-        onClick={() => setExpanded((v) => !v)}
-        aria-expanded={expanded}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer',
-          background: 'var(--ta-surface)', border: '1px solid var(--ta-line)',
-          borderRadius: expanded ? '16px 16px 0 0' : 999, boxShadow: 'var(--ta-shadow)', padding: '7px 14px',
-          font: 'inherit', width: '100%',
-        }}
-      >
-        <Icon name="Target" size={14} />
-        <span style={{ fontSize: 13, fontWeight: 600 }}>ATS match</span>
-        <span className="ta-cell-strong" style={{ fontSize: 14 }}>{ats.overall}%</span>
-        <Tag tone={ATS_RECOMMENDATION_TONE[ats.recommendation] || 'grey'}>{ats.recommendation}</Tag>
-        <Icon name={expanded ? 'ChevronUp' : 'ChevronDown'} size={14} />
-      </button>
-
-      {expanded && (
-        <div
-          style={{
-            width: 320, background: 'var(--ta-surface)', border: '1px solid var(--ta-line)',
-            borderTop: 'none', borderRadius: '0 0 var(--ta-radius) var(--ta-radius)',
-            boxShadow: 'var(--ta-shadow)', padding: 16,
-          }}
-        >
-          <div className="ta-info" style={{ marginBottom: 16 }}>
-            {metrics.map(([label, value]) => (
-              <div key={label} className="ta-info__item">
-                <span className="ta-info__label">{label} match</span>
-                <span className="ta-info__value">{value}%</span>
-              </div>
-            ))}
+    <div className="ta-ats">
+      <div className="ta-ats__metrics">
+        {metrics.map(([label, value]) => (
+          <div key={label} className="ta-ats__tile">
+            <div className="ta-ats__pct">{value}%</div>
+            <div className="ta-ats__label">{label} match</div>
           </div>
+        ))}
+      </div>
+
+      <div className="ta-ats__score">
+        <div className="ta-ats__score-head">
+          <span>ATS Match Score</span>
+          <Tag tone={ATS_RECOMMENDATION_TONE[ats.recommendation] || 'grey'}>{ats.recommendation}</Tag>
+        </div>
+        <ScoreRing value={ats.overall} />
+      </div>
+
+      {(ats.matchedSkills?.length > 0 || ats.missingSkills?.length > 0) && (
+        <div className="ta-ats__skills">
           {ats.matchedSkills?.length > 0 && (
-            <div style={{ marginBottom: 12 }}>
+            <div style={{ marginBottom: ats.missingSkills?.length > 0 ? 12 : 0 }}>
               <span className="ta-info__label">Matched skills</span>
               <div className="ta-skills" style={{ marginTop: 6 }}>
                 {ats.matchedSkills.map((s) => <span key={s} className="ta-skill">✓ {s}</span>)}
