@@ -173,13 +173,13 @@ export default function TADashboard() {
   const scheduledInterviews = interviews.filter((i) => i.status === ROUND_STATUS.SCHEDULED).length;
   const kpis = [
     {
-      tone: 'candidates', featured: true, label: 'Total Candidates', value: apps.length,
+      tone: 'candidates', label: 'Total Candidates', value: apps.length,
       meter: { value: activeForNotice.length, max: Math.max(1, apps.length) },
       note: `${activeForNotice.length} still active in the pipeline`,
       onClick: () => navigate('/ta/candidates'),
     },
     {
-      tone: 'jobs', featured: true, label: 'Open Jobs', value: jobs.length,
+      tone: 'jobs', label: 'Open Jobs', value: jobs.length,
       meter: { value: jobsWithApplicants, max: Math.max(1, jobs.length) },
       note: `${jobsWithApplicants} of ${jobs.length} receiving applicants`,
       onClick: () => navigate('/ta/jobs'),

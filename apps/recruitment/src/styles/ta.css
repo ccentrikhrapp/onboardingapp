@@ -6,59 +6,59 @@
    ============================================================ */
 
 :root {
-  --ta-bg: #F7F4EC;
-  --ta-surface: #ffffff;
-  --ta-surface-soft: #F1EBDD;
-  --ta-line: #DDD8CC;
-  --ta-line-soft: #ECE8DE;
+  --ta-bg: #F7F3EA;
+  --ta-surface: #FFFDF8;
+  --ta-surface-soft: #F3EEE3;
+  --ta-line: #DDD7CA;
+  --ta-line-soft: #ECE7DC;
   --ta-text: #171717;
-  --ta-text-soft: #68645D;
-  --ta-text-mute: #99948B;
-  --ta-blue: #4D72D8;
-  --ta-blue-ink: #3C5BB8;
-  --ta-blue-wash: #DDECF8;
-  --ta-radius: 14px;
-  --ta-radius-sm: 10px;
-  --ta-shadow: 0 2px 8px rgba(20, 20, 20, 0.04);
-  --ta-shadow-hover: 0 8px 24px rgba(20, 20, 20, 0.08);
-  --ta-sidebar-w: 184px;
+  --ta-text-soft: #706D66;
+  --ta-text-mute: #8A867D;
+  --ta-blue: #4267C7;
+  --ta-blue-ink: #33509C;
+  --ta-blue-wash: #E7EEF9;
+  --ta-radius: 16px;
+  --ta-radius-sm: 11px;
+  --ta-shadow: 0 4px 20px rgba(40, 35, 25, 0.05);
+  --ta-shadow-hover: 0 8px 24px rgba(40, 35, 25, 0.09);
+  --ta-sidebar-w: 224px;
 
-  /* Soft pastel status badges — Documents=blue, Screening=purple, Interview/
-     Pending=amber, Hired=green, Rejected=pink. */
-  --tag-blue-bg: #DDECF8;      --tag-blue-fg: #3C5BB8;
-  --tag-violet-bg: #E7DDF4;    --tag-violet-fg: #6B4FA0;
-  --tag-amber-bg: #FDECC8;     --tag-amber-fg: #96650A;
-  --tag-teal-bg: #DCEFD8;      --tag-teal-fg: #2E8B5C;
-  --tag-green-bg: #DCEFD8;     --tag-green-fg: #2A8558;
-  --tag-red-bg: #FBE1EA;       --tag-red-fg: #C2436F;
-  --tag-grey-bg: #ECE8DE;      --tag-grey-fg: #68645D;
+  /* Soft pastel status badges — Documents=blue, Screening=lavender, Interview/
+     Pending=amber, Hired=green, Rejected=red. */
+  --tag-blue-bg: #E7EEF9;      --tag-blue-fg: #33509C;
+  --tag-violet-bg: #EBE4F6;    --tag-violet-fg: #6B4FA0;
+  --tag-amber-bg: #FBEDD2;     --tag-amber-fg: #8C690F;
+  --tag-teal-bg: #DFF0E6;      --tag-teal-fg: #227750;
+  --tag-green-bg: #DFF0E6;     --tag-green-fg: #247756;
+  --tag-red-bg: #FBE3E3;       --tag-red-fg: #B8453F;
+  --tag-grey-bg: #ECE7DC;      --tag-grey-fg: #706D66;
 
   --viz-blue: #2a78d6;
   --viz-orange: #eb6834;
   --viz-aqua: #1baf7a;
   --viz-magenta: #e87ba4;
 
-  /* Warm editorial SaaS theme — cream backdrop, a light sidebar panel,
-     restrained pastel accents, near-black for text/primary actions.
-     Exact values per the design spec, not picked freehand. */
+  /* Warm editorial SaaS theme — ivory backdrop, a light sidebar panel,
+     restrained pastel accents, deep ink for text/primary actions.
+     Exact values per the latest design spec, not picked freehand. */
   --ta-ink: #171717;
   --ta-ink-hover: #2A2A2A;
-  --ta-ink-soft: #68645D;
+  --ta-ink-soft: #706D66;
   --ta-ink-line: rgba(23, 23, 23, 0.07);
-  --ta-backdrop: #F7F4EC;
+  --ta-backdrop: #F7F3EA;
   --ta-panel-radius: 20px;
   --ta-rail-gap: 14px;
 
-  --ta-pastel-pink: #E85B91;     --ta-pastel-pink-wash: #FBE1EA;     --ta-pastel-pink-ink: #C2436F;
-  --ta-pastel-amber: #FFB91F;    --ta-pastel-amber-wash: #FDECC8;    --ta-pastel-amber-ink: #96650A;
-  --ta-pastel-green: #9FD98F;    --ta-pastel-green-wash: #DCEFD8;    --ta-pastel-green-ink: #2A8558;
-  --ta-pastel-lavender: #8064B8; --ta-pastel-lavender-wash: #E7DDF4; --ta-pastel-lavender-ink: #6B4FA0;
-  --ta-pastel-blue: #4D72D8;     --ta-pastel-blue-wash: #DDECF8;     --ta-pastel-blue-ink: #3C5BB8;
-  --ta-pastel-peach: #F5C7A9;    --ta-pastel-peach-wash: #FBE9DD;    --ta-pastel-peach-ink: #A85D2A;
+  --ta-pastel-pink: #D95C5C;     --ta-pastel-pink-wash: #FBE3E3;     --ta-pastel-pink-ink: #B8453F;
+  --ta-pastel-amber: #D99A25;    --ta-pastel-amber-wash: #FBEDD2;    --ta-pastel-amber-ink: #8C690F;
+  --ta-pastel-green: #32966A;    --ta-pastel-green-wash: #DFF0E6;    --ta-pastel-green-ink: #247756;
+  --ta-pastel-lavender: #8C72C9; --ta-pastel-lavender-wash: #EBE4F6; --ta-pastel-lavender-ink: #6B4FA0;
+  --ta-pastel-blue: #4267C7;     --ta-pastel-blue-wash: #E7EEF9;     --ta-pastel-blue-ink: #33509C;
+  --ta-pastel-peach: #D99A25;    --ta-pastel-peach-wash: #FBEDD2;    --ta-pastel-peach-ink: #8C690F;
 
-  --ta-sidebar-bg: #FBF9F4;
-  --ta-sidebar-active: #DDECF8;
-  --ta-sidebar-hover: #F1EBDD;
+  --ta-sidebar-bg: #FFFDF8;
+  --ta-sidebar-active: #E7EEF9;
+  --ta-sidebar-hover: #F3EEE3;
 }
 
 /* `.ta-surface-page` = a plain premium page canvas (used outside the app shell). */
@@ -561,35 +561,32 @@
    `.ta-kpi--<tone>` and read by the shared rules below via custom props. */
 .ta-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
 
-/* Exact dashboard color mapping per spec §8: Total Candidates = solid pink
-   (white text), Open Jobs = solid amber (dark text), Interviews = light
-   green wash with a green accent, Offers = light lavender wash with a
-   lavender accent. `featured` (candidates/jobs) gets the solid fill;
-   the other two stay a light tinted card. */
-.ta-kpi--candidates { --kpi-solid: var(--ta-pastel-pink); --kpi-solid-text: #fff; --kpi-icon-a: var(--ta-pastel-pink-wash); --kpi-icon-b: var(--ta-pastel-pink-wash); --kpi-icon-fg: var(--ta-pastel-pink-ink); --kpi-top-a: var(--ta-pastel-pink); --kpi-bar-a: var(--ta-pastel-pink); --kpi-bar-b: var(--ta-pastel-pink-ink); --kpi-glow: rgba(239, 108, 155, 0.22); }
-.ta-kpi--jobs { --kpi-solid: var(--ta-pastel-amber); --kpi-solid-text: var(--ta-ink); --kpi-icon-a: var(--ta-pastel-amber-wash); --kpi-icon-b: var(--ta-pastel-amber-wash); --kpi-icon-fg: var(--ta-pastel-amber-ink); --kpi-top-a: var(--ta-pastel-amber); --kpi-bar-a: var(--ta-pastel-amber); --kpi-bar-b: var(--ta-pastel-amber-ink); --kpi-glow: rgba(246, 197, 102, 0.25); }
-.ta-kpi--interviews { --kpi-wash: var(--ta-pastel-green-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: var(--ta-pastel-green-ink); --kpi-top-a: var(--ta-pastel-green-ink); --kpi-bar-a: var(--ta-pastel-green-ink); --kpi-bar-b: var(--ta-pastel-green-ink); --kpi-glow: rgba(42, 133, 88, 0.2); }
-.ta-kpi--offers { --kpi-wash: var(--ta-pastel-lavender-wash); --kpi-icon-a: #fff; --kpi-icon-b: #fff; --kpi-icon-fg: var(--ta-pastel-lavender-ink); --kpi-top-a: var(--ta-pastel-lavender-ink); --kpi-bar-a: var(--ta-pastel-lavender-ink); --kpi-bar-b: var(--ta-pastel-lavender-ink); --kpi-glow: rgba(107, 79, 160, 0.2); }
+/* Per the latest spec: do NOT recreate four random bright cards — all four
+   tiles share one neutral ivory surface, differing only by a small icon
+   accent color. The accent still carries through to the progress line so
+   each tile keeps a little identity without painting the whole card. */
+.ta-kpi--candidates { --kpi-icon-a: var(--ta-pastel-pink-wash); --kpi-icon-fg: var(--ta-pastel-pink-ink); --kpi-top-a: var(--ta-pastel-pink); --kpi-bar-a: var(--ta-pastel-pink); --kpi-bar-b: var(--ta-pastel-pink-ink); }
+.ta-kpi--jobs { --kpi-icon-a: var(--ta-pastel-amber-wash); --kpi-icon-fg: var(--ta-pastel-amber-ink); --kpi-top-a: var(--ta-pastel-amber); --kpi-bar-a: var(--ta-pastel-amber); --kpi-bar-b: var(--ta-pastel-amber-ink); }
+.ta-kpi--interviews { --kpi-icon-a: var(--ta-pastel-green-wash); --kpi-icon-fg: var(--ta-pastel-green-ink); --kpi-top-a: var(--ta-pastel-green-ink); --kpi-bar-a: var(--ta-pastel-green-ink); --kpi-bar-b: var(--ta-pastel-green-ink); }
+.ta-kpi--offers { --kpi-icon-a: var(--ta-pastel-lavender-wash); --kpi-icon-fg: var(--ta-pastel-lavender-ink); --kpi-top-a: var(--ta-pastel-lavender-ink); --kpi-bar-a: var(--ta-pastel-lavender-ink); --kpi-bar-b: var(--ta-pastel-lavender-ink); }
 
 .ta-kpi {
   position: relative; overflow: hidden;
   background: var(--ta-surface);
-  border: 1px solid var(--ta-line);
-  border-radius: 18px;
-  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.035);
-  padding: 18px 20px;
-  min-height: 130px;
-  display: flex; flex-direction: column; gap: 6px;
+  border: 1px solid #E2DCCD;
+  border-radius: 20px;
+  box-shadow: 0 6px 24px rgba(40, 35, 25, 0.05);
+  padding: 20px 22px;
+  min-height: 136px;
+  display: flex; flex-direction: column; gap: 7px;
   animation: ta-kpi-in 0.45s ease-out both;
-  transition: box-shadow 0.18s ease, transform 0.18s ease, border-color 0.18s ease;
+  transition: box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease;
 }
 .ta-kpi-row > .ta-kpi:nth-child(1) { animation-delay: 0ms; }
 .ta-kpi-row > .ta-kpi:nth-child(2) { animation-delay: 70ms; }
 .ta-kpi-row > .ta-kpi:nth-child(3) { animation-delay: 140ms; }
 .ta-kpi-row > .ta-kpi:nth-child(4) { animation-delay: 210ms; }
 @keyframes ta-kpi-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-/* Interviews/Offers: a flat light pastel wash instead of white. */
-.ta-kpi--interviews, .ta-kpi--offers { background: var(--kpi-wash); border-color: transparent; }
 .ta-kpi:hover {
   transform: translateY(-2px);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
@@ -628,24 +625,6 @@
   background: repeating-linear-gradient(90deg, #E5E7EB 0 6px, transparent 6px 10px);
 }
 
-/* Featured tiles (candidates/jobs) — solid flat fill per spec §8, each
-   with its own correct text color for contrast (white on pink, dark on
-   amber — a flat yellow card needs dark text, not white). */
-.ta-kpi--featured {
-  background: var(--kpi-solid);
-  border-color: transparent;
-}
-.ta-kpi--featured .ta-kpi__label { color: color-mix(in srgb, var(--kpi-solid-text) 85%, transparent); }
-.ta-kpi--featured .ta-kpi__value { color: var(--kpi-solid-text); }
-.ta-kpi--featured .ta-kpi__note { color: color-mix(in srgb, var(--kpi-solid-text) 70%, transparent); }
-.ta-kpi--featured .ta-kpi__go { color: color-mix(in srgb, var(--kpi-solid-text) 55%, transparent); }
-.ta-kpi--featured:hover .ta-kpi__go { color: var(--kpi-solid-text); }
-.ta-kpi--featured .ta-kpi__icon { background: color-mix(in srgb, var(--kpi-solid-text) 22%, transparent); color: var(--kpi-solid-text); }
-.ta-kpi--featured .ta-kpi__meter-track { background: color-mix(in srgb, var(--kpi-solid-text) 25%, transparent); }
-.ta-kpi--featured .ta-kpi__meter-fill { background: var(--kpi-solid-text); }
-.ta-kpi--featured .ta-kpi__meter-pct { color: color-mix(in srgb, var(--kpi-solid-text) 85%, transparent); }
-.ta-kpi--featured:hover { border-color: transparent; }
-.ta-kpi--featured.ta-kpi--link:focus-visible { box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.5); }
 
 /* ---------- Stat bar (compact KPI strip) ---------- */
 .ta-statbar {
@@ -1026,13 +1005,13 @@
 .ta-table-scroll { overflow-x: auto; }
 .ta-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
 .ta-table th {
-  text-align: left; padding: 11px 20px; white-space: nowrap;
-  font-size: 11.5px; font-weight: 600; color: #6A6A6A; background: #FBFAF7;
+  text-align: left; padding: 15px 20px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 700; letter-spacing: 0.03em; color: var(--ta-text-soft); background: var(--ta-surface-soft);
   border-bottom: 1px solid var(--ta-line);
 }
 .ta-table th.sortable { cursor: pointer; user-select: none; }
 .ta-table th.sortable:hover { color: var(--ta-ink); }
-.ta-table td { padding: 12px 20px; border-bottom: 1px solid #F0ECE6; vertical-align: middle; line-height: 1.3; height: 68px; box-sizing: border-box; }
+.ta-table td { padding: 14px 20px; border-bottom: 1px solid var(--ta-line-soft); vertical-align: middle; line-height: 1.35; height: 76px; box-sizing: border-box; }
 .ta-table input[type="checkbox"] { accent-color: var(--ta-ink); width: 15px; height: 15px; border-radius: 4px; cursor: pointer; }
 /* row action buttons: borderless + small inside the table so they don't
    bloat the row height (the whole row is clickable anyway) */
@@ -1044,7 +1023,7 @@
 .ta-table .ta-rowactions { opacity: 1; }
 .ta-table tbody tr:last-child td { border-bottom: 0; }
 .ta-table tbody tr { transition: background 0.15s; }
-.ta-table tbody tr:hover { background: var(--ta-pastel-blue-wash); }
+.ta-table tbody tr:hover { background: var(--ta-surface-soft); }
 .ta-table tbody tr:hover td:first-child { border-radius: 12px 0 0 12px; }
 .ta-table tbody tr:hover td:last-child { border-radius: 0 12px 12px 0; }
 .ta-table tbody tr:hover .ta-rowactions { opacity: 1; }

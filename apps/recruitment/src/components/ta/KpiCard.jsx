@@ -16,7 +16,7 @@ const TONE_ICON = {
    given, becomes a slim proportion line that animates in on mount (not
    continuously). When a meter has literally nothing behind it yet (0 of
    0), it renders as a quiet dotted track instead of a 0%-filled bar. */
-export default function KpiCard({ tone = 'candidates', label, value, note, meter, onClick, featured = false }) {
+export default function KpiCard({ tone = 'candidates', label, value, note, meter, onClick }) {
   const Tag = onClick ? 'button' : 'div';
   const pct = meter ? Math.max(0, Math.min(100, Math.round((meter.value / (meter.max || 1)) * 100))) : null;
   const isEmpty = meter != null && meter.value === 0 && pct === 0;
@@ -31,7 +31,7 @@ export default function KpiCard({ tone = 'candidates', label, value, note, meter
   return (
     <Tag
       type={onClick ? 'button' : undefined}
-      className={`ta-kpi ta-kpi--${tone}${featured ? ' ta-kpi--featured' : ''}${onClick ? ' ta-kpi--link' : ''}`}
+      className={`ta-kpi ta-kpi--${tone}${onClick ? ' ta-kpi--link' : ''}`}
       onClick={onClick}
     >
       <div className="ta-kpi__head">
