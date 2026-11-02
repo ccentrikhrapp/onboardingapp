@@ -23,13 +23,15 @@
   --ta-shadow-hover: 0 2px 6px rgba(20, 28, 51, 0.06), 0 14px 30px -14px rgba(20, 28, 51, 0.16);
   --ta-sidebar-w: 222px;
 
-  --tag-blue-bg: #eaf1ff;      --tag-blue-fg: #2a53c8;
-  --tag-violet-bg: #f0ecfe;    --tag-violet-fg: #6b46d9;
-  --tag-amber-bg: #fdf0e1;     --tag-amber-fg: #ad5f13;
-  --tag-teal-bg: #e5f6f2;      --tag-teal-fg: #0f7c68;
-  --tag-green-bg: #e7f6ec;     --tag-green-fg: #1f8a45;
-  --tag-red-bg: #fdecec;       --tag-red-fg: #c0392f;
-  --tag-grey-bg: #f0f1f4;      --tag-grey-fg: #5a6072;
+  /* Soft pastel status badges per spec §33 — Documents=blue, Screening=
+     violet/lavender, Interview/Pending=amber, Hired=green, Rejected=pink. */
+  --tag-blue-bg: #E5F2FB;      --tag-blue-fg: #3576A8;
+  --tag-violet-bg: #EEE7FA;    --tag-violet-fg: #7657B8;
+  --tag-amber-bg: #FFF0CF;     --tag-amber-fg: #9A6A00;
+  --tag-teal-bg: #E4F7DA;      --tag-teal-fg: #2E8B6E;
+  --tag-green-bg: #E4F7DA;     --tag-green-fg: #247A3F;
+  --tag-red-bg: #FCE2EB;       --tag-red-fg: #B33D68;
+  --tag-grey-bg: #F0ECE6;      --tag-grey-fg: #6A6A6A;
 
   --viz-blue: #2a78d6;
   --viz-orange: #eb6834;
@@ -289,41 +291,32 @@
   padding: 24px 32px 80px; width: 100%; min-width: 0; box-sizing: border-box;
 }
 .ta-shell .page-body { padding: 0; max-width: none; margin: 0; }
-.ta-page__title { font-size: 20px; font-weight: 700; }
-.ta-page__sub { font-size: 12.5px; color: var(--ta-text-soft); margin-top: 3px; }
+.ta-page__title { font-size: 26px; font-weight: 700; color: var(--ta-ink); letter-spacing: -0.3px; }
+.ta-page__sub { font-size: 13.5px; color: #777777; margin-top: 4px; }
 .ta-page__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
 
-/* ---------- Buttons ---------- */
+/* ---------- Buttons ---------- per spec §21-24: dark charcoal primary,
+   white/bordered secondary, subtle hover (bg shift + 1px lift). */
 .ta-btn {
   position: relative; overflow: hidden;
   display: inline-flex; align-items: center; justify-content: center; gap: 7px;
-  padding: 8px 14px; border-radius: 10px; border: 1px solid transparent;
-  font-size: 12.5px; font-weight: 650; cursor: pointer; white-space: nowrap;
-  transition: background-position 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s, border-color 0.15s, transform 0.08s;
+  min-height: 40px;
+  padding: 9px 16px; border-radius: 10px; border: 1px solid transparent;
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, transform 0.08s ease;
 }
 .ta-btn:active { transform: translateY(1px); }
-/* a gradient that slides across the button on hover / click */
-.ta-btn--primary {
-  color: #fff;
-  background-image: linear-gradient(115deg, var(--ta-blue) 0%, #6b9bff 26%, var(--ta-blue) 52%, var(--ta-blue-ink) 100%);
-  background-size: 260% 100%; background-position: 100% 0;
-}
-.ta-btn--primary:hover { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(59, 110, 245, 0.6); }
-.ta-btn--primary:active { background-position: 0 0; }
+.ta-btn--primary { color: #fff; background: var(--ta-ink); }
+.ta-btn--primary:hover { background: var(--ta-ink-hover); transform: translateY(-1px); box-shadow: 0 4px 12px -4px rgba(23, 23, 23, 0.3); }
+.ta-btn--primary:active { transform: translateY(0); }
 .ta-btn--ghost {
-  color: var(--ta-text); border-color: var(--ta-line);
-  background-image: linear-gradient(115deg, var(--ta-surface) 0%, var(--ta-blue-wash) 30%, var(--ta-surface) 55%, var(--ta-surface) 100%);
-  background-size: 260% 100%; background-position: 100% 0;
+  color: var(--ta-ink); border-color: var(--ta-line); background: var(--ta-surface);
 }
-.ta-btn--ghost:hover { border-color: #dbe4fb; background-position: 45% 0; }
-.ta-btn--ghost:active { background-position: 0 0; }
+.ta-btn--ghost:hover { background: var(--ta-surface-soft); }
 .ta-btn--danger {
-  color: #fff;
-  background-image: linear-gradient(115deg, var(--tag-red-fg) 0%, #e0655a 26%, var(--tag-red-fg) 52%, #a5291f 100%);
-  background-size: 260% 100%; background-position: 100% 0;
+  color: var(--tag-red-fg); background: var(--tag-red-bg);
 }
-.ta-btn--danger:hover { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(192, 57, 47, 0.5); }
-.ta-btn--danger:active { background-position: 0 0; }
+.ta-btn--danger:hover { background: #FADCE8; }
 
 /* ---------- Cards ---------- */
 .ta-card {
@@ -1023,41 +1016,42 @@
 .ta-legend__val { font-weight: 700; font-variant-numeric: tabular-nums; }
 .ta-legend__pct { color: var(--ta-text-mute); font-variant-numeric: tabular-nums; width: 48px; text-align: right; }
 
-/* ---------- Premium table ---------- */
+/* ---------- Premium table ---------- per spec §27-30: white container,
+   16px radius, subtle border, pale header, comfortable 54-62px rows. */
 .ta-table-card {
   background: var(--ta-surface); border: 1px solid var(--ta-line);
-  border-radius: var(--ta-radius); box-shadow: var(--ta-shadow); overflow: hidden;
+  border-radius: 16px; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.035); overflow: hidden;
 }
-.ta-table-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; }
+.ta-table-card__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 16px 20px; }
 .ta-table-scroll { overflow-x: auto; }
-.ta-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 12.5px; }
+.ta-table { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13px; }
 .ta-table th {
-  text-align: left; padding: 8px 16px; white-space: nowrap;
-  font-size: 11px; font-weight: 700; color: #0c0e13; text-transform: uppercase; letter-spacing: 0.03em;
+  text-align: left; padding: 11px 20px; white-space: nowrap;
+  font-size: 11.5px; font-weight: 600; color: #6A6A6A; background: #FBFAF7;
   border-bottom: 1px solid var(--ta-line);
 }
 .ta-table th.sortable { cursor: pointer; user-select: none; }
-.ta-table th.sortable:hover { color: var(--ta-blue); }
-.ta-table td { padding: 6px 16px; border-bottom: 1px solid var(--ta-line-soft); vertical-align: middle; line-height: 1.3; }
+.ta-table th.sortable:hover { color: var(--ta-ink); }
+.ta-table td { padding: 10px 20px; border-bottom: 1px solid #F0ECE6; vertical-align: middle; line-height: 1.3; height: 58px; box-sizing: border-box; }
 .ta-table td .ta-tag { padding: 2px 8px; }
 /* row action buttons: borderless + small inside the table so they don't
    bloat the row height (the whole row is clickable anyway) */
 .ta-table .ta-iconbtn {
-  width: 28px; height: 28px; border-radius: 8px;
+  width: 32px; height: 32px; border-radius: 9px;
   border-color: transparent; background: transparent; color: var(--ta-text-mute);
 }
-.ta-table .ta-iconbtn:hover { border-color: transparent; background: var(--ta-bg); color: var(--ta-text); }
+.ta-table .ta-iconbtn:hover { border-color: transparent; background: #F5F2EC; color: var(--ta-ink); }
 .ta-table .ta-rowactions { opacity: 1; }
 .ta-table tbody tr:last-child td { border-bottom: 0; }
 .ta-table tbody tr { transition: background 0.15s; }
-.ta-table tbody tr:hover { background: #fafbfc; }
+.ta-table tbody tr:hover { background: #FCFAF6; }
 .ta-table tbody tr:hover .ta-rowactions { opacity: 1; }
 
 .ta-cell-cand { display: flex; align-items: center; gap: 11px; }
-.ta-cell-cand__name { font-weight: 600; }
-.ta-cell-cand__sub { font-size: 11.5px; color: var(--ta-text-mute); }
-.ta-cell-strong { font-weight: 600; }
-.ta-cell-sub { font-size: 11.5px; color: var(--ta-text-mute); }
+.ta-cell-cand__name { font-weight: 600; font-size: 14px; color: var(--ta-ink); }
+.ta-cell-cand__sub { font-size: 12px; color: var(--ta-ink-soft); }
+.ta-cell-strong { font-weight: 600; color: var(--ta-ink); }
+.ta-cell-sub { font-size: 12px; color: var(--ta-ink-soft); }
 .ta-cell-mute { color: var(--ta-text-soft); }
 .ta-rowactions { display: flex; gap: 6px; opacity: 0.5; transition: opacity 0.15s; }
 
@@ -1065,7 +1059,8 @@
   width: 34px; height: 34px; border-radius: 999px; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 600;
-  background: var(--ta-blue-wash); color: var(--ta-blue-ink);
+  background: var(--ta-pastel-blue-wash); color: var(--ta-pastel-blue-ink);
+  box-shadow: 0 0 0 2px #fff;
 }
 .ta-avatar--sm { width: 26px; height: 26px; font-size: 10px; }
 .ta-avatar { overflow: hidden; }
@@ -1138,7 +1133,7 @@
 .ta-field { display: flex; flex-direction: column; gap: 5px; margin-bottom: 14px; }
 .ta-field--full { grid-column: 1 / -1; }
 .ta-field__labelrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ta-field__label { font-size: 12px; font-weight: 600; color: var(--ta-text-soft); }
+.ta-field__label { font-size: 13px; font-weight: 600; color: #333333; }
 .ta-field__label .req { color: var(--tag-red-fg); margin-left: 2px; }
 .ta-field__hint { font-size: 11px; color: var(--ta-text-mute); }
 .ta-field__error { font-size: 11px; color: var(--tag-red-fg); display: flex; align-items: center; gap: 4px; }
@@ -1148,9 +1143,9 @@
 }
 
 .ta-input, .ta-textarea {
-  width: 100%; padding: 9px 11px; font: inherit; font-size: 13px;
+  width: 100%; min-height: 42px; padding: 9px 13px; font: inherit; font-size: 14px; box-sizing: border-box;
   color: var(--ta-text); background: var(--ta-surface);
-  border: 1px solid var(--ta-line); border-radius: 10px;
+  border: 1px solid #DED9D1; border-radius: 10px;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .ta-input::placeholder, .ta-textarea::placeholder { color: var(--ta-text-mute); }
@@ -1187,8 +1182,9 @@
 .ta-searchresult:hover, .ta-searchresult:focus-visible { background: var(--ta-surface-2, #f4f5f7); outline: none; }
 .ta-select {
   appearance: none; -webkit-appearance: none;
-  padding: 7px 30px 7px 14px; border-radius: 999px; border: 1px solid var(--ta-line);
-  background: var(--ta-surface); font: inherit; font-size: 12.5px; font-weight: 500; color: var(--ta-text); cursor: pointer;
+  min-height: 38px; box-sizing: border-box;
+  padding: 7px 30px 7px 14px; border-radius: 10px; border: 1px solid var(--ta-line);
+  background: var(--ta-surface); font: inherit; font-size: 13px; font-weight: 500; color: var(--ta-text); cursor: pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2399a0ac' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 12px center;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -1344,51 +1340,47 @@
    .toast-container--ta, a class added only while on a /ta/* route) and
    only touches radius/shadow/surface, never structure or behaviour. */
 .ta-shell .modal, .ta-shell .drawer {
-  border-radius: var(--ta-radius); box-shadow: var(--ta-shadow-hover); background: var(--ta-surface);
+  border-radius: 20px; box-shadow: 0 20px 60px rgba(23, 23, 23, 0.12); background: var(--ta-surface);
 }
 .ta-shell .modal__header, .ta-shell .drawer__header,
 .ta-shell .modal__footer, .ta-shell .drawer__footer { border-color: var(--ta-line); }
-.ta-shell .empty-state__icon { border-radius: 10px; background: var(--ta-blue-wash); color: var(--ta-blue); }
+.ta-shell .empty-state__icon { border-radius: 10px; background: var(--ta-pastel-blue-wash); color: var(--ta-pastel-blue-ink); }
 .ta-shell .skeleton-card { border-color: var(--ta-line); border-radius: var(--ta-radius); }
-.ta-shell .icon-btn:hover { background: var(--ta-bg); color: var(--ta-text); }
-.toast-container--ta .toast { background: var(--ta-text); box-shadow: var(--ta-shadow-hover); border-radius: 10px; }
+.ta-shell .icon-btn:hover { background: var(--ta-surface-soft); color: var(--ta-ink); }
+.toast-container--ta .toast { background: var(--ta-ink); box-shadow: 0 8px 24px rgba(23, 23, 23, 0.2); border-radius: 10px; }
 /* The interview-scheduling dialogs (ScheduleInterviewModal, RescheduleInterviewModal,
    InterviewFeedbackModal, ReasonModal, CreateJobDrawer) and the generic Modal's own
    default footer buttons use components/common/Button.jsx — never migrated to the
    premium ta/Button.jsx. Their fields already are (ta/Field.jsx), so only the
    buttons need to catch up; same scoping rationale as above. */
 .ta-shell .btn {
-  border-radius: 10px; font-weight: 650;
-  transition: background-position 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.15s, border-color 0.15s, transform 0.08s;
+  border-radius: 10px; font-weight: 600;
+  transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, transform 0.08s ease;
 }
 .ta-shell .btn--primary, .ta-shell .btn--success {
-  color: #fff; border-color: transparent;
-  background: linear-gradient(115deg, var(--ta-blue) 0%, #6b9bff 26%, var(--ta-blue) 52%, var(--ta-blue-ink) 100%);
-  background-size: 260% 100%; background-position: 100% 0;
+  color: #fff; border-color: transparent; background: var(--ta-ink);
 }
-.ta-shell .btn--primary:hover:not(:disabled), .ta-shell .btn--success:hover:not(:disabled) { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(59, 110, 245, 0.6); }
+.ta-shell .btn--primary:hover:not(:disabled), .ta-shell .btn--success:hover:not(:disabled) { background: var(--ta-ink-hover); transform: translateY(-1px); }
 .ta-shell .btn--secondary, .ta-shell .btn--ghost {
-  color: var(--ta-text); border-color: var(--ta-line); background: var(--ta-surface);
+  color: var(--ta-ink); border-color: var(--ta-line); background: var(--ta-surface);
 }
-.ta-shell .btn--secondary:hover:not(:disabled), .ta-shell .btn--ghost:hover:not(:disabled) { border-color: #dbe4fb; background: var(--ta-blue-wash); }
+.ta-shell .btn--secondary:hover:not(:disabled), .ta-shell .btn--ghost:hover:not(:disabled) { background: var(--ta-surface-soft); }
 .ta-shell .btn--danger {
-  color: #fff; border-color: transparent;
-  background: linear-gradient(115deg, var(--tag-red-fg) 0%, #e0655a 26%, var(--tag-red-fg) 52%, #a5291f 100%);
-  background-size: 260% 100%; background-position: 100% 0;
+  color: var(--tag-red-fg); border-color: transparent; background: var(--tag-red-bg);
 }
-.ta-shell .btn--danger:hover:not(:disabled) { background-position: 40% 0; box-shadow: 0 8px 18px -7px rgba(192, 57, 47, 0.5); }
+.ta-shell .btn--danger:hover:not(:disabled) { background: #FADCE8; }
 
 /* ReasonModal and CreateJobDrawer use components/common/Field.jsx (built for
    the candidate apply form's "extracted from resume" styling) instead of
    ta/Field.jsx — same fix, scoped the same way, for its .input/.select/.textarea. */
-.ta-shell .field__label { color: var(--ta-text-soft); }
-.ta-shell .field__hint, .ta-shell .field__error { color: var(--ta-text-mute); }
+.ta-shell .field__label { color: #333333; font-weight: 600; }
+.ta-shell .field__hint, .ta-shell .field__error { color: var(--ta-ink-soft); }
 .ta-shell .field__error { color: var(--tag-red-fg); }
 .ta-shell .input, .ta-shell .select, .ta-shell .textarea {
-  border-radius: 10px; border-color: var(--ta-line); background: var(--ta-surface); color: var(--ta-text);
+  border-radius: 10px; border-color: #DED9D1; background: var(--ta-surface); color: var(--ta-text);
 }
 .ta-shell .input:focus, .ta-shell .select:focus, .ta-shell .textarea:focus {
-  border-color: var(--ta-blue); box-shadow: 0 0 0 3px var(--ta-blue-wash);
+  border-color: var(--ta-pastel-blue); box-shadow: 0 0 0 3px var(--ta-pastel-blue-wash);
 }
 .ta-shell .input--error, .ta-shell .select--error, .ta-shell .textarea--error { border-color: var(--tag-red-fg); }
 .ta-shell .chips-input { border-radius: 10px; border-color: var(--ta-line); }
