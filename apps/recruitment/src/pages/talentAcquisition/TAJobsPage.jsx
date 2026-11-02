@@ -2,26 +2,16 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import TAHeader from '../../components/ta/TAHeader.jsx';
-import DataGrid from '../../components/ta/DataGrid.jsx';
 import Toolbar from '../../components/ta/Toolbar.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
+import EmptyState from '../../components/ta/EmptyState.jsx';
 import CreateJobDrawer from '../../components/workflow/CreateJobDrawer.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { listApplications } from '../../api/applications.js';
 import { formatDate } from '../../utils/format.js';
-
-const COLUMNS = [
-  { key: 'code', label: 'Job ID', sortable: true },
-  { key: 'title', label: 'Job Title', sortable: true },
-  { key: 'location', label: 'Location', sortable: true },
-  { key: 'workMode', label: 'Mode', sortable: true },
-  { key: 'applicants', label: 'Applicants', sortable: true },
-  { key: 'deadline', label: 'Deadline', sortable: true },
-  { key: 'actions', label: 'Actions' },
-];
 
 /* "4–7 years" -> 4, so we can bucket jobs by the experience they ask for. */
 const minYears = (exp) => parseInt(exp, 10) || 0;
@@ -172,47 +162,59 @@ export default function TAJobsPage() {
         </div>
       )}
 
-      <DataGrid
-        columns={isSuperAdmin ? [{ key: '_pick', label: (
-          <input type="checkbox" aria-label="Select all on this page"
-            checked={view.rows.length > 0 && view.rows.every((j) => pickedJobs.includes(j.id))}
-            onChange={(e) => setPickedJobs(e.target.checked ? [...new Set([...pickedJobs, ...view.rows.map((j) => j.id)])] : pickedJobs.filter((id) => !view.rows.some((j) => j.id === id)))} />
-        ) }, ...COLUMNS] : COLUMNS}
-        rows={view.rows}
-        sort={view.sort}
-        onSort={view.onSort}
-        pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
-        empty={{ icon: 'Briefcase', title: 'No jobs found', message: 'Try a different search, or create a new job.' }}
-        renderRow={(j) => (
-          <tr key={j.id} onClick={() => navigate(`/ta/jobs/${j.id}`)} style={{ cursor: 'pointer' }}>
-            {isSuperAdmin && (
-              <td onClick={(e) => e.stopPropagation()}>
-                <input type="checkbox" aria-label={`Select ${j.title}`} checked={pickedJobs.includes(j.id)}
-                  onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))} />
-              </td>
-            )}
-            <td className="ta-cell-mute">{j.code}</td>
-            <td>
-              <span className="ta-cell-strong">{j.title}</span>
-              {j.custom && <Tag tone="blue">New</Tag>}
-              <br />
-              <span className="ta-cell-sub">{j.department}</span>
-            </td>
-            <td className="ta-cell-mute">{j.location}</td>
-            <td className="ta-cell-mute">{j.workMode}</td>
-            <td><Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants}</Tag></td>
-            <td className="ta-cell-mute">{formatDate(j.deadline)}</td>
-            <td>
-              <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
-                {canManageJobs && (
-                  <button className="ta-iconbtn" onClick={() => removeJob(j)} aria-label="Delete job"><Icon name="Trash2" size={16} /></button>
-                )}
-                <button className="ta-iconbtn" onClick={() => navigate(`/ta/jobs/${j.id}`)} aria-label="Open job"><Icon name="ChevronRight" size={17} /></button>
-              </span>
-            </td>
-          </tr>
-        )}
-      />
+      {view.rows.length === 0 ? (
+        <EmptyState icon="Briefcase" title="No jobs found" message="Try a different search, or create a new job." />
+      ) : (
+        <div className="ta-jobgrid">
+          {view.rows.map((j) => (
+            <div key={j.id} className="ta-jobcard" onClick={() => navigate(`/ta/jobs/${j.id}`)} role="button" tabIndex={0}>
+              {isSuperAdmin && (
+                <input
+                  type="checkbox" className="ta-jobcard__pick" aria-label={`Select ${j.title}`}
+                  checked={pickedJobs.includes(j.id)} onClick={(e) => e.stopPropagation()}
+                  onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))}
+                />
+              )}
+              <div className="ta-jobcard__head">
+                <span className="ta-jobcard__icon"><Icon name="Briefcase" size={16} /></span>
+                <span className="ta-jobcard__headactions">
+                  {canManageJobs && (
+                    <button
+                      className="ta-iconbtn" aria-label="Delete job"
+                      onClick={(e) => { e.stopPropagation(); removeJob(j); }}
+                    ><Icon name="Trash2" size={14} /></button>
+                  )}
+                  <span className="ta-jobcard__see">See Details <Icon name="ChevronRight" size={12} /></span>
+                </span>
+              </div>
+              <div className="ta-jobcard__title">{j.title} {j.custom && <Tag tone="blue">New</Tag>}</div>
+              <div className="ta-jobcard__sub">
+                {j.department}{j.requiredSkills?.length ? ` · ${j.requiredSkills.slice(0, 3).join(', ')}` : ''}
+              </div>
+              <div className="ta-jobcard__tags">
+                {j.employmentType && <span className="ta-jobcard__tag"><Icon name="Clock3" size={11} /> {j.employmentType}</span>}
+                {j.location && <span className="ta-jobcard__tag"><Icon name="MapPin" size={11} /> {j.location}</span>}
+              </div>
+              <div className="ta-jobcard__foot">
+                <span className="ta-jobcard__date"><Icon name="CalendarDays" size={11} /> {formatDate(j.deadline)}</span>
+                <Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants} applicants</Tag>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {view.total > view.pageSize && (
+        <div className="ta-gridnav">
+          <button type="button" className="ta-btn ta-btn--ghost" disabled={view.page <= 1} onClick={() => view.setPage(view.page - 1)}>
+            <Icon name="ChevronLeft" size={15} /> Previous
+          </button>
+          <span className="ta-gridnav__pos">Page {view.page} of {Math.max(1, Math.ceil(view.total / view.pageSize))}</span>
+          <button type="button" className="ta-btn ta-btn--ghost" disabled={view.page >= Math.ceil(view.total / view.pageSize)} onClick={() => view.setPage(view.page + 1)}>
+            Next <Icon name="ChevronRight" size={15} />
+          </button>
+        </div>
+      )}
 
       <CreateJobDrawer
         open={open}
