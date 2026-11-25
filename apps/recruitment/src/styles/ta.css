@@ -1738,19 +1738,24 @@
 .ta-btn--gradient:hover { background: linear-gradient(135deg, #8A61F2, #5A2FD0); box-shadow: 0 8px 20px -6px rgba(124, 79, 240, 0.65); }
 .ta-select--pill { border-radius: 999px; padding-left: 16px; }
 
-/* Compact structured info strip — subtle tints, thin separators, small
-   icons; deliberately not styled like a dashboard statistic tile. */
+/* Compact structured info strip — a horizontal row of individually rounded,
+   softly tinted chips with a small circular icon badge per item. */
 .ta-infostrip {
-  display: flex; flex-wrap: wrap; margin-top: 16px;
-  border: 1px solid var(--ta-line); border-radius: 14px; overflow: hidden;
+  display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px;
 }
 .ta-infostrip__item {
-  display: flex; align-items: center; gap: 9px;
-  flex: 1 1 160px; min-width: 150px;
-  padding: 12px 14px;
-  border-right: 1px solid var(--ta-line); border-bottom: 1px solid var(--ta-line);
+  display: flex; align-items: center; gap: 10px;
+  flex: 1 1 165px; min-width: 150px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(16, 24, 40, 0.05);
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-.ta-infostrip__item:last-child { border-right: 0; }
+.ta-infostrip__item:hover { transform: translateY(-1px); box-shadow: 0 4px 10px rgba(16, 24, 40, 0.08); }
+.ta-infostrip__item svg {
+  flex-shrink: 0; width: 28px; height: 28px; padding: 6px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.65);
+}
 .ta-infostrip__item > div { display: flex; flex-direction: column; min-width: 0; }
 .ta-infostrip__label { font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ta-text-mute); }
 .ta-infostrip__value { font-size: 13.5px; font-weight: 700; color: var(--ta-ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1759,7 +1764,6 @@
 .ta-infostrip__item--purple { background: #F3EFFE; color: #7C4FF0; }
 .ta-infostrip__item--orange { background: #FFF3E6; color: #F08A1E; }
 .ta-infostrip__item--teal { background: #E9F6FC; color: #2F9BD6; }
-@media (max-width: 700px) { .ta-infostrip__item { border-right: 0; } }
 
 .ta-pilltabs { display: flex; gap: 8px; flex-wrap: wrap; }
 .ta-pilltabs__tab {
@@ -2216,19 +2220,20 @@
 .ta-stagesteps-days__label { font-size: 10.5px; color: var(--ta-coral-ink); }
 
 /* ---------- ATS match (candidate profile) ---------- */
-.ta-ats { display: grid; grid-template-columns: 1fr auto; gap: 14px; margin-bottom: 14px; }
-.ta-ats__metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; align-content: start; }
+.ta-ats { display: grid; grid-template-columns: 1fr auto; align-items: stretch; gap: 14px; margin-bottom: 14px; }
+.ta-ats__metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; align-content: stretch; }
 .ta-ats__tile {
   background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
-  box-shadow: var(--ta-shadow); padding: 16px 18px;
+  box-shadow: var(--ta-shadow); padding: 12px 14px;
+  display: flex; flex-direction: column; justify-content: center;
 }
-.ta-ats__pct { font-size: 26px; font-weight: 800; color: var(--ta-ink); letter-spacing: -0.4px; }
-.ta-ats__label { font-size: 12px; color: var(--ta-text-soft); margin-top: 2px; }
+.ta-ats__pct { font-size: 21px; font-weight: 800; color: var(--ta-ink); letter-spacing: -0.4px; }
+.ta-ats__label { font-size: 11.5px; color: var(--ta-text-soft); margin-top: 2px; }
 .ta-ats__score {
   background: var(--ta-surface); border: 1px solid var(--ta-line); border-radius: var(--ta-radius-sm);
-  box-shadow: var(--ta-shadow); padding: 16px 20px;
-  display: flex; flex-direction: column; align-items: center; gap: 10px;
-  min-width: 180px;
+  box-shadow: var(--ta-shadow); padding: 14px 22px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px;
+  min-width: 200px;
 }
 .ta-ats__score-head { display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 13px; font-weight: 700; color: var(--ta-ink); }
 .ta-ats__skills {
@@ -2241,10 +2246,12 @@
 .ta-ats__check svg { flex-shrink: 0; color: var(--ta-text-mute); }
 .ta-ats__check.is-met { color: var(--ta-ink); }
 .ta-ats__check.is-met svg { color: var(--ta-pastel-green-ink); }
+@media (max-width: 900px) {
+  .ta-ats__metrics { grid-template-columns: repeat(2, 1fr); }
+}
 @media (max-width: 720px) {
   .ta-ats { grid-template-columns: 1fr; }
   .ta-ats__checklist { grid-template-columns: 1fr 1fr; }
-  .ta-ats__metrics { grid-template-columns: repeat(2, 1fr); }
 }
 
 /* ---------- Full resume tab ---------- */

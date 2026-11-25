@@ -50,6 +50,30 @@ export function toCsv(headers, rows) {
   return lines.join('\r\n');
 }
 
+/* Vertical "Label: value" block format — one record per block, blocks
+   separated by a blank line. Values round-trip through the same
+   { header: value } shape the row/column functions above produce, so every
+   existing form-mapping/validation function works unchanged either way. */
+export function toVerticalBlocks(headers, rows) {
+  const block = (r) => headers.map((h) => `${h}: ${String(r[h] ?? '')}`).join('\n');
+  return rows.map(block).join('\n\n');
+}
+
+export function parseVerticalBlocks(text) {
+  const s = text.replace(/^﻿/, '').replace(/\r\n/g, '\n'); // strip a BOM from Excel-saved files
+  const blocks = s.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
+  return blocks.map((block) => {
+    const row = {};
+    block.split('\n').forEach((line) => {
+      const i = line.indexOf(':');
+      if (i === -1) return;
+      const label = line.slice(0, i).trim();
+      if (label) row[label] = line.slice(i + 1).trim();
+    });
+    return row;
+  });
+}
+
 export function downloadCsv(filename, csvText) {
   const blob = new Blob(['﻿' + csvText], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);

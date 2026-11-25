@@ -271,8 +271,8 @@ export default function TAJobsPage() {
                   {j.location && <span className="ta-jobcard__tag"><Icon name="MapPin" size={11} /> {j.location}</span>}
                 </div>
                 <div className="ta-jobcard__foot">
-                  <span className="ta-jobcard__date" title="Posted on"><Icon name="CalendarPlus" size={11} /> {formatDate(j.createdAt)}</span>
-                  <span className="ta-jobcard__date" title="Apply by"><Icon name="CalendarDays" size={11} /> {formatDate(j.deadline)}</span>
+                  <span className="ta-jobcard__date"><Icon name="CalendarPlus" size={11} /> Posted {formatDate(j.createdAt)}</span>
+                  <span className="ta-jobcard__date"><Icon name="CalendarDays" size={11} /> Apply by {formatDate(j.deadline)}</span>
                   <Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants} applicants</Tag>
                 </div>
               </div>

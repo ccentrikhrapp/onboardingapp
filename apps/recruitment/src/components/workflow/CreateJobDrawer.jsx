@@ -3,7 +3,6 @@ import { Modal } from '../common/Modal.jsx';
 import Button from '../common/Button.jsx';
 import { Field, Input, Select, Textarea } from '../common/Field.jsx';
 import ChipsInput from '../common/ChipsInput.jsx';
-import { todayISO } from '../../utils/format.js';
 import { notPastDateError, numberError } from '../../utils/validation.js';
 
 const DEPARTMENTS = ['Sales', 'Human Resource', 'Talent Acquisition', 'SAP ABAP', 'SAP Functional'];
@@ -83,7 +82,9 @@ export default function CreateJobDrawer({ open, onClose, onCreate, job = null })
       workMode: f.workMode,
       employmentType: f.employmentType,
       experience: f.experience.trim(),
-      deadline: f.deadline || todayISO(),
+      // No same-day fallback — the TA sets this explicitly, and the required
+      // validation above already guarantees it's filled in by this point.
+      deadline: f.deadline,
       applicationLimit: f.applicationLimit ? Number(f.applicationLimit) : null,
       interviewPlan: planRounds(f.interviewPlan),
       description: f.description.trim() || `We are hiring a ${f.title.trim()} to join the ${f.department} team.`,
