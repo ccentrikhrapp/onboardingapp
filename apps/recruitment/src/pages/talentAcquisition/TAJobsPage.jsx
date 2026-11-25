@@ -234,33 +234,30 @@ export default function TAJobsPage() {
           <div className="ta-jobgrid">
             {view.rows.map((j) => (
               <div key={j.id} className="ta-jobcard" onClick={() => navigate(`/ta/jobs/${j.id}`)} role="button" tabIndex={0}>
-                {isSuperAdmin && (
-                  <input
-                    type="checkbox" className="ta-jobcard__pick" aria-label={`Select ${j.title}`}
-                    checked={pickedJobs.includes(j.id)} onClick={(e) => e.stopPropagation()}
-                    onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))}
-                  />
-                )}
                 <div className="ta-jobcard__head">
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span className="ta-jobcard__headleft">
+                    {isSuperAdmin && (
+                      <input
+                        type="checkbox" className="ta-jobcard__pick" aria-label={`Select ${j.title}`}
+                        checked={pickedJobs.includes(j.id)} onClick={(e) => e.stopPropagation()}
+                        onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))}
+                      />
+                    )}
                     <span className="ta-jobcard__icon"><Icon name="Briefcase" size={16} /></span>
                     {j.code && <Tag tone="grey">{j.code}</Tag>}
                   </span>
-                  <span className="ta-jobcard__headactions">
-                    {canManageJobs && (
+                  {canManageJobs && (
+                    <span className="ta-jobcard__headactions">
                       <button
                         className="ta-iconbtn" aria-label="Edit job"
                         onClick={(e) => { e.stopPropagation(); setEditingJob(j); }}
                       ><Icon name="Pencil" size={14} /></button>
-                    )}
-                    {canManageJobs && (
                       <button
                         className="ta-iconbtn" aria-label="Delete job"
                         onClick={(e) => { e.stopPropagation(); removeJob(j); }}
                       ><Icon name="Trash2" size={14} /></button>
-                    )}
-                    <span className="ta-jobcard__see">See Details <Icon name="ChevronRight" size={12} /></span>
-                  </span>
+                    </span>
+                  )}
                 </div>
                 <div className="ta-jobcard__title">{j.title} {j.custom && <Tag tone="blue">New</Tag>}</div>
                 <div className="ta-jobcard__sub">
@@ -270,10 +267,15 @@ export default function TAJobsPage() {
                   {j.employmentType && <span className="ta-jobcard__tag"><Icon name="Clock3" size={11} /> {j.employmentType}</span>}
                   {j.location && <span className="ta-jobcard__tag"><Icon name="MapPin" size={11} /> {j.location}</span>}
                 </div>
-                <div className="ta-jobcard__foot">
-                  <span className="ta-jobcard__date"><Icon name="CalendarPlus" size={11} /> Posted {formatDate(j.createdAt)}</span>
-                  <span className="ta-jobcard__date"><Icon name="CalendarDays" size={11} /> Apply by {formatDate(j.deadline)}</span>
-                  <Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants} applicants</Tag>
+                <div className="ta-jobcard__bottom">
+                  <div className="ta-jobcard__foot">
+                    <span className="ta-jobcard__date"><Icon name="CalendarPlus" size={11} /> Posted {formatDate(j.createdAt)}</span>
+                    <span className="ta-jobcard__date"><Icon name="CalendarDays" size={11} /> Apply by {formatDate(j.deadline)}</span>
+                    <Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants} {j.applicants === 1 ? 'Applicant' : 'Applicants'}</Tag>
+                  </div>
+                  <div className="ta-jobcard__actions">
+                    <span className="ta-jobcard__see">See Details <Icon name="ChevronRight" size={12} /></span>
+                  </div>
                 </div>
               </div>
             ))}

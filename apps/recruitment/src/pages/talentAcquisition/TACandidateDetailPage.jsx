@@ -69,7 +69,7 @@ function ScoreRing({ value = 0, size = 128, stroke = 12, color = 'var(--ta-coral
       </svg>
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 30, fontWeight: 800, color: 'var(--ta-ink)',
+        fontSize: Math.round(size * 0.23), fontWeight: 800, color: 'var(--ta-ink)',
       }}>
         {Math.round(pct)}
       </div>
@@ -92,22 +92,22 @@ function AtsCard({ ats }) {
   const totalReq = (ats.matchedSkills?.length || 0) + (ats.missingSkills?.length || 0);
   return (
     <div className="ta-ats">
-      <div className="ta-ats__metrics">
+      <div className="ta-ats__row">
         {metrics.map(([label, value]) => (
           <div key={label} className="ta-ats__tile">
             <div className="ta-ats__pct">{value}%</div>
             <div className="ta-ats__label">{label} match</div>
           </div>
         ))}
-      </div>
 
-      <div className="ta-ats__score">
-        <div className="ta-ats__score-head">
-          <span>ATS Match Score</span>
-          <Tag tone={ATS_RECOMMENDATION_TONE[ats.recommendation] || 'grey'}>{ats.recommendation}</Tag>
+        <div className="ta-ats__score">
+          <div className="ta-ats__score-head">
+            <span>ATS Match Score</span>
+            <Tag tone={ATS_RECOMMENDATION_TONE[ats.recommendation] || 'grey'}>{ats.recommendation}</Tag>
+          </div>
+          <ScoreRing value={ats.overall} size={86} stroke={9} />
+          {totalReq > 0 && <span className="ta-cell-sub">{ats.matchedSkills.length} of {totalReq} requirements matched</span>}
         </div>
-        <ScoreRing value={ats.overall} />
-        {totalReq > 0 && <span className="ta-cell-sub">{ats.matchedSkills.length} of {totalReq} requirements matched</span>}
       </div>
 
       {totalReq > 0 && (
