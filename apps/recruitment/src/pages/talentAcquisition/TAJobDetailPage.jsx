@@ -173,6 +173,9 @@ export default function TAJobDetailPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
   const { getJob, updateJob, deleteJob, role } = useApp();
+  // Any TA role can edit a posting (matches the DB's jobs_update_ta policy);
+  // deleting stays admin-tier only (jobs_manage_admin_tier).
+  const canEditJobs = role === 'ta' || role === 'admin' || role === 'admin_ta';
   const canManageJobs = role === 'admin' || role === 'admin_ta';
   const { configured } = useAuth();
   const toast = useToast();
@@ -241,7 +244,7 @@ export default function TAJobDetailPage() {
 
       <div className="ta-page-actions">
         <Button icon="Users" onClick={() => navigate(`/ta/candidates?job=${encodeURIComponent(job.title)}`)}>View applicants</Button>
-        {canManageJobs && (
+        {canEditJobs && (
           <Button variant="ghost" icon="Pencil" onClick={() => setEditing(true)}>Edit job</Button>
         )}
         {canManageJobs && (
@@ -406,7 +409,7 @@ export default function TAJobDetailPage() {
         </div>
       )}
 
-      {canManageJobs && (
+      {canEditJobs && (
         <CreateJobDrawer
           open={editing}
           job={job}

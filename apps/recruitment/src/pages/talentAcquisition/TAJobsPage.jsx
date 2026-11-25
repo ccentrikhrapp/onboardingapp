@@ -34,10 +34,11 @@ export default function TAJobsPage() {
   const { jobs, createJob, updateJob, deleteJob, role } = useApp();
   const isSuperAdmin = role === 'admin';
   const [pickedJobs, setPickedJobs] = useState([]);
-  // Every TA-workspace role can post a job; editing or removing a posting
-  // stays admin-tier only (a Normal TA can create jobs but not change or
-  // remove existing ones — matches the DB's jobs_manage_admin_tier policy).
+  // Every TA-workspace role can post a job and edit any posting (matches the
+  // DB's jobs_update_ta policy) — removing one stays admin-tier only
+  // (jobs_manage_admin_tier).
   const canCreateJobs = role === 'ta' || role === 'admin' || role === 'admin_ta';
+  const canEditJobs = canCreateJobs;
   const canManageJobs = role === 'admin' || role === 'admin_ta';
   const [open, setOpen] = useState(false);
   const [editingJob, setEditingJob] = useState(null);
@@ -217,12 +218,10 @@ export default function TAJobsPage() {
               <td><Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants}</Tag></td>
               <td>
                 <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
-                  {canManageJobs && (
-                    <RowMenu items={[
-                      { label: 'Edit', icon: 'Pencil', onClick: () => setEditingJob(j) },
-                      { label: 'Delete', icon: 'Trash2', danger: true, onClick: () => removeJob(j) },
-                    ]} />
-                  )}
+                  <RowMenu items={[
+                    ...(canEditJobs ? [{ label: 'Edit', icon: 'Pencil', onClick: () => setEditingJob(j) }] : []),
+                    ...(canManageJobs ? [{ label: 'Delete', icon: 'Trash2', danger: true, onClick: () => removeJob(j) }] : []),
+                  ]} />
                   <button className="ta-iconbtn" onClick={() => navigate(`/ta/jobs/${j.id}`)} aria-label="Open job"><Icon name="ChevronRight" size={17} /></button>
                 </span>
               </td>
@@ -246,16 +245,20 @@ export default function TAJobsPage() {
                     <span className="ta-jobcard__icon"><Icon name="Briefcase" size={16} /></span>
                     {j.code && <Tag tone="grey">{j.code}</Tag>}
                   </span>
-                  {canManageJobs && (
+                  {(canEditJobs || canManageJobs) && (
                     <span className="ta-jobcard__headactions">
-                      <button
-                        className="ta-iconbtn" aria-label="Edit job"
-                        onClick={(e) => { e.stopPropagation(); setEditingJob(j); }}
-                      ><Icon name="Pencil" size={14} /></button>
-                      <button
-                        className="ta-iconbtn" aria-label="Delete job"
-                        onClick={(e) => { e.stopPropagation(); removeJob(j); }}
-                      ><Icon name="Trash2" size={14} /></button>
+                      {canEditJobs && (
+                        <button
+                          className="ta-iconbtn" aria-label="Edit job"
+                          onClick={(e) => { e.stopPropagation(); setEditingJob(j); }}
+                        ><Icon name="Pencil" size={14} /></button>
+                      )}
+                      {canManageJobs && (
+                        <button
+                          className="ta-iconbtn" aria-label="Delete job"
+                          onClick={(e) => { e.stopPropagation(); removeJob(j); }}
+                        ><Icon name="Trash2" size={14} /></button>
+                      )}
                     </span>
                   )}
                 </div>

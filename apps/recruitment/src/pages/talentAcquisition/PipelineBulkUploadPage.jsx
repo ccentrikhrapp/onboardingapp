@@ -7,7 +7,7 @@ import Tag from '../../components/ta/Tag.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { listCandidateIdentities } from '../../api/applications.js';
 import { listPipelineCandidates, createPipelineCandidate } from '../../api/pipeline.js';
-import { parseVerticalBlocks, toVerticalBlocks, toCsv, downloadCsv } from '../../utils/csv.js';
+import { parseTransposedCsv, toTransposedCsv, toCsv, downloadCsv } from '../../utils/csv.js';
 import {
   PIPELINE_CSV_HEADERS, PIPELINE_FIELD_COLUMN, pipelineFormFromCsvRow, validatePipelineForm, normPhone10,
 } from '../../utils/pipelineForm.js';
@@ -36,7 +36,7 @@ export default function PipelineBulkUploadPage() {
   const [importing, setImporting] = useState(false);
   const [done, setDone] = useState(false);
 
-  const downloadTemplate = () => downloadCsv('pipeline-candidates-template.csv', toVerticalBlocks(PIPELINE_CSV_HEADERS, [SAMPLE_ROW]));
+  const downloadTemplate = () => downloadCsv('pipeline-candidates-template.csv', toTransposedCsv(PIPELINE_CSV_HEADERS, [SAMPLE_ROW]));
 
   const handleFile = async (fileList) => {
     const file = fileList?.[0];
@@ -44,7 +44,7 @@ export default function PipelineBulkUploadPage() {
     setDone(false);
     setFileName(file.name);
     const text = await file.text();
-    const all = parseVerticalBlocks(text);
+    const all = parseTransposedCsv(text);
     const parsed = all.filter((r) => !isSampleRow(r));
     if (all.length && !parsed.length) {
       toast.error('Only the sample row was found. Replace it with your candidates (one per row), then upload again.');
@@ -148,11 +148,11 @@ export default function PipelineBulkUploadPage() {
       <Card title="1. Download the template">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span className="ta-cell-sub">
-            One candidate per block as "Label: value" lines ({PIPELINE_CSV_HEADERS.join(', ')}), with a blank line between
-            candidates. “Offer in hand” is Yes or No; “Notice” is a number of days. The template includes one sample block
-            (ignored on upload) — replace it with your own candidates.
+            Field labels go down the first column ({PIPELINE_CSV_HEADERS.join(', ')}), with one additional column per
+            candidate going across. “Offer in hand” is Yes or No; “Notice” is a number of days. The template includes one
+            sample column (ignored on upload) — add your own candidates as columns next to it.
           </span>
-          <Button variant="ghost" icon="Download" onClick={downloadTemplate}>Download Template</Button>
+          <Button variant="ghost" icon="Download" onClick={downloadTemplate}>Download CSV Template</Button>
         </div>
       </Card>
       <div style={{ height: 14 }} />
@@ -161,12 +161,12 @@ export default function PipelineBulkUploadPage() {
         <div className="cx-upload">
           <span className="cx-upload__icon"><Icon name="UploadCloud" size={17} /></span>
           <div className="ta-cell-mute" style={{ flex: 1 }}>
-            <div className="cx-upload__title">{fileName || 'Choose a file'}</div>
+            <div className="cx-upload__title">{fileName || 'Choose a CSV file'}</div>
             <div className="cx-upload__sub">{rows ? `${rows.length} candidate(s) found` : `Up to ${MAX_ROWS} candidates`}</div>
           </div>
           <Button variant="ghost" icon="Upload" onClick={() => fileRef.current?.click()} disabled={importing}>{rows ? 'Replace file' : 'Choose file'}</Button>
           {rows && <button className="ta-iconbtn" onClick={reset} aria-label="Remove file" disabled={importing}><Icon name="X" size={15} /></button>}
-          <input ref={fileRef} type="file" accept=".csv,.txt" hidden onChange={(e) => { handleFile(e.target.files); e.target.value = ''; }} />
+          <input ref={fileRef} type="file" accept=".csv" hidden onChange={(e) => { handleFile(e.target.files); e.target.value = ''; }} />
         </div>
       </Card>
 

@@ -88,12 +88,14 @@ function dateRangeFor(preset, customFrom, customTo) {
   return { from: null, to: null };
 }
 
-// Compact column set — Candidate ID, email, phone, application ID,
-// creation source and created date all still show, just inside the
-// quick-view drawer (the Eye icon / clicking a board card) instead of
-// widening the table into a horizontal scrollbar.
+// Candidate ID and Experience get their own sortable columns (defaults to
+// highest-experience-first) — email, phone, application ID, creation source
+// and created date still live in the quick-view drawer (the Eye icon /
+// clicking a board card) instead of widening the table further.
 const COLUMNS = [
   { key: 'name', label: 'Candidate', sortable: true },
+  { key: 'candidateCode', label: 'Candidate ID', sortable: true },
+  { key: 'experience', label: 'Experience', sortable: true },
   { key: 'job', label: 'Job Applied', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'assignedToName', label: 'Assigned TA' },
@@ -270,7 +272,8 @@ export default function TACandidatesPage() {
   const view = useCollectionView(rows, {
     searchFields: ['name', 'email', 'phone', 'candidateCode', 'code', 'job', 'department', 'source', 'noticePeriod', 'assignedToName', 'status'],
     pageSize: 30,
-    initialSort: { key: 'submittedAt', dir: 'desc' },
+    // Highest experience first, freshest last.
+    initialSort: { key: 'experience', dir: 'desc' },
     initialFilters: Object.keys(initialFilters).length ? initialFilters : undefined,
   });
 
@@ -420,9 +423,10 @@ export default function TACandidatesPage() {
                 </td>
               )}
               <td>
-                <span className="ta-cell-cand__name">{r.name}</span><br />
-                <span className="ta-cell-cand__sub">{experienceLabel(r.experience)} · {r.candidateCode}</span>
+                <span className="ta-cell-cand__name">{r.name}</span>
               </td>
+              <td><Tag tone="grey">{r.candidateCode}</Tag></td>
+              <td className="ta-cell-strong">{experienceLabel(r.experience)}</td>
               <td>
                 <span className="ta-cell-strong">{r.job}</span><br />
                 <span className="ta-cell-sub">{r.department}</span>

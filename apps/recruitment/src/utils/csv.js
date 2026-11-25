@@ -2,7 +2,9 @@
    quotes, newlines) without pulling in a dependency for what's a small,
    well-understood format here. */
 
-export function parseCsv(text) {
+/* Tokenizes CSV text into raw rows of fields (no header interpretation) —
+   shared by the normal row/column parser below and the transposed one. */
+function parseCsvRows(text) {
   const rows = [];
   let row = [];
   let field = '';
@@ -33,7 +35,11 @@ export function parseCsv(text) {
   }
   if (field !== '' || row.length > 0) pushRow();
 
-  const clean = rows.filter((r) => !(r.length === 1 && r[0].trim() === ''));
+  return rows.filter((r) => !(r.length === 1 && r[0].trim() === ''));
+}
+
+export function parseCsv(text) {
+  const clean = parseCsvRows(text);
   if (!clean.length) return [];
   const headers = clean[0].map((h) => h.trim());
   return clean.slice(1).map((r) => Object.fromEntries(headers.map((h, i) => [h, (r[i] ?? '').trim()])));
@@ -50,28 +56,28 @@ export function toCsv(headers, rows) {
   return lines.join('\r\n');
 }
 
-/* Vertical "Label: value" block format — one record per block, blocks
-   separated by a blank line. Values round-trip through the same
-   { header: value } shape the row/column functions above produce, so every
-   existing form-mapping/validation function works unchanged either way. */
-export function toVerticalBlocks(headers, rows) {
-  const block = (r) => headers.map((h) => `${h}: ${String(r[h] ?? '')}`).join('\n');
-  return rows.map(block).join('\n\n');
+/* Transposed table — field labels down column A, one additional column per
+   record (matches a layout some TAs already paste candidates into: Name,
+   Number, Email id... as row labels, with each candidate going across).
+   Still real comma-separated CSV, just transposed, and round-trips through
+   the same { header: value } row shape as the normal functions above, so
+   every existing form-mapping/validation function works unchanged. */
+export function toTransposedCsv(headers, rows) {
+  const lines = headers.map((h) => [h, ...rows.map((r) => String(r[h] ?? ''))].map(csvField).join(','));
+  return lines.join('\r\n');
 }
 
-export function parseVerticalBlocks(text) {
-  const s = text.replace(/^﻿/, '').replace(/\r\n/g, '\n'); // strip a BOM from Excel-saved files
-  const blocks = s.split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
-  return blocks.map((block) => {
-    const row = {};
-    block.split('\n').forEach((line) => {
-      const i = line.indexOf(':');
-      if (i === -1) return;
-      const label = line.slice(0, i).trim();
-      if (label) row[label] = line.slice(i + 1).trim();
-    });
-    return row;
+export function parseTransposedCsv(text) {
+  const grid = parseCsvRows(text);
+  if (!grid.length) return [];
+  const count = Math.max(0, ...grid.map((r) => r.length - 1));
+  const records = Array.from({ length: count }, () => ({}));
+  grid.forEach((r) => {
+    const label = (r[0] ?? '').trim();
+    if (!label) return;
+    for (let i = 0; i < count; i++) records[i][label] = (r[i + 1] ?? '').trim();
   });
+  return records;
 }
 
 export function downloadCsv(filename, csvText) {
