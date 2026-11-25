@@ -4,7 +4,7 @@ import { useState } from 'react';
    Hover a slice (or its legend row): the slice pops out, the rest dim, and
    the centre shows that slice's numbers. `slices` = [{ label, value, color }].
    Pass `onSliceClick(label)` to make slices clickable (e.g. to drill into a filtered list). */
-export default function DonutChart({ slices, caption = 'Total', onSliceClick }) {
+export default function DonutChart({ slices, caption = 'Total', onSliceClick, className = '', hideLegend = false }) {
   const [hover, setHover] = useState(null); // hovered slice label
   const clickable = typeof onSliceClick === 'function';
   const total = slices.reduce((sum, s) => sum + s.value, 0) || 1;
@@ -35,7 +35,7 @@ export default function DonutChart({ slices, caption = 'Total', onSliceClick }) 
   const shown = hover ? slices.find((s) => s.label === hover) : null;
 
   return (
-    <div className="ta-donut-wrap" onMouseLeave={() => setHover(null)}>
+    <div className={`ta-donut-wrap${hideLegend ? ' ta-donut-wrap--no-legend' : ''}${className ? ` ${className}` : ''}`} onMouseLeave={() => setHover(null)}>
       <div className="ta-donut">
         <svg viewBox={`0 0 ${size} ${size}`} aria-hidden="true">
           <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="var(--ta-line)" strokeWidth={stroke} />
@@ -66,7 +66,7 @@ export default function DonutChart({ slices, caption = 'Total', onSliceClick }) 
         </div>
       </div>
 
-      <div className="ta-legend">
+      <div className="ta-legend" style={hideLegend ? { display: 'none' } : undefined}>
         {slices.map((s) => (
           <div
             className={`ta-legend__row${hover === s.label ? ' is-hover' : ''}${hover && hover !== s.label ? ' is-dim' : ''}`}

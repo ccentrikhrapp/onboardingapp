@@ -4,6 +4,7 @@ import Icon from '../../components/common/Icon.jsx';
 import TAHeader from '../../components/ta/TAHeader.jsx';
 import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
+import RowMenu from '../../components/ta/RowMenu.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
 import AvatarStack from '../../components/ta/AvatarStack.jsx';
@@ -13,13 +14,14 @@ import RescheduleInterviewModal from '../../components/workflow/RescheduleInterv
 import InterviewFeedbackModal from '../../components/workflow/InterviewFeedbackModal.jsx';
 import { Modal, Drawer } from '../../components/common/Modal.jsx';
 import { Field, Input } from '../../components/ta/Field.jsx';
-import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi, resendTaCandidateVerification, assignApplications, deleteApplication } from '../../api/applications.js';
+import { getApplication, getApplicationEvents, decideApplication, startReview as startReviewApi, resendTaCandidateVerification, assignApplications, deleteApplication, listApplications } from '../../api/applications.js';
 import { listInterviewRounds, scheduleInterview, recordInterviewFeedback, resendInterviewInvitation, rescheduleInterviewRound, freezeCandidate } from '../../api/interviews.js';
 import { getOfferStatus, getOffer, sendOffer, acceptOffer } from '../../api/offers.js';
 import { listApplicationDocuments } from '../../api/documents.js';
 import { summarizeDocuments } from '../../utils/documentRules.js';
 import TADocumentReview from '../../components/ta/TADocumentReview.jsx';
 import ResumeViewer from '../../components/ta/ResumeViewer.jsx';
+import NotesPanel from '../../components/ta/NotesPanel.jsx';
 import { resumeUrl } from '../../api/resumes.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -31,7 +33,7 @@ import {
   stageIndexForStatus,
   stageBadgeForStatus,
 } from '../../constants/statuses.js';
-import { formatDate, initialsOf } from '../../utils/format.js';
+import { formatDate } from '../../utils/format.js';
 
 const IN_INTERVIEW = [
   APP_STATUS.INTERVIEW_PLANNING, APP_STATUS.INTERVIEW_IN_PROGRESS,
@@ -125,32 +127,35 @@ function AtsCard({ ats }) {
   );
 }
 
-const STAGE_ICON = {
-  application: 'FileText', ta_review: 'Eye', interview: 'CalendarDays',
-  documents: 'FileCheck', offer: 'Gift', onboarding_verification: 'ShieldCheck', onboarding: 'UserRoundCheck',
-};
 const STAGE_LABEL = {
   application: 'Applied', ta_review: 'Screening', interview: 'Interview',
   documents: 'Documents', offer: 'Offer', onboarding_verification: 'Verification', onboarding: 'Hired',
 };
-/* Horizontal stage stepper — built from the same PIPELINE_STAGES/
-   stageIndexForStatus this app already uses for the table badge, just
-   drawn as nodes + a connecting line instead of a flat progress bar. */
-function StageStepper({ status }) {
+/* Horizontal stage stepper — built from the real PIPELINE_STAGES/
+   stageIndexForStatus this app already uses for the table badge. Every
+   configured stage renders (upcoming ones in grey, with no date — a date
+   only appears once a stage is actually reached), so the full real
+   workflow shape is visible, not just how far this one candidate got. */
+function StageStepper({ status, submittedAt, events, rejected }) {
   const currentIdx = stageIndexForStatus(status);
+  const enteredCurrentAt = events?.length ? events[events.length - 1].at : null;
   return (
     <div className="ta-stagesteps">
-      {PIPELINE_STAGES.map((s, i) => (
-        <Fragment key={s.key}>
-          <div className={`ta-stagesteps__step${i === currentIdx ? ' is-current' : ''}${i < currentIdx ? ' is-done' : ''}`}>
-            <span className="ta-stagesteps__dot">
-              {i < currentIdx ? <Icon name="Check" size={13} /> : <Icon name={STAGE_ICON[s.key]} size={13} />}
-            </span>
-            <span className="ta-stagesteps__label">{STAGE_LABEL[s.key]}</span>
-          </div>
-          {i < PIPELINE_STAGES.length - 1 && <span className={`ta-stagesteps__sep${i < currentIdx ? ' is-done' : ''}`} />}
-        </Fragment>
-      ))}
+      {PIPELINE_STAGES.map((s, i) => {
+        const date = i === 0 ? submittedAt : i === currentIdx ? enteredCurrentAt : null;
+        const isCurrent = i === currentIdx;
+        const isDone = i < currentIdx;
+        return (
+          <Fragment key={s.key}>
+            <div className={`ta-stagesteps__step${isCurrent ? (rejected ? ' is-rejected' : ' is-current') : ''}${isDone ? ' is-done' : ''}`}>
+              <span className="ta-stagesteps__dot">{isDone ? <Icon name="Check" size={12} /> : i + 1}</span>
+              <span className="ta-stagesteps__label">{STAGE_LABEL[s.key]}</span>
+              {date && <span className="ta-stagesteps__date">{formatDate(date)}</span>}
+            </div>
+            {i < PIPELINE_STAGES.length - 1 && <span className={`ta-stagesteps__sep${isDone ? ' is-done' : ''}`} />}
+          </Fragment>
+        );
+      })}
     </div>
   );
 }
@@ -160,6 +165,17 @@ function Info({ label, value }) {
     <div className="ta-info__item">
       <span className="ta-info__label">{label}</span>
       <span className="ta-info__value">{value || '—'}</span>
+    </div>
+  );
+}
+
+/* Small pill above the workflow card's heading — same step label the
+   stepper above already shows, just repeated as a quiet badge. */
+function WorkflowTitle({ step, label }) {
+  return (
+    <div>
+      <span className="ta-workflow-pill"><Icon name="ClipboardList" size={13} /> {label}</span>
+      <div className="ta-workflow-title">Step {step} · {label}</div>
     </div>
   );
 }
@@ -243,6 +259,19 @@ export default function TACandidateDetailPage() {
 
   const app = remote.app;
 
+  // Prev/Next through the candidate queue — same default order as the Job
+  // Candidates table (newest submission first), fetched once so this works
+  // no matter which page the TA arrived from.
+  const [queue, setQueue] = useState(null);
+  useEffect(() => {
+    listApplications()
+      .then((list) => setQueue((list || []).map((r) => r.id)))
+      .catch(() => setQueue([]));
+  }, []);
+  const queueIndex = queue ? queue.indexOf(candidateId) : -1;
+  const prevId = queue && queueIndex > 0 ? queue[queueIndex - 1] : null;
+  const nextId = queue && queueIndex >= 0 && queueIndex < queue.length - 1 ? queue[queueIndex + 1] : null;
+
   // Pipeline is shown one page at a time (Step 1/2/3), not stacked. Opening
   // the candidate lands on whichever page they're currently at; completing
   // a step's action (advance, request documents, send offer...) moves the
@@ -271,6 +300,7 @@ export default function TACandidateDetailPage() {
   // information were previously flattened into one six-item tab row.
   const [section, setSection] = useState('overview');
   const [activityOpen, setActivityOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
   const [showAllAct, setShowAllAct] = useState(false);
   const [rounds, setRounds] = useState([]);
   // HR is always the final round: once it exists nothing else can be scheduled,
@@ -367,6 +397,16 @@ export default function TACandidateDetailPage() {
   const badge = stageBadgeForStatus(app.status);
 
   const rejected = app.status === APP_STATUS.REJECTED;
+  const enteredCurrentAt = app.events?.length ? app.events[app.events.length - 1].at : app.submittedAt;
+  const daysInStage = enteredCurrentAt
+    ? Math.max(0, Math.floor((Date.now() - new Date(enteredCurrentAt).getTime()) / 86400000))
+    : null;
+
+  // The button text reads from the real configured pipeline order
+  // (PIPELINE_STAGES), not a hardcoded label — it always names whatever
+  // stage actually comes next for this status.
+  const nextStage = PIPELINE_STAGES[stageIndexForStatus(app.status) + 1];
+  const advanceLabel = nextStage ? `Proceed to ${STAGE_LABEL[nextStage.key]}` : 'Mark as Hired';
 
   const doAssign = async () => {
     if (!assignTo) return;
@@ -548,69 +588,121 @@ export default function TACandidateDetailPage() {
 
   return (
     <>
-      <TAHeader
-        title={name}
-        subtitle={`${app.candidateId}${app.candidateCode ? ` · ${app.candidateCode}` : ''} · applied for ${app.jobTitle}`}
-        backTo="/ta/candidates"
-        backLabel="Candidates"
-      />
+      <TAHeader />
+
+      <div className="ta-candnav">
+        <button type="button" className="ta-topbar__back" onClick={() => navigate('/ta/candidates')}>
+          <Icon name="ArrowLeft" size={13} /> Candidates
+        </button>
+        <span className="ta-candnav__crumb">/ Candidate Profile</span>
+        {queueIndex >= 0 && (
+          <>
+            <span className="ta-candnav__pos">{queueIndex + 1} of {queue.length} candidates</span>
+            <span className="ta-candnav__btns">
+              <button type="button" className="ta-btn ta-btn--pill" disabled={!prevId} onClick={() => navigate(`/ta/candidates/${prevId}`)}>
+                <Icon name="ChevronLeft" size={14} /> Prev
+              </button>
+              <button type="button" className="ta-btn ta-btn--gradient ta-btn--pill" disabled={!nextId} onClick={() => navigate(`/ta/candidates/${nextId}`)}>
+                Next <Icon name="ChevronRight" size={14} />
+              </button>
+            </span>
+          </>
+        )}
+      </div>
 
       {/* ---------- Candidate identity header — name, IDs, job, status and
           the cross-cutting actions (reassign, open Activity) all stay
           visible no matter which of the 4 info tiles below is open. ---------- */}
       <Card>
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-          <div className="ta-profile-avatar">
-            {initialsOf(name) || <Icon name="UserRound" size={22} />}
-          </div>
           <div style={{ flex: 1, minWidth: 220 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-              <strong style={{ fontSize: 19 }}>{name}</strong>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <strong className="ta-profile-name">{name}</strong>
               <Tag tone={badge.tone}>{badge.label}</Tag>
+            </div>
+            <div className="ta-cell-sub">
+              {app.candidateId}{app.candidateCode ? ` · ${app.candidateCode}` : ''} · applied for <span className="ta-candnav__jobtitle">{app.jobTitle}</span>
             </div>
             {(pr.currentJobTitle || p.currentLocation) && (
               <div className="ta-profile-meta">
-                {pr.currentJobTitle && (
-                  <span><Icon name="Briefcase" size={13} /> {pr.currentJobTitle}{pr.currentCompany ? ` at ${pr.currentCompany}` : ''}</span>
-                )}
+                {pr.currentJobTitle && <span><Icon name="Briefcase" size={13} /> {pr.currentJobTitle}{pr.currentCompany ? ` at ${pr.currentCompany}` : ''}</span>}
                 {p.currentLocation && <span><Icon name="MapPin" size={13} /> {p.currentLocation}</span>}
               </div>
             )}
           </div>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
             {isAdminTier && (
               <>
-                <select className="ta-select" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} aria-label="Assign to">
+                <select className="ta-select ta-select--pill" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} aria-label="Assign to">
                   <option value="">{app.assignedTaId ? `Reassign (now: ${app.assignedTo || 'Unassigned'})` : 'Assign to…'}</option>
                   {tas.map((t) => <option key={t.id} value={t.id}>{t.full_name || t.email}</option>)}
                 </select>
-                <Button onClick={doAssign} disabled={!assignTo || assigning}>{assigning ? 'Assigning…' : 'Assign'}</Button>
+                {assignTo && <Button variant="ghost" onClick={doAssign} disabled={assigning}>{assigning ? 'Assigning…' : 'Assign'}</Button>}
               </>
             )}
-            {/* Activity is contextual history, not a candidate-info section —
-                a side drawer the TA opens on demand, not a permanent block
-                of page width. */}
-            <Button variant="ghost" icon="History" onClick={() => setActivityOpen(true)}>Activity</Button>
+            {/* Activity/Notes are contextual side drawers, not primary actions —
+                tucked behind one overflow menu so Send Email is the only
+                obviously-primary button in this row. */}
+            <RowMenu items={[
+              { label: 'Activity', onClick: () => setActivityOpen(true) },
+              { label: 'Notes', onClick: () => setNotesOpen(true) },
+            ]} />
             {p.email && (
-              <a className="ta-btn ta-btn--primary" href={`mailto:${p.email}`}>
-                <Icon name="Mail" size={14} /> Send Email
-              </a>
+              <a className="ta-btn ta-btn--gradient" href={`mailto:${p.email}`}><Icon name="Mail" size={14} /> Send Email</a>
             )}
           </div>
         </div>
 
-        <div className="ta-profile-stats">
-          <div><span className="ta-info__label">Applied on</span><span className="ta-info__value">{formatDate(app.submittedAt)}</span></div>
-          <div><span className="ta-info__label">Job Applied</span><span className="ta-info__value">{app.jobTitle}</span></div>
-          <div><span className="ta-info__label">Current Stage</span><span className="ta-info__value">{badge.label}</span></div>
+        {/* Real fields only — a compact structured strip, not dashboard-style
+            statistic tiles: subtle tints, thin separators, small icons. */}
+        <div className="ta-infostrip">
+          <div className="ta-infostrip__item ta-infostrip__item--blue">
+            <Icon name="GraduationCap" size={14} />
+            <div><span className="ta-infostrip__label">Experience</span><span className="ta-infostrip__value">{pr.totalExperience ? `${pr.totalExperience} yrs` : '—'}</span></div>
+          </div>
+          <div className="ta-infostrip__item ta-infostrip__item--green">
+            <Icon name="Clock3" size={14} />
+            <div><span className="ta-infostrip__label">Notice Period</span><span className="ta-infostrip__value">{pr.noticePeriod || '—'}</span></div>
+          </div>
+          <div className="ta-infostrip__item ta-infostrip__item--purple">
+            <Icon name="FileText" size={14} />
+            <div><span className="ta-infostrip__label">Application Type</span><span className="ta-infostrip__value">{app.isGeneral ? 'General' : 'Specific vacancy'}</span></div>
+          </div>
+          <div className="ta-infostrip__item ta-infostrip__item--orange">
+            <Icon name="Globe" size={14} />
+            <div><span className="ta-infostrip__label">Source</span><span className="ta-infostrip__value">{app.source || '—'}</span></div>
+          </div>
+          <div className="ta-infostrip__item ta-infostrip__item--teal">
+            <Icon name="CalendarDays" size={14} />
+            <div><span className="ta-infostrip__label">Submitted</span><span className="ta-infostrip__value">{formatDate(app.submittedAt)}</span></div>
+          </div>
+          <div className="ta-infostrip__item ta-infostrip__item--blue">
+            <Icon name="UserRoundCheck" size={14} />
+            <div><span className="ta-infostrip__label">Assigned To</span><span className="ta-infostrip__value">{app.assignedTo || 'Unassigned'}</span></div>
+          </div>
           {openRound?.scheduled_at && (
-            <div><span className="ta-info__label">Next Interview</span><span className="ta-info__value">{formatDate(openRound.scheduled_at)}</span></div>
+            <div className="ta-infostrip__item ta-infostrip__item--purple">
+              <Icon name="CalendarClock" size={14} />
+              <div><span className="ta-infostrip__label">Next Interview</span><span className="ta-infostrip__value">{formatDate(openRound.scheduled_at)}</span></div>
+            </div>
           )}
         </div>
 
         {/* Replaces the old flat progress bar — the same stage data
-            (stageIndexForStatus/PIPELINE_STAGES), drawn as a stepper. */}
-        {!rejected && <StageStepper status={app.status} />}
+            (stageIndexForStatus/PIPELINE_STAGES), drawn as a stepper. Shown
+            even when rejected, so the timeline shows exactly where the
+            application was closed. */}
+        {(
+          <div className="ta-stagesteps-row">
+            <StageStepper status={app.status} submittedAt={app.submittedAt} events={app.events} rejected={rejected} />
+            {!rejected && daysInStage != null && (
+              <div className="ta-stagesteps-days">
+                <span className="ta-stagesteps-days__n">{daysInStage}</span>
+                <span className="ta-stagesteps-days__label">day{daysInStage === 1 ? '' : 's'} in current stage</span>
+              </div>
+            )}
+          </div>
+        )}
         {app.status === APP_STATUS.RETURNED && (
           <div className="ta-note ta-note--warn" style={{ marginTop: 12, marginBottom: 0 }}><Icon name="RotateCcw" size={15} /> Returned to candidate: {app.returnReason}</div>
         )}
@@ -634,17 +726,17 @@ export default function TACandidateDetailPage() {
           belongs alongside Overview/Contact/Experience/Resume, which are
           all "information about this person", not process state. ---------- */}
       <Card bodyStyle={{ padding: 0 }}>
-        <div className="ta-ptabs" style={{ padding: '10px 14px 0' }}>
+        <div className="ta-pilltabs" style={{ margin: 14 }}>
           {[
             ['overview', 'Overview', 'LayoutDashboard'],
-            ['contact', 'Contact & Profile', 'Mail'],
+            ['contact', 'Contact & Profile', 'User'],
             ['experience', 'Experience & Education', 'GraduationCap'],
             ['resume', 'Full Resume', 'FileText'],
           ].map(([k, label, icon]) => (
             <button
               key={k}
               type="button"
-              className={`ta-ptab${section === k ? ' is-active' : ''}`}
+              className={`ta-pilltabs__tab${section === k ? ' active' : ''}`}
               aria-current={section === k ? 'page' : undefined}
               onClick={() => (k === 'resume' ? openResume() : setSection(k))}
             >
@@ -656,10 +748,9 @@ export default function TACandidateDetailPage() {
 
         {section === 'overview' && (
           <div className="ta-snapshot">
-            <div className="ta-snapshot__stage">
-              <span className="ta-info__label">Current stage</span>
-              <Tag tone={badge.tone}>{badge.label}</Tag>
-            </div>
+            {/* Current stage (the Tag next to the name), current role and
+                location (the sub-line under the name) are already visible
+                in the header above — not repeated here. */}
             <dl className="ta-snapshot__list">
               {[
                 // Section 8 of the onboarding workflow: once HR converts
@@ -669,17 +760,10 @@ export default function TACandidateDetailPage() {
                 app.additional?.employeeCode
                   ? ['Converted on', formatDate(app.events.find((e) => e.title === 'Employee ID Created')?.at)]
                   : null,
-                ['Current role', pr.currentJobTitle ? `${pr.currentJobTitle}${pr.currentCompany ? ` @ ${pr.currentCompany}` : ''}` : null],
-                ['Experience', pr.totalExperience ? `${pr.totalExperience} yrs` : null],
-                // Notice period only makes sense for someone currently employed —
-                // never shown here for a fresher (0 years experience).
-                Number(pr.totalExperience) > 0 ? ['Notice period', pr.noticePeriod || 'Not specified'] : null,
+                // Experience, notice period, application type, source,
+                // submitted date and assigned TA are already shown in the
+                // info strip above — not repeated here.
                 ['Last working day', pr.lastWorkingDay ? formatDate(pr.lastWorkingDay) : null],
-                ['Location', p.currentLocation ? `${p.currentLocation}${p.preferredLocation && p.preferredLocation !== p.currentLocation ? ` → ${p.preferredLocation}` : ''}` : null],
-                ['Application', app.isGeneral ? 'General' : 'Specific vacancy'],
-                ['Source', app.source || null],
-                ['Submitted', formatDate(app.submittedAt)],
-                ['Assigned to', app.assignedTo || null],
               ].filter(Boolean).filter(([, v]) => v).map(([k, v]) => (
                 <div key={k}><dt>{k}</dt><dd>{v}</dd></div>
               ))}
@@ -781,14 +865,14 @@ export default function TACandidateDetailPage() {
               </Button>
             </Card>
       ) : activeStep === 1 ? (
-            <Card title="Step 1 · Application review">
+            <Card className="ta-workflow-card" title={<WorkflowTitle step={1} label="Application review" />}>
                 {IN_REVIEW.includes(app.status) ? (
               <>
                 <p className="ta-cell-sub" style={{ marginBottom: 12 }}>
                   Check the profile against the role, then take the candidate forward to interviews or send the application back.
                 </p>
                 <div className="ta-btnrow">
-                  <Button icon="CheckCircle2" disabled={busy} onClick={() => decide('advance', null, 'Candidate advanced to the interview stage.')}>Advance candidate</Button>
+                  <Button className="ta-btn--gradient" icon="ArrowRight" disabled={busy} onClick={() => decide('advance', null, 'Candidate advanced to the interview stage.')}>{advanceLabel}</Button>
                   <Button variant="ghost" icon="RotateCcw" disabled={busy} onClick={() => setModal('return')}>Request update</Button>
                   <Button variant="ghost" icon="XCircle" disabled={busy} onClick={() => setModal('reject')}>Close application</Button>
                 </div>
@@ -935,7 +1019,7 @@ export default function TACandidateDetailPage() {
           )}
 
           {activeStep === 4 && (
-            <Card title="Step 4 · Offer">
+            <Card className="ta-workflow-card" title={<WorkflowTitle step={4} label="Offer" />}>
               {OFFER_SENT_STAGE.includes(app.status) && offer ? (
                 <>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
@@ -1022,6 +1106,11 @@ export default function TACandidateDetailPage() {
             )}
           </>
         )}
+      </Drawer>
+
+      <Drawer open={notesOpen} onClose={() => setNotesOpen(false)} title="Notes">
+        <p className="ta-cell-sub" style={{ marginBottom: 14 }}>Internal notes for the team — the candidate never sees these.</p>
+        <NotesPanel applicationId={candidateId} />
       </Drawer>
 
       <ReasonModal

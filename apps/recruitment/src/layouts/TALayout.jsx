@@ -1,17 +1,9 @@
 import { Suspense, useMemo, useState } from 'react';
 import { SkeletonPage } from '../components/common/States.jsx';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import TATopNav from '../components/navigation/TATopNav.jsx';
+import { Outlet, useLocation } from 'react-router-dom';
+import TATopNav3 from '../components/navigation/TATopNav3.jsx';
 import TATopbar from '../components/navigation/TATopbar.jsx';
-import Icon from '../components/common/Icon.jsx';
 import ConnectGoogleBanner from '../components/auth/ConnectGoogleBanner.jsx';
-
-const BOTTOM_NAV = [
-  { to: '/ta', label: 'Dashboard', icon: 'Home', end: true },
-  { to: '/ta/pipeline', label: 'Pipeline', icon: 'UsersRound' },
-  { to: '/ta/candidates', label: 'Job Candidates', icon: 'Users' },
-  { to: '/ta/jobs', label: 'Jobs', icon: 'Briefcase' },
-];
 
 export default function TALayout() {
   const [head, setHead] = useState(null);
@@ -21,7 +13,7 @@ export default function TALayout() {
 
   return (
     <div className="ta-shell ta-shell--topnav">
-      <TATopNav />
+      <TATopNav3 />
 
       <div className="ta-main">
         <TATopbar head={head} />
@@ -30,20 +22,6 @@ export default function TALayout() {
           <Suspense fallback={<SkeletonPage />}><Outlet context={ctx} /></Suspense>
         </div>
       </div>
-
-      <nav className="ta-bottomnav">
-        {BOTTOM_NAV.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.end}
-            className={({ isActive }) => `ta-bottomnav__link${isActive ? ' active' : ''}`}
-          >
-            <Icon name={item.icon} size={19} />
-            {item.label}
-          </NavLink>
-        ))}
-      </nav>
     </div>
   );
 }

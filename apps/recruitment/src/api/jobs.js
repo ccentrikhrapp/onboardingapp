@@ -48,6 +48,29 @@ export function createJob(payload) {
   return supabase.from('jobs').insert(row).select(COLUMNS).single().then(unwrap);
 }
 
+/** Admin tier only (RLS jobs_manage_admin_tier). Keeps the job_code and
+    status untouched — editing details doesn't republish a closed job. */
+export function updateJob(id, payload) {
+  const row = {
+    title: payload.title,
+    department: payload.department || null,
+    location: payload.location || null,
+    work_mode: payload.workMode || null,
+    employment_type: payload.employmentType || null,
+    experience: payload.experience || null,
+    description: payload.description || null,
+    responsibilities: payload.responsibilities || [],
+    required_skills: payload.requiredSkills || [],
+    qualifications: payload.qualifications || [],
+    preferred_skills: payload.preferredSkills || [],
+    benefits: payload.benefits || [],
+    deadline: payload.deadline || null,
+    application_limit: payload.applicationLimit ? Number(payload.applicationLimit) : null,
+    interview_plan: payload.interviewPlan?.length ? payload.interviewPlan : null,
+  };
+  return supabase.from('jobs').update(row).eq('id', id).select(COLUMNS).single().then(unwrap);
+}
+
 export function deleteJob(id) {
   return supabase.from('jobs').delete().eq('id', id).then(unwrap);
 }

@@ -22,6 +22,7 @@ export function jobFromDb(row) {
     preferredSkills: row.preferred_skills || [],
     benefits: row.benefits || [],
     status: row.status,
+    createdAt: row.created_at || null,
   };
 }
 

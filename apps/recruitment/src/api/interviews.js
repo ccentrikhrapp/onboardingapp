@@ -36,6 +36,20 @@ export async function listInterviewRounds(applicationId, client = supabase) {
   }));
 }
 
+/** Dashboard: the next scheduled interviews across every application the
+    caller can see (RLS already scopes this to "my assigned candidates" for
+    a plain TA, the whole pipeline for HR/admin — same as everywhere else). */
+export async function listUpcomingInterviews(limit = 6) {
+  return supabase
+    .from('interview_rounds')
+    .select('id, application_id, name, scheduled_at, status, applications(candidates(first_name, last_name), jobs(title))')
+    .eq('status', 'scheduled')
+    .gte('scheduled_at', new Date().toISOString())
+    .order('scheduled_at', { ascending: true })
+    .limit(limit)
+    .then(unwrap);
+}
+
 export function scheduleInterview(payload) {
   return callFn('schedule-interview', { body: payload });
 }

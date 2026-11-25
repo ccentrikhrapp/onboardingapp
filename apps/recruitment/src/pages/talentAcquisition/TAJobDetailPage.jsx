@@ -6,15 +6,16 @@ import Card from '../../components/ta/Card.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
+import CreateJobDrawer from '../../components/workflow/CreateJobDrawer.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useAuth } from '../../context/AuthContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { createLink, setLinkActive, createConfidentialInvite, listConfidentialInvites } from '../../api/applicationLinks.js';
 import { Field, Input } from '../../components/ta/Field.jsx';
 import { emailError } from '../../utils/validation.js';
-import { listApplications } from '../../api/applications.js';
-import { APP_STATUS, stageIndexForStatus } from '../../constants/statuses.js';
-import { formatDate } from '../../utils/format.js';
+import { listApplications, listRecentEvents } from '../../api/applications.js';
+import { APP_STATUS, stageIndexForStatus, stageBadgeForStatus } from '../../constants/statuses.js';
+import { formatDate, formatDateTime, initialsOf, avatarToneOf } from '../../utils/format.js';
 import { SkeletonPage, SkeletonBlock, SkeletonLine } from '../../components/common/States.jsx';
 
 /* The TA's personal application link for this role. One link per (TA, job);
@@ -160,15 +161,26 @@ function List({ title, items }) {
   );
 }
 
+const TABS = [
+  { key: 'details', label: 'Job Details', icon: 'FileText' },
+  { key: 'candidates', label: 'Candidates', icon: 'Users' },
+  { key: 'timeline', label: 'Timeline & Notes', icon: 'History' },
+  { key: 'team', label: 'Hiring Team', icon: 'UsersRound' },
+  { key: 'settings', label: 'Settings', icon: 'Settings' },
+];
+
 export default function TAJobDetailPage() {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { getJob, deleteJob, role } = useApp();
+  const { getJob, updateJob, deleteJob, role } = useApp();
   const canManageJobs = role === 'admin' || role === 'admin_ta';
   const { configured } = useAuth();
   const toast = useToast();
   const job = getJob(jobId);
   const [applicants, setApplicants] = useState([]);
+  const [tab, setTab] = useState('details');
+  const [events, setEvents] = useState(null);
+  const [editing, setEditing] = useState(false);
 
   const removeJob = async () => {
     const ok = window.confirm(`Delete "${job.title}"? This can't be undone.`);
@@ -188,10 +200,28 @@ export default function TAJobDetailPage() {
       .catch(() => setApplicants([]));
   }, [jobId]);
 
+  useEffect(() => {
+    if (tab !== 'timeline' || events !== null) return;
+    listRecentEvents(200)
+      .then((list) => setEvents((list || []).filter((e) => e.applications?.jobs?.title === job?.title)))
+      .catch(() => setEvents([]));
+  }, [tab, events, job?.title]);
+
   const breakdown = BREAKDOWN.map((b) => ({
     ...b,
     value: applicants.filter((a) => a.status !== APP_STATUS.REJECTED && stageIndexForStatus(a.status) >= b.reach).length,
   }));
+
+  const hiringTeam = useMemo(() => {
+    const byTa = new Map();
+    let unassigned = 0;
+    applicants.forEach((a) => {
+      if (!a.assigned_ta_id) { unassigned += 1; return; }
+      const name = a.assigned_ta?.full_name || a.assigned_ta?.email || 'Unknown';
+      byTa.set(a.assigned_ta_id, { name, count: (byTa.get(a.assigned_ta_id)?.count || 0) + 1 });
+    });
+    return { members: [...byTa.values()].sort((x, y) => y.count - x.count), unassigned };
+  }, [applicants]);
 
   if (!job) {
     return (
@@ -204,7 +234,7 @@ export default function TAJobDetailPage() {
     <>
       <TAHeader
         title={job.title}
-        subtitle={`${job.department} · ${job.location} · ${job.employmentType} · ${job.workMode} · apply by ${formatDate(job.deadline)}`}
+        subtitle={`${job.code ? `${job.code} · ` : ''}${job.department} · ${job.location} · ${job.employmentType} · ${job.workMode} · posted ${formatDate(job.createdAt)} · apply by ${formatDate(job.deadline)}`}
         backTo="/ta/jobs"
         backLabel="Jobs"
       />
@@ -212,60 +242,186 @@ export default function TAJobDetailPage() {
       <div className="ta-page-actions">
         <Button icon="Users" onClick={() => navigate(`/ta/candidates?job=${encodeURIComponent(job.title)}`)}>View applicants</Button>
         {canManageJobs && (
+          <Button variant="ghost" icon="Pencil" onClick={() => setEditing(true)}>Edit job</Button>
+        )}
+        {canManageJobs && (
           <Button variant="danger" icon="Trash2" onClick={removeJob}>Delete job</Button>
         )}
       </div>
 
-      <div className="ta-detail-grid">
-        <Card>
-          <div style={{ marginBottom: 22 }}>
-            <h3 className="ta-card__title" style={{ marginBottom: 10 }}>About the role</h3>
-            <p className="ta-cell-mute" style={{ lineHeight: 1.7 }}>{job.description}</p>
-          </div>
-          <List title="Responsibilities" items={job.responsibilities} />
-          {job.requiredSkills?.length > 0 && (
-            <div style={{ marginBottom: 22 }}>
-              <h3 className="ta-card__title" style={{ marginBottom: 10 }}>Required skills</h3>
-              <div className="ta-skills">{job.requiredSkills.map((s) => <span key={s} className="ta-skill">{s}</span>)}</div>
-            </div>
-          )}
-          {job.preferredSkills?.length > 0 && (
-            <div style={{ marginBottom: 22 }}>
-              <h3 className="ta-card__title" style={{ marginBottom: 10 }}>Preferred skills</h3>
-              <div className="ta-skills">{job.preferredSkills.map((s) => <span key={s} className="ta-skill">{s}</span>)}</div>
-            </div>
-          )}
-          <List title="Qualifications" items={job.qualifications} />
-          <List title="What we offer" items={job.benefits} />
-        </Card>
+      <div className="ta-tabs">
+        {TABS.map((t) => (
+          <button key={t.key} className={`ta-tabs__tab${tab === t.key ? ' active' : ''}`} onClick={() => setTab(t.key)}>
+            <Icon name={t.icon} size={14} /> {t.label}
+          </button>
+        ))}
+      </div>
 
-        <div className="ta-stack">
-        {configured && <ApplicationLinkCard jobId={job.id} />}
-        {configured && <ConfidentialInviteCard jobId={job.id} />}
-        <Card title="Applicant pipeline">
+      {tab === 'details' && (
+        <div className="ta-detail-grid">
+          <Card>
+            <div style={{ marginBottom: 22 }}>
+              <h3 className="ta-card__title" style={{ marginBottom: 10 }}>About the role</h3>
+              <p className="ta-cell-mute" style={{ lineHeight: 1.7 }}>{job.description}</p>
+            </div>
+            <List title="Responsibilities" items={job.responsibilities} />
+            {job.requiredSkills?.length > 0 && (
+              <div style={{ marginBottom: 22 }}>
+                <h3 className="ta-card__title" style={{ marginBottom: 10 }}>Required skills</h3>
+                <div className="ta-skills">{job.requiredSkills.map((s) => <span key={s} className="ta-skill">{s}</span>)}</div>
+              </div>
+            )}
+            {job.preferredSkills?.length > 0 && (
+              <div style={{ marginBottom: 22 }}>
+                <h3 className="ta-card__title" style={{ marginBottom: 10 }}>Preferred skills</h3>
+                <div className="ta-skills">{job.preferredSkills.map((s) => <span key={s} className="ta-skill">{s}</span>)}</div>
+              </div>
+            )}
+            <List title="Qualifications" items={job.qualifications} />
+            <List title="What we offer" items={job.benefits} />
+          </Card>
+
+          <div className="ta-stack">
+            <Card title="Applicant pipeline">
+              {applicants.length === 0 ? (
+                <p className="ta-cell-mute">No applicants yet for this role.</p>
+              ) : (
+                <div className="ta-pipe">
+                  {breakdown.map((b) => (
+                    <div className="ta-pipe__row" key={b.label} style={{ cursor: 'default' }}>
+                      <span className="ta-pipe__icon" style={{ '--p-bg': `var(--tag-${b.tone}-bg)`, '--p-fg': `var(--tag-${b.tone}-fg)` }}>
+                        <Icon name="CircleDot" size={13} />
+                      </span>
+                      <span className="ta-pipe__label">{b.label}</span>
+                      <span className="ta-pipe__count">{b.value}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div style={{ marginTop: 16 }}>
+                <Button variant="ghost" iconRight="ArrowRight" onClick={() => navigate(`/ta/candidates?job=${encodeURIComponent(job.title)}`)}>
+                  Open in candidates
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {tab === 'candidates' && (
+        <Card>
           {applicants.length === 0 ? (
             <p className="ta-cell-mute">No applicants yet for this role.</p>
           ) : (
-            <div className="ta-pipe">
-              {breakdown.map((b) => (
-                <div className="ta-pipe__row" key={b.label} style={{ cursor: 'default' }}>
-                  <span className="ta-pipe__icon" style={{ '--p-bg': `var(--tag-${b.tone}-bg)`, '--p-fg': `var(--tag-${b.tone}-fg)` }}>
-                    <Icon name="CircleDot" size={13} />
-                  </span>
-                  <span className="ta-pipe__label">{b.label}</span>
-                  <span className="ta-pipe__count">{b.value}</span>
-                </div>
-              ))}
+            <div className="ta-stack">
+              {applicants.map((a) => {
+                const name = `${a.candidates?.first_name || ''} ${a.candidates?.last_name || ''}`.trim() || a.candidates?.email || 'Candidate';
+                const badge = stageBadgeForStatus(a.status);
+                return (
+                  <button key={a.id} className="ta-jobcandrow" onClick={() => navigate(`/ta/candidates/${a.id}`)}>
+                    <span className="ta-jobcandrow__name">
+                      <span className="ta-cell-cand__name">{name}</span><br />
+                      <span className="ta-cell-cand__sub">{a.candidates?.candidate_code || a.application_code}</span>
+                    </span>
+                    <Tag tone={badge.tone}>{badge.label}</Tag>
+                    <span className="ta-cell-mute">{a.assigned_ta?.full_name || a.assigned_ta?.email || 'Unassigned'}</span>
+                    <Icon name="ChevronRight" size={16} />
+                  </button>
+                );
+              })}
             </div>
           )}
           <div style={{ marginTop: 16 }}>
             <Button variant="ghost" iconRight="ArrowRight" onClick={() => navigate(`/ta/candidates?job=${encodeURIComponent(job.title)}`)}>
-              Open in candidates
+              Open full candidates view
             </Button>
           </div>
         </Card>
+      )}
+
+      {tab === 'timeline' && (
+        <div className="ta-stack">
+          <Card title="Timeline">
+            {events === null ? (
+              <SkeletonBlock lines={4} />
+            ) : events.length === 0 ? (
+              <p className="ta-cell-mute">No activity yet for this role's applicants.</p>
+            ) : (
+              <ol className="ta-timeline">
+                {events.map((e) => (
+                  <li key={e.id}>
+                    <span className="ta-timeline__dot"><Icon name="Check" size={9} /></span>
+                    <div>
+                      <div className="ta-cell-strong">{e.title}{e.description ? ` — ${e.description}` : ''}</div>
+                      <div className="ta-cell-sub">{formatDateTime(e.created_at)}{e.actor_label ? ` · ${e.actor_label}` : ''}</div>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </Card>
+          <Card title="Notes">
+            <p className="ta-cell-mute">
+              Notes live on each candidate's own thread — open a candidate from the Candidates tab (or the quick-view on Job Candidates) to read or add one.
+            </p>
+          </Card>
         </div>
-      </div>
+      )}
+
+      {tab === 'team' && (
+        <Card title="Hiring team">
+          {hiringTeam.members.length === 0 && hiringTeam.unassigned === 0 ? (
+            <p className="ta-cell-mute">No applicants yet, so no one's assigned.</p>
+          ) : (
+            <div className="ta-stack">
+              {hiringTeam.members.map((m) => (
+                <div key={m.name} className="ta-jobteamrow">
+                  <span className={`ta-avatar ta-avatar--${avatarToneOf(m.name)}`}>{initialsOf(m.name)}</span>
+                  <span className="ta-cell-strong grow">{m.name}</span>
+                  <span className="ta-cell-mute">{m.count} candidate{m.count === 1 ? '' : 's'}</span>
+                </div>
+              ))}
+              {hiringTeam.unassigned > 0 && (
+                <div className="ta-jobteamrow">
+                  <span className="ta-avatar ta-avatar--pink">?</span>
+                  <span className="ta-cell-strong grow">Unassigned</span>
+                  <span className="ta-cell-mute">{hiringTeam.unassigned} candidate{hiringTeam.unassigned === 1 ? '' : 's'}</span>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+      )}
+
+      {tab === 'settings' && (
+        <div className="ta-stack">
+          {configured && <ApplicationLinkCard jobId={job.id} />}
+          {configured && <ConfidentialInviteCard jobId={job.id} />}
+          {canManageJobs && (
+            <Card title="Danger zone">
+              <p className="ta-cell-mute" style={{ marginBottom: 10 }}>Deleting this job can't be undone.</p>
+              <Button variant="danger" icon="Trash2" onClick={removeJob}>Delete job</Button>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {canManageJobs && (
+        <CreateJobDrawer
+          open={editing}
+          job={job}
+          onClose={() => setEditing(false)}
+          onCreate={async (payload) => {
+            try {
+              await updateJob(job.id, payload);
+              setEditing(false);
+              toast.success(`${payload.title} updated.`);
+            } catch (e) {
+              toast.error(e.message || 'Could not update the job.');
+            }
+          }}
+        />
+      )}
     </>
   );
 }

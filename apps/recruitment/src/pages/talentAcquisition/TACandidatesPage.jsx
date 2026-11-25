@@ -3,17 +3,19 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import Icon from '../../components/common/Icon.jsx';
 import TAHeader from '../../components/ta/TAHeader.jsx';
 import DataGrid from '../../components/ta/DataGrid.jsx';
+import CandidateBoard from '../../components/ta/CandidateBoard.jsx';
+import CandidatePreviewDrawer from '../../components/ta/CandidatePreviewDrawer.jsx';
 import Toolbar from '../../components/ta/Toolbar.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import Button from '../../components/ta/Button.jsx';
+import RowMenu from '../../components/ta/RowMenu.jsx';
 import { useCollectionView } from '../../hooks/useCollectionView.js';
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
-import { listApplications, subscribeApplications, assignApplications, deleteApplication } from '../../api/applications.js';
+import { listApplications, subscribeApplications, assignApplications, deleteApplication, decideApplication } from '../../api/applications.js';
 import { listTAs } from '../../api/staff.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import { APP_STATUS, stageBadgeForStatus } from '../../constants/statuses.js';
-import { formatDate, initialsOf, avatarToneOf } from '../../utils/format.js';
 
 /* Friendly stage buckets for the filter dropdown. */
 const STAGE_GROUPS = {
@@ -27,6 +29,16 @@ const STAGE_GROUPS = {
     match: (s) => [APP_STATUS.ONBOARDING_PENDING, APP_STATUS.HR_VERIFICATION, APP_STATUS.HR_VERIFICATION_REJECTED, APP_STATUS.JOINING_PENDING, APP_STATUS.EMPLOYEE].includes(s),
   },
   rejected: { label: 'Rejected', match: (s) => [APP_STATUS.REJECTED, APP_STATUS.INTERVIEW_FAILED].includes(s) },
+};
+
+const STAGE_COLOR = {
+  applied: 'var(--ta-pastel-blue)',
+  screening: 'var(--ta-pastel-lavender)',
+  interview: 'var(--ta-pastel-amber)',
+  documents: 'var(--ta-pastel-peach)',
+  offer: 'var(--ta-pastel-pink)',
+  hired: 'var(--ta-pastel-green)',
+  rejected: '#C84F2F',
 };
 
 const EXPERIENCE = {
@@ -44,18 +56,6 @@ function experienceLabel(n) {
   return n <= 0 ? 'Fresher' : `${n}+ Years`;
 }
 
-// How an application entered the pipeline — public Job Portal apply, a TA's
-// shareable job link, or a TA/bulk-CSV created candidate.
-const SOURCE_LABEL = {
-  careers: 'Job Portal',
-  ta_link: 'Job Portal (TA link)',
-  ta_sourced: 'TA-created',
-};
-function creationSourceLabel(row) {
-  if (row.rawSource === 'ta_sourced' && row.createdVia === 'csv') return 'TA bulk upload';
-  if (row.rawSource === 'ta_sourced' && row.createdVia === 'pipeline') return 'From Pipeline';
-  return SOURCE_LABEL[row.rawSource] || row.rawSource || '—';
-}
 
 /* A TA-created candidate must click the verification link before their
    application is real (see verify-ta-candidate) — everyone else (public
@@ -88,19 +88,17 @@ function dateRangeFor(preset, customFrom, customTo) {
   return { from: null, to: null };
 }
 
+// Compact column set — Candidate ID, email, phone, application ID,
+// creation source and created date all still show, just inside the
+// quick-view drawer (the Eye icon / clicking a board card) instead of
+// widening the table into a horizontal scrollbar.
 const COLUMNS = [
   { key: 'name', label: 'Candidate', sortable: true },
-  { key: 'candidateCode', label: 'Candidate ID', sortable: true },
-  { key: 'email', label: 'Email' },
-  { key: 'phone', label: 'Phone' },
   { key: 'job', label: 'Job Applied', sortable: true },
-  { key: 'code', label: 'Application ID', sortable: true },
-  { key: 'creationSource', label: 'Creation Source' },
-  { key: 'createdAt', label: 'Created Date', sortable: true },
   { key: 'status', label: 'Status', sortable: true },
   { key: 'assignedToName', label: 'Assigned TA' },
   { key: 'verification', label: 'Verification Status' },
-  { key: 'actions', label: 'Actions' },
+  { key: 'actions', label: '' },
 ];
 
 export default function TACandidatesPage() {
@@ -110,12 +108,18 @@ export default function TACandidatesPage() {
   const toast = useToast();
   const isSuperTa = role === 'admin' || role === 'admin_ta'; // admin-tier — master prompt §33-35, §74
 
+  const [viewMode, setViewMode] = useState('table'); // 'table' | 'board'
+  const [previewId, setPreviewId] = useState(null);
   const [datePreset, setDatePreset] = useState('all');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const { from: dateFrom, to: dateTo } = datePreset === 'all' ? { from: null, to: null } : dateRangeFor(datePreset, customFrom, customTo);
 
   const [remoteRows, setRemoteRows] = useState(null);
+  // Bumped after a Kanban drag succeeds, to force a reload independent of
+  // the realtime subscription below (which needs Postgres replication
+  // enabled for this table — not guaranteed in every local environment).
+  const [reloadToken, setReloadToken] = useState(0);
   useEffect(() => {
     let cancelled = false;
     const load = () =>
@@ -154,7 +158,7 @@ export default function TACandidatesPage() {
     // without a manual reload (Phase 1 spec §49).
     const unsub = subscribeApplications(load);
     return () => { cancelled = true; unsub(); };
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, reloadToken]);
 
   const rows = remoteRows || [];
 
@@ -208,6 +212,55 @@ export default function TACandidatesPage() {
     }
   };
 
+  // Kanban drag — only the two transitions that are a single, no-extra-info
+  // backend call (the same ones the "Advance candidate" button on the
+  // profile page performs). Anything else (skipping a column, going
+  // backward, or a stage that needs real data like an interview time or
+  // an offer) is refused — those have to go through the candidate record,
+  // where the right form/validation actually lives.
+  const [draggingBusy, setDraggingBusy] = useState(false);
+  // Why a target column needs more than a drag — each of these transitions
+  // genuinely requires data a drop can't supply (a date, a document
+  // decision, offer terms…), so the real form lives on the candidate record.
+  const COLUMN_ORDER = ['applied', 'screening', 'interview', 'documents', 'offer', 'hired', 'rejected'];
+  const WHY_NOT_DRAGGABLE = {
+    interview: 'moving a candidate past Screening into Interview needs the interview round itself to be marked passed first',
+    documents: 'unlocking Documents needs the interview round recorded as passed, which happens on the candidate record',
+    offer: 'sending an offer needs offer details (designation, CTC, joining date) entered on the candidate record',
+    hired: 'marking someone hired needs the offer to actually be accepted first',
+  };
+  const handleDropCard = async (row, targetColKey) => {
+    if (draggingBusy) return;
+    const currentCol = COLUMN_ORDER.find((k) => STAGE_GROUPS[k].match(row.status));
+    const fromIdx = COLUMN_ORDER.indexOf(currentCol);
+    const toIdx = COLUMN_ORDER.indexOf(targetColKey);
+
+    let action = null;
+    if (targetColKey === 'screening' && [APP_STATUS.SUBMITTED, APP_STATUS.RETURNED].includes(row.status)) action = 'start_review';
+    else if (targetColKey === 'interview' && row.status === APP_STATUS.TA_REVIEW) action = 'advance';
+
+    if (!action) {
+      let reason;
+      if (targetColKey === currentCol) reason = `${row.name} is already in ${STAGE_GROUPS[targetColKey].label}.`;
+      else if (targetColKey === 'rejected') reason = `Rejecting a candidate needs a reason — open ${row.name}'s record and use Close application.`;
+      else if (toIdx < fromIdx) reason = `Can't move ${row.name} backward from ${STAGE_GROUPS[currentCol]?.label || 'their current stage'} to ${STAGE_GROUPS[targetColKey].label} by dragging.`;
+      else if (toIdx > fromIdx + 1) reason = `Can't skip stages — ${WHY_NOT_DRAGGABLE[targetColKey] || 'open the candidate record to move them that far'}.`;
+      else reason = `Can't move to ${STAGE_GROUPS[targetColKey].label} by dragging — ${WHY_NOT_DRAGGABLE[targetColKey] || 'open the candidate record to complete this step'}.`;
+      toast.error(reason);
+      return;
+    }
+    setDraggingBusy(true);
+    try {
+      await decideApplication(row.id, action);
+      toast.success(`${row.name} moved to ${STAGE_GROUPS[targetColKey].label}.`);
+      setReloadToken((t) => t + 1);
+    } catch (e) {
+      toast.error(e.message || 'Could not move this candidate.');
+    } finally {
+      setDraggingBusy(false);
+    }
+  };
+
   const initialFilters = {};
   if (stageParam !== 'all') initialFilters.status = (r) => STAGE_GROUPS[stageParam].match(r.status);
   if (jobParam) initialFilters.job = jobParam;
@@ -220,6 +273,17 @@ export default function TACandidatesPage() {
     initialSort: { key: 'submittedAt', dir: 'desc' },
     initialFilters: Object.keys(initialFilters).length ? initialFilters : undefined,
   });
+
+  // Prefill from the top account bar's search (?q=…), once.
+  const qParam = sp.get('q');
+  const qAppliedRef = useRef(false);
+  useEffect(() => {
+    if (qParam && !qAppliedRef.current) {
+      qAppliedRef.current = true;
+      view.setQuery(qParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [qParam]);
 
   const jobOptions = useMemo(
     () => [...new Set(rows.map((r) => r.job))].sort().map((j) => ({ value: j, label: j })),
@@ -292,6 +356,14 @@ export default function TACandidatesPage() {
         onClearAll={hasFilters ? clearAll : undefined}
         action={(
           <span style={{ display: 'flex', gap: 8 }}>
+            <span className="ta-viewtoggle">
+              <button type="button" className={`ta-viewtoggle__btn${viewMode === 'table' ? ' active' : ''}`} onClick={() => setViewMode('table')} aria-label="List view" title="List view">
+                <Icon name="List" size={15} />
+              </button>
+              <button type="button" className={`ta-viewtoggle__btn${viewMode === 'board' ? ' active' : ''}`} onClick={() => setViewMode('board')} aria-label="Board view" title="Board view">
+                <Icon name="Kanban" size={15} />
+              </button>
+            </span>
             <Button variant="ghost" icon="UploadCloud" onClick={() => navigate('/ta/candidates/bulk-upload')}>Bulk Upload</Button>
             <Button icon="UserPlus" onClick={() => navigate('/ta/candidates/new')}>Add Candidate</Button>
           </span>
@@ -319,6 +391,14 @@ export default function TACandidatesPage() {
         </div>
       )}
 
+      {viewMode === 'board' ? (
+        <CandidateBoard
+          columns={Object.entries(STAGE_GROUPS).map(([key, g]) => ({ key, label: g.label, match: g.match, color: STAGE_COLOR[key] }))}
+          rows={view.allFiltered}
+          onOpen={(r) => setPreviewId(r.candidateId)}
+          onDropCard={handleDropCard}
+        />
+      ) : (
       <DataGrid
         columns={isSuperTa ? [{ key: 'select', label: '' }, ...COLUMNS] : COLUMNS}
         rows={view.rows}
@@ -340,33 +420,23 @@ export default function TACandidatesPage() {
                 </td>
               )}
               <td>
-                <span className="ta-cell-cand">
-                  <span className={`ta-avatar ta-avatar--${avatarToneOf(r.name)}`}>{initialsOf(r.name)}</span>
-                  <span>
-                    <span className="ta-cell-cand__name">{r.name}</span><br />
-                    <span className="ta-cell-cand__sub">{experienceLabel(r.experience)}</span>
-                  </span>
-                </span>
+                <span className="ta-cell-cand__name">{r.name}</span><br />
+                <span className="ta-cell-cand__sub">{experienceLabel(r.experience)} · {r.candidateCode}</span>
               </td>
-              <td className="ta-cell-mute">{r.candidateCode}</td>
-              <td className="ta-cell-mute">{r.email}</td>
-              <td className="ta-cell-mute">{r.phone || '—'}</td>
               <td>
                 <span className="ta-cell-strong">{r.job}</span><br />
                 <span className="ta-cell-sub">{r.department}</span>
               </td>
-              <td className="ta-cell-mute">{r.code}</td>
-              <td className="ta-cell-mute">{creationSourceLabel(r)}</td>
-              <td className="ta-cell-mute">{formatDate(r.createdAt)}</td>
               <td><Tag tone={badge.tone}>{badge.label}</Tag></td>
               <td className="ta-cell-mute">{r.assignedToName}</td>
               <td><Tag tone={verification.tone}>{verification.label}</Tag></td>
               <td>
                 <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
-                  <a className="ta-iconbtn" href={`mailto:${r.email}`} aria-label={`Email ${r.name}`}><Icon name="Mail" size={15} /></a>
-                  {isSuperTa && (
-                    <button className="ta-iconbtn" onClick={() => doDelete(r)} aria-label={`Delete ${r.name}`}><Icon name="Trash2" size={15} /></button>
-                  )}
+                  <RowMenu items={[
+                    { label: 'Quick view', icon: 'Eye', onClick: () => setPreviewId(r.candidateId) },
+                    { label: 'Email', icon: 'Mail', onClick: () => { window.location.href = `mailto:${r.email}`; } },
+                    ...(isSuperTa ? [{ label: 'Delete', icon: 'Trash2', danger: true, onClick: () => doDelete(r) }] : []),
+                  ]} />
                   <button className="ta-iconbtn" onClick={() => navigate(`/ta/candidates/${r.candidateId}`)} aria-label="Open candidate"><Icon name="ChevronRight" size={17} /></button>
                 </span>
               </td>
@@ -374,6 +444,11 @@ export default function TACandidatesPage() {
           );
         }}
       />
+      )}
+
+      {previewId && (
+        <CandidatePreviewDrawer applicationId={previewId} onClose={() => setPreviewId(null)} />
+      )}
     </>
   );
 }

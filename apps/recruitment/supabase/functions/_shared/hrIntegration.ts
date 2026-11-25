@@ -20,6 +20,7 @@ export async function callHr(
       event_id: eventId,
       event_type: eventType,
       target_system: "hr",
+      target_fn: fn,
       payload,
       status: "processing",
       attempt_count: 1,

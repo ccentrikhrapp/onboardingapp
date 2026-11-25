@@ -6,6 +6,8 @@ import Toolbar from '../../components/ta/Toolbar.jsx';
 import Button from '../../components/ta/Button.jsx';
 import Tag from '../../components/ta/Tag.jsx';
 import EmptyState from '../../components/ta/EmptyState.jsx';
+import DataGrid from '../../components/ta/DataGrid.jsx';
+import RowMenu from '../../components/ta/RowMenu.jsx';
 import CreateJobDrawer from '../../components/workflow/CreateJobDrawer.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
@@ -29,14 +31,17 @@ const APPLICANTS = {
 export default function TAJobsPage() {
   const navigate = useNavigate();
   const toast = useToast();
-  const { jobs, createJob, deleteJob, role } = useApp();
+  const { jobs, createJob, updateJob, deleteJob, role } = useApp();
   const isSuperAdmin = role === 'admin';
   const [pickedJobs, setPickedJobs] = useState([]);
-  // Every TA-workspace role can post a job; deleting a posting stays admin-tier
-  // only (a Normal TA can create jobs but not remove or edit existing ones).
+  // Every TA-workspace role can post a job; editing or removing a posting
+  // stays admin-tier only (a Normal TA can create jobs but not change or
+  // remove existing ones — matches the DB's jobs_manage_admin_tier policy).
   const canCreateJobs = role === 'ta' || role === 'admin' || role === 'admin_ta';
   const canManageJobs = role === 'admin' || role === 'admin_ta';
   const [open, setOpen] = useState(false);
+  const [editingJob, setEditingJob] = useState(null);
+  const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'table'
   const [appsByJob, setAppsByJob] = useState({});
 
   useEffect(() => {
@@ -63,7 +68,9 @@ export default function TAJobsPage() {
       (j) => (j.responsibilities || []).join(' '),
     ],
     pageSize: 30,
-    initialSort: { key: 'applicants', dir: 'desc' },
+    // Date-wise by default — newest postings first; click a sortable column
+    // header to switch (e.g. to Apply By or Applicants).
+    initialSort: { key: 'createdAt', dir: 'desc' },
   });
 
   // Build a dropdown's options from the values that actually appear in the data.
@@ -150,7 +157,19 @@ export default function TAJobsPage() {
         ]}
         chips={chips}
         onClearAll={chips.length > 1 ? clearAll : undefined}
-        action={canCreateJobs ? <Button icon="Plus" onClick={() => setOpen(true)}>Create Job</Button> : undefined}
+        action={(
+          <span style={{ display: 'flex', gap: 8 }}>
+            <span className="ta-viewtoggle">
+              <button type="button" className={`ta-viewtoggle__btn${viewMode === 'grid' ? ' active' : ''}`} onClick={() => setViewMode('grid')} aria-label="Grid view" title="Grid view">
+                <Icon name="LayoutGrid" size={15} />
+              </button>
+              <button type="button" className={`ta-viewtoggle__btn${viewMode === 'table' ? ' active' : ''}`} onClick={() => setViewMode('table')} aria-label="Table view" title="Table view">
+                <Icon name="List" size={15} />
+              </button>
+            </span>
+            {canCreateJobs && <Button icon="Plus" onClick={() => setOpen(true)}>Create Job</Button>}
+          </span>
+        )}
         pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
       />
 
@@ -164,56 +183,114 @@ export default function TAJobsPage() {
 
       {view.rows.length === 0 ? (
         <EmptyState icon="Briefcase" title="No jobs found" message="Try a different search, or create a new job." />
-      ) : (
-        <div className="ta-jobgrid">
-          {view.rows.map((j) => (
-            <div key={j.id} className="ta-jobcard" onClick={() => navigate(`/ta/jobs/${j.id}`)} role="button" tabIndex={0}>
-              {isSuperAdmin && (
-                <input
-                  type="checkbox" className="ta-jobcard__pick" aria-label={`Select ${j.title}`}
-                  checked={pickedJobs.includes(j.id)} onClick={(e) => e.stopPropagation()}
-                  onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))}
-                />
-              )}
-              <div className="ta-jobcard__head">
-                <span className="ta-jobcard__icon"><Icon name="Briefcase" size={16} /></span>
-                <span className="ta-jobcard__headactions">
+      ) : viewMode === 'table' ? (
+        <DataGrid
+          columns={[
+            { key: 'code', label: 'Job ID', sortable: true },
+            { key: 'job', label: 'Job' },
+            { key: 'location', label: 'Location / Mode' },
+            { key: 'experience', label: 'Experience' },
+            { key: 'createdAt', label: 'Posted On', sortable: true },
+            { key: 'deadline', label: 'Apply By', sortable: true },
+            { key: 'applicants', label: 'Applicants', sortable: true },
+            { key: 'actions', label: '' },
+          ]}
+          rows={view.rows}
+          sort={view.sort}
+          onSort={view.onSort}
+          pager={{ page: view.page, pageSize: view.pageSize, total: view.total, onPage: view.setPage }}
+          empty={{ icon: 'Briefcase', title: 'No jobs found', message: 'Try a different search, or create a new job.' }}
+          renderRow={(j) => (
+            <tr key={j.id} onClick={() => navigate(`/ta/jobs/${j.id}`)} style={{ cursor: 'pointer' }}>
+              <td className="ta-cell-strong">{j.code || '—'}</td>
+              <td>
+                <span className="ta-cell-cand__name">{j.title}{j.custom ? ' ' : ''}{j.custom && <Tag tone="blue">New</Tag>}</span><br />
+                <span className="ta-cell-cand__sub">{j.department}</span>
+              </td>
+              <td>
+                <span className="ta-cell-strong">{j.location || '—'}</span><br />
+                <span className="ta-cell-sub">{j.workMode}{j.employmentType ? ` · ${j.employmentType}` : ''}</span>
+              </td>
+              <td className="ta-cell-mute">{j.experience || '—'}</td>
+              <td className="ta-cell-mute">{formatDate(j.createdAt)}</td>
+              <td className="ta-cell-mute">{formatDate(j.deadline)}</td>
+              <td><Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants}</Tag></td>
+              <td>
+                <span className="ta-rowactions" onClick={(e) => e.stopPropagation()}>
                   {canManageJobs && (
-                    <button
-                      className="ta-iconbtn" aria-label="Delete job"
-                      onClick={(e) => { e.stopPropagation(); removeJob(j); }}
-                    ><Icon name="Trash2" size={14} /></button>
+                    <RowMenu items={[
+                      { label: 'Edit', icon: 'Pencil', onClick: () => setEditingJob(j) },
+                      { label: 'Delete', icon: 'Trash2', danger: true, onClick: () => removeJob(j) },
+                    ]} />
                   )}
-                  <span className="ta-jobcard__see">See Details <Icon name="ChevronRight" size={12} /></span>
+                  <button className="ta-iconbtn" onClick={() => navigate(`/ta/jobs/${j.id}`)} aria-label="Open job"><Icon name="ChevronRight" size={17} /></button>
                 </span>
+              </td>
+            </tr>
+          )}
+        />
+      ) : (
+        <>
+          <div className="ta-jobgrid">
+            {view.rows.map((j) => (
+              <div key={j.id} className="ta-jobcard" onClick={() => navigate(`/ta/jobs/${j.id}`)} role="button" tabIndex={0}>
+                {isSuperAdmin && (
+                  <input
+                    type="checkbox" className="ta-jobcard__pick" aria-label={`Select ${j.title}`}
+                    checked={pickedJobs.includes(j.id)} onClick={(e) => e.stopPropagation()}
+                    onChange={() => setPickedJobs((p) => (p.includes(j.id) ? p.filter((x) => x !== j.id) : [...p, j.id]))}
+                  />
+                )}
+                <div className="ta-jobcard__head">
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span className="ta-jobcard__icon"><Icon name="Briefcase" size={16} /></span>
+                    {j.code && <Tag tone="grey">{j.code}</Tag>}
+                  </span>
+                  <span className="ta-jobcard__headactions">
+                    {canManageJobs && (
+                      <button
+                        className="ta-iconbtn" aria-label="Edit job"
+                        onClick={(e) => { e.stopPropagation(); setEditingJob(j); }}
+                      ><Icon name="Pencil" size={14} /></button>
+                    )}
+                    {canManageJobs && (
+                      <button
+                        className="ta-iconbtn" aria-label="Delete job"
+                        onClick={(e) => { e.stopPropagation(); removeJob(j); }}
+                      ><Icon name="Trash2" size={14} /></button>
+                    )}
+                    <span className="ta-jobcard__see">See Details <Icon name="ChevronRight" size={12} /></span>
+                  </span>
+                </div>
+                <div className="ta-jobcard__title">{j.title} {j.custom && <Tag tone="blue">New</Tag>}</div>
+                <div className="ta-jobcard__sub">
+                  {j.department}{j.requiredSkills?.length ? ` · ${j.requiredSkills.slice(0, 3).join(', ')}` : ''}
+                </div>
+                <div className="ta-jobcard__tags">
+                  {j.employmentType && <span className="ta-jobcard__tag"><Icon name="Clock3" size={11} /> {j.employmentType}</span>}
+                  {j.location && <span className="ta-jobcard__tag"><Icon name="MapPin" size={11} /> {j.location}</span>}
+                </div>
+                <div className="ta-jobcard__foot">
+                  <span className="ta-jobcard__date" title="Posted on"><Icon name="CalendarPlus" size={11} /> {formatDate(j.createdAt)}</span>
+                  <span className="ta-jobcard__date" title="Apply by"><Icon name="CalendarDays" size={11} /> {formatDate(j.deadline)}</span>
+                  <Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants} applicants</Tag>
+                </div>
               </div>
-              <div className="ta-jobcard__title">{j.title} {j.custom && <Tag tone="blue">New</Tag>}</div>
-              <div className="ta-jobcard__sub">
-                {j.department}{j.requiredSkills?.length ? ` · ${j.requiredSkills.slice(0, 3).join(', ')}` : ''}
-              </div>
-              <div className="ta-jobcard__tags">
-                {j.employmentType && <span className="ta-jobcard__tag"><Icon name="Clock3" size={11} /> {j.employmentType}</span>}
-                {j.location && <span className="ta-jobcard__tag"><Icon name="MapPin" size={11} /> {j.location}</span>}
-              </div>
-              <div className="ta-jobcard__foot">
-                <span className="ta-jobcard__date"><Icon name="CalendarDays" size={11} /> {formatDate(j.deadline)}</span>
-                <Tag tone={j.applicants ? 'blue' : 'grey'}>{j.applicants} applicants</Tag>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
 
-      {view.total > view.pageSize && (
-        <div className="ta-gridnav">
-          <button type="button" className="ta-btn ta-btn--ghost" disabled={view.page <= 1} onClick={() => view.setPage(view.page - 1)}>
-            <Icon name="ChevronLeft" size={15} /> Previous
-          </button>
-          <span className="ta-gridnav__pos">Page {view.page} of {Math.max(1, Math.ceil(view.total / view.pageSize))}</span>
-          <button type="button" className="ta-btn ta-btn--ghost" disabled={view.page >= Math.ceil(view.total / view.pageSize)} onClick={() => view.setPage(view.page + 1)}>
-            Next <Icon name="ChevronRight" size={15} />
-          </button>
-        </div>
+          {view.total > view.pageSize && (
+            <div className="ta-gridnav">
+              <button type="button" className="ta-btn ta-btn--ghost" disabled={view.page <= 1} onClick={() => view.setPage(view.page - 1)}>
+                <Icon name="ChevronLeft" size={15} /> Previous
+              </button>
+              <span className="ta-gridnav__pos">Page {view.page} of {Math.max(1, Math.ceil(view.total / view.pageSize))}</span>
+              <button type="button" className="ta-btn ta-btn--ghost" disabled={view.page >= Math.ceil(view.total / view.pageSize)} onClick={() => view.setPage(view.page + 1)}>
+                Next <Icon name="ChevronRight" size={15} />
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       <CreateJobDrawer
@@ -226,6 +303,21 @@ export default function TAJobsPage() {
             toast.success(`${job.title} published (${job.code || job.id}).`);
           } catch (e) {
             toast.error(e.message || 'Could not create the job.');
+          }
+        }}
+      />
+
+      <CreateJobDrawer
+        open={!!editingJob}
+        job={editingJob}
+        onClose={() => setEditingJob(null)}
+        onCreate={async (payload) => {
+          try {
+            const job = await updateJob(editingJob.id, payload);
+            setEditingJob(null);
+            toast.success(`${job.title} updated.`);
+          } catch (e) {
+            toast.error(e.message || 'Could not update the job.');
           }
         }}
       />

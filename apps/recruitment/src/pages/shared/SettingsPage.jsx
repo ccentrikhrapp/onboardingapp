@@ -1,8 +1,8 @@
 import { Card } from '../../components/common/Card.jsx';
 import { useApp } from '../../context/AppContext.jsx';
-import EmailSettingsCard from '../../components/settings/EmailSettingsCard.jsx';
+import GoogleWorkspaceCard from '../../components/settings/GoogleWorkspaceCard.jsx';
 import TeamsSettingsCard from '../../components/settings/TeamsSettingsCard.jsx';
-import EmailLogCard from '../../components/settings/EmailLogCard.jsx';
+import EmailSettingsCard from '../../components/settings/EmailSettingsCard.jsx';
 
 export default function SettingsPage() {
   const { profile } = useApp();
@@ -16,9 +16,9 @@ export default function SettingsPage() {
           administrator via the staff allowlist.
         </p>
       </Card>
-      <EmailSettingsCard />
+      <GoogleWorkspaceCard />
       <TeamsSettingsCard />
-      <EmailLogCard />
+      <EmailSettingsCard />
     </div>
   );
 }

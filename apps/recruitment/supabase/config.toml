@@ -3,22 +3,32 @@ project_id = "ccentrik-recruitment"
 
 [api]
 enabled = true
-port = 54321
+port = 55321
 schemas = ["public"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 
 [db]
-port = 54322
+port = 55322
 major_version = 15
+
+[db.pooler]
+enabled = false
 
 [studio]
 enabled = true
-port = 54323
+port = 55323
+
+[inbucket]
+enabled = true
+port = 55324
 
 [storage]
 enabled = true
 file_size_limit = "25MiB"
+
+[analytics]
+enabled = false
 
 [auth]
 enabled = true
@@ -37,7 +47,7 @@ client_id = "env(GOOGLE_OAUTH_CLIENT_ID)"
 secret = "env(GOOGLE_OAUTH_SECRET)"
 
 [auth.email]
-enable_signup = false
+enable_signup = true
 enable_confirmations = false
 
 # Opened directly from a link inside the interview-invitation email (a plain

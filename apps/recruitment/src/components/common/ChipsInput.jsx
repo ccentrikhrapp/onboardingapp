@@ -11,6 +11,19 @@ export default function ChipsInput({ value = [], onChange, placeholder = 'Type a
   };
   const remove = (chip) => onChange(value.filter((c) => c !== chip));
 
+  // Pasting a bulk list (comma- or line-separated, e.g. copied from a JD)
+  // becomes one chip per item instead of one giant chip.
+  const handlePaste = (e) => {
+    const text = e.clipboardData.getData('text');
+    if (!/[,\n]/.test(text)) return; // a single item: let the default paste behavior fill the input
+    e.preventDefault();
+    const items = text.split(/[,\n]/).map((s) => s.trim()).filter(Boolean);
+    const merged = [...value];
+    items.forEach((v) => { if (!merged.includes(v)) merged.push(v); });
+    onChange(merged);
+    setDraft('');
+  };
+
   return (
     <div className="chips-input">
       {value.map((chip) => (
@@ -35,6 +48,7 @@ export default function ChipsInput({ value = [], onChange, placeholder = 'Type a
           }
         }}
         onBlur={add}
+        onPaste={handlePaste}
       />
     </div>
   );

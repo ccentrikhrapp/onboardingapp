@@ -76,56 +76,71 @@ export async function exchangeCodeForTokens(code: string): Promise<TokenResponse
 
 async function refreshAccessToken(svc: SupabaseClient, row: { profile_id: string; refresh_token: string | null }): Promise<string | null> {
   if (!row.refresh_token) return null;
-  const clientId = Deno.env.get("MICROSOFT_CLIENT_ID") ?? "";
-  const clientSecret = Deno.env.get("MICROSOFT_CLIENT_SECRET") ?? "";
-  const res = await fetch(`https://login.microsoftonline.com/${tenant()}/oauth2/v2.0/token`, {
-    method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: row.refresh_token,
-      grant_type: "refresh_token",
-      scope: GRAPH_SCOPES,
-    }),
-  });
-  if (!res.ok) return null;
-  const data: TokenResponse = await res.json();
-  if (!data.access_token) return null;
-  const expires_at = data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null;
-  await svc.from("microsoft_oauth_tokens").update({
-    access_token: data.access_token,
-    refresh_token: data.refresh_token ?? row.refresh_token,
-    expires_at,
-    updated_at: new Date().toISOString(),
-  }).eq("profile_id", row.profile_id);
-  return data.access_token;
+  try {
+    const clientId = Deno.env.get("MICROSOFT_CLIENT_ID") ?? "";
+    const clientSecret = Deno.env.get("MICROSOFT_CLIENT_SECRET") ?? "";
+    const res = await fetch(`https://login.microsoftonline.com/${tenant()}/oauth2/v2.0/token`, {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        client_id: clientId,
+        client_secret: clientSecret,
+        refresh_token: row.refresh_token,
+        grant_type: "refresh_token",
+        scope: GRAPH_SCOPES,
+      }),
+    });
+    if (!res.ok) return null;
+    const data: TokenResponse = await res.json();
+    if (!data.access_token) return null;
+    const expires_at = data.expires_in ? new Date(Date.now() + data.expires_in * 1000).toISOString() : null;
+    await svc.from("microsoft_oauth_tokens").update({
+      access_token: data.access_token,
+      refresh_token: data.refresh_token ?? row.refresh_token,
+      expires_at,
+      updated_at: new Date().toISOString(),
+    }).eq("profile_id", row.profile_id);
+    return data.access_token;
+  } catch (err) {
+    // Network failure, malformed response, whatever — never let a Graph/Entra
+    // hiccup crash the scheduling flow. Caller falls back to the mock link.
+    console.error("microsoftGraph.refreshAccessToken failed:", String(err).slice(0, 300));
+    return null;
+  }
 }
 
 // Valid access token for this person's stored Microsoft connection, refreshing
-// it first if it's expired (or about to be) — or null if not connected / the
-// refresh failed, so callers fall back to the mock link generator.
+// it first if it's expired (or about to be) — or null if not connected, the
+// refresh failed, or anything else went wrong, so callers always fall back to
+// the mock link generator instead of crashing the whole scheduling request.
 async function getValidAccessToken(svc: SupabaseClient, actorEmail: string): Promise<{ accessToken: string; profileId: string } | null> {
-  const { data: row } = await svc
-    .from("microsoft_oauth_tokens")
-    .select("profile_id, access_token, refresh_token, expires_at")
-    .eq("microsoft_email", actorEmail)
-    .maybeSingle();
-  if (!row) return null;
+  try {
+    const { data: row } = await svc
+      .from("microsoft_oauth_tokens")
+      .select("profile_id, access_token, refresh_token, expires_at")
+      .eq("microsoft_email", actorEmail)
+      .maybeSingle();
+    if (!row) return null;
 
-  const stillValid = row.expires_at && new Date(row.expires_at) > new Date(Date.now() + 120_000);
-  if (stillValid) return { accessToken: row.access_token, profileId: row.profile_id };
+    const stillValid = row.expires_at && new Date(row.expires_at) > new Date(Date.now() + 120_000);
+    if (stillValid) return { accessToken: row.access_token, profileId: row.profile_id };
 
-  const refreshed = await refreshAccessToken(svc, row);
-  if (!refreshed) return null;
-  return { accessToken: refreshed, profileId: row.profile_id };
+    const refreshed = await refreshAccessToken(svc, row);
+    if (!refreshed) return null;
+    return { accessToken: refreshed, profileId: row.profile_id };
+  } catch (err) {
+    console.error("microsoftGraph.getValidAccessToken failed:", String(err).slice(0, 300));
+    return null;
+  }
 }
 
 export type TeamsMeetingResult = { url: string; meetingId: string } | null;
 
 // Creates a real Teams online meeting via Graph (POST /me/onlineMeetings) on
-// the scheduling TA's own connected Microsoft account. Returns null when
-// they haven't connected one yet, so the caller falls back to the mock link.
+// the scheduling TA's own connected Microsoft account. Returns null — never
+// throws — whenever they haven't connected one, or anything about the Graph
+// call itself goes wrong, so the caller always falls back to the mock link
+// rather than the whole scheduling request crashing.
 export async function createTeamsOnlineMeeting(
   svc: SupabaseClient,
   opts: { actorEmail: string; subject: string; startISO: string; endISO: string },
@@ -133,17 +148,22 @@ export async function createTeamsOnlineMeeting(
   const auth = await getValidAccessToken(svc, opts.actorEmail);
   if (!auth) return null;
 
-  const res = await fetch("https://graph.microsoft.com/v1.0/me/onlineMeetings", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${auth.accessToken}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      subject: opts.subject,
-      startDateTime: opts.startISO,
-      endDateTime: opts.endISO,
-    }),
-  });
-  if (!res.ok) return null;
-  const meeting = await res.json();
-  if (!meeting.joinWebUrl) return null;
-  return { url: meeting.joinWebUrl, meetingId: meeting.id };
+  try {
+    const res = await fetch("https://graph.microsoft.com/v1.0/me/onlineMeetings", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${auth.accessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        subject: opts.subject,
+        startDateTime: opts.startISO,
+        endDateTime: opts.endISO,
+      }),
+    });
+    if (!res.ok) return null;
+    const meeting = await res.json();
+    if (!meeting.joinWebUrl) return null;
+    return { url: meeting.joinWebUrl, meetingId: meeting.id };
+  } catch (err) {
+    console.error("microsoftGraph.createTeamsOnlineMeeting failed:", String(err).slice(0, 300));
+    return null;
+  }
 }

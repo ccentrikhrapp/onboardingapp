@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link2 } from 'lucide-react';
 import Icon from '../common/Icon.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { callFn } from '../../api/client.js';
@@ -8,6 +9,7 @@ import { callFn } from '../../api/client.js';
 // (see supabase/functions/_shared/meetingProviders.ts). Microsoft isn't a
 // sign-in option in this app (staff use Google or a password), so this is
 // its own standalone consent flow — see oauth-microsoft-authorize/callback.
+// Compact single-row layout, matches GoogleWorkspaceCard.jsx.
 export default function TeamsSettingsCard() {
   const toast = useToast();
   const [state, setState] = useState({ loading: true, connected: false, email: null });
@@ -50,34 +52,44 @@ export default function TeamsSettingsCard() {
     }
   };
 
-  const box = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: 14, padding: 24, marginTop: 16, boxShadow: '0 2px 12px rgba(0,0,0,0.04)' };
+  const card = { background: '#fff', border: '1px solid #E5E7EB', borderRadius: 12, padding: '14px 16px', marginTop: 12, boxShadow: '0 1px 4px rgba(0,0,0,0.03)' };
+  const logo = { width: 30, height: 30, borderRadius: 8, border: '1px solid #E5E7EB', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, background: '#FAFAFA' };
+  const pillOn = { fontSize: 11, fontWeight: 600, color: '#16A34A', background: '#DCFCE7', padding: '2px 8px', borderRadius: 100 };
+  const pillOff = { fontSize: 11, fontWeight: 600, color: '#64748B', background: '#F1F5F9', padding: '2px 8px', borderRadius: 100 };
 
   if (state.loading) return null;
 
   return (
-    <section style={box} aria-label="Microsoft Teams settings">
-      <h3 style={{ margin: '0 0 4px', fontSize: 16, fontWeight: 700 }}>Microsoft Teams</h3>
-      <p style={{ margin: '0 0 16px', fontSize: 13.5, color: '#6b7280', lineHeight: 1.6 }}>
-        Connect your Microsoft account so Teams links generated when scheduling an interview are
-        real, working meetings instead of a placeholder.
-      </p>
-
-      {state.connected ? (
-        <div role="status" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: '#DCFCE7', border: '1px solid #BBF7D0', borderRadius: 10, padding: '12px 14px', color: '#166534', fontSize: 13.5 }}>
-          <Icon name="CheckCircle2" size={16} />
-          <span style={{ flex: '1 1 260px' }}><strong>Connected.</strong> Teams meetings are created on {state.email}.</span>
-          <button type="button" onClick={connect} disabled={connecting} style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid #86EFAC', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-            {connecting ? 'Opening…' : 'Reconnect'}
-          </button>
+    <section style={card} aria-label="Microsoft Teams settings">
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={logo}>
+          <svg width="15" height="15" viewBox="0 0 23 23" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="10" height="10" fill="#F25022" />
+            <rect x="12" y="1" width="10" height="10" fill="#7FBA00" />
+            <rect x="1" y="12" width="10" height="10" fill="#00A4EF" />
+            <rect x="12" y="12" width="10" height="10" fill="#FFB900" />
+          </svg>
         </div>
-      ) : (
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 14, fontWeight: 700 }}>Microsoft Teams</span>
+            <span style={state.connected ? pillOn : pillOff}>{state.connected ? 'Connected' : 'Not connected'}</span>
+          </div>
+          <p style={{ margin: '2px 0 0', fontSize: 12, color: '#6b7280' }}>
+            {state.connected ? state.email : 'Real Teams links for interviews'}
+          </p>
+        </div>
+
         <button
-          type="button" onClick={connect} disabled={connecting}
-          style={{ padding: '10px 18px', borderRadius: 10, border: 0, background: connecting ? '#93C5FD' : '#2563EB', color: '#fff', fontWeight: 700, cursor: connecting ? 'wait' : 'pointer' }}
+          onClick={connect} disabled={connecting}
+          style={state.connected
+            ? { display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 7, background: '#EFF6FF', border: '1px solid #BFDBFE', cursor: connecting ? 'wait' : 'pointer', fontSize: 12.5, fontWeight: 600, color: '#2563EB', fontFamily: 'inherit', whiteSpace: 'nowrap' }
+            : { display: 'flex', alignItems: 'center', gap: 5, padding: '6px 14px', borderRadius: 7, background: '#5B21B6', border: 'none', cursor: connecting ? 'wait' : 'pointer', fontSize: 12.5, fontWeight: 600, color: '#fff', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
         >
-          {connecting ? 'Opening Microsoft…' : 'Connect Microsoft Teams'}
+          {state.connected ? <Icon name="RefreshCw" size={12} /> : <Link2 size={12} />}
+          {connecting ? '…' : state.connected ? 'Reconnect' : 'Connect'}
         </button>
-      )}
+      </div>
     </section>
   );
 }

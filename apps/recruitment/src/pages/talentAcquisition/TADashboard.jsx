@@ -5,9 +5,13 @@ import TAHeader from '../../components/ta/TAHeader.jsx';
 import Card from '../../components/ta/Card.jsx';
 import KpiCard from '../../components/ta/KpiCard.jsx';
 import DonutChart from '../../components/ta/DonutChart.jsx';
+import RecruitmentAnalytics from '../../components/ta/RecruitmentAnalytics.jsx';
+import NeedsAttentionCard from '../../components/ta/NeedsAttentionCard.jsx';
 import PipelineBars from '../../components/ta/PipelineBars.jsx';
+import ProgressBarList from '../../components/ta/ProgressBarList.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { listApplications, listRecentEvents, subscribeApplications } from '../../api/applications.js';
+import { listUpcomingInterviews } from '../../api/interviews.js';
 import { applicationFromDb } from '../../api/mappers.js';
 import {
   APP_STATUS,
@@ -16,10 +20,14 @@ import {
   stageIndexForStatus,
 } from '../../constants/statuses.js';
 import { groupCounts, noticePeriodDays } from '../../utils/metrics.js';
-import { timeAgo } from '../../utils/format.js';
+import { timeAgo, formatDate, initialsOf, avatarToneOf } from '../../utils/format.js';
 import PipelineReminderPopup from '../../components/ta/PipelineReminderPopup.jsx';
-import UniversalSearch from '../../components/ta/UniversalSearch.jsx';
 import { SkeletonPage } from '../../components/common/States.jsx';
+
+const DAY = 86400000;
+const DEPT_TONE = {
+  Engineering: 'blue', Design: 'violet', Sales: 'amber', Analytics: 'teal', People: 'green',
+};
 
 /* Activity entries that come from the candidate's own actions — these are the
    "something changed, take a look" updates the TA shouldn't have to hunt for. */
@@ -75,12 +83,43 @@ const NOTICE_BUCKETS = [
 // Candidates whose notice period is this many days or fewer count as "ending soon".
 const SOON_THRESHOLD_DAYS = 15;
 
+// Small collapse/expand control used in every card's header (never on the
+// KPI tiles) to shrink a card down to just its title row.
+function CardTitle({ icon, children }) {
+  return (
+    <span className="ta-card__title-row">
+      <span className="ta-card__title-icon"><Icon name={icon} size={14} /></span>
+      {children}
+    </span>
+  );
+}
+
+function ExpandToggle({ expanded, onToggle, label }) {
+  return (
+    <button
+      type="button"
+      className="ta-expand-toggle"
+      onClick={onToggle}
+      aria-label={`${expanded ? 'Collapse' : 'Expand'} ${label}`}
+    >
+      <Icon name={expanded ? 'ChevronUp' : 'ChevronDown'} size={14} />
+    </button>
+  );
+}
+
 export default function TADashboard() {
   const navigate = useNavigate();
   const { jobs, profile } = useApp();
   const [period, setPeriod] = useState('all');
+  const [selectedKpi, setSelectedKpi] = useState(null);
+  const [openPosExpanded, setOpenPosExpanded] = useState(true);
+  const [sourcesExpanded, setSourcesExpanded] = useState(true);
+  const [interviewsExpanded, setInterviewsExpanded] = useState(true);
+  const [pipelineExpanded, setPipelineExpanded] = useState(true);
+  const [noticeExpanded, setNoticeExpanded] = useState(true);
   const [updatesOpen, setUpdatesOpen] = useState(false);
   const [remote, setRemote] = useState({ apps: null, events: [] });
+  const [upcomingInterviews, setUpcomingInterviews] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -101,6 +140,7 @@ export default function TADashboard() {
             phone: a.candidatePhone,
             code: a.code,
             candidateCode: a.candidateCode,
+            assignedTo: a.assignedTo,
             personal: a.personal || {},
             professional: a.professional || {},
           }));
@@ -111,6 +151,10 @@ export default function TADashboard() {
     // Live refresh so a new application shows up without reloading (§49).
     const unsub = subscribeApplications(load);
     return () => { cancelled = true; unsub(); };
+  }, []);
+
+  useEffect(() => {
+    listUpcomingInterviews(5).then(setUpcomingInterviews).catch(() => setUpcomingInterviews([]));
   }, []);
 
   // ----- DATA -----
@@ -174,25 +218,21 @@ export default function TADashboard() {
   const kpis = [
     {
       tone: 'candidates', label: 'Total Candidates', value: apps.length,
-      meter: { value: activeForNotice.length, max: Math.max(1, apps.length) },
       note: `${activeForNotice.length} still active in the pipeline`,
       onClick: () => navigate('/ta/candidates'),
     },
     {
       tone: 'jobs', label: 'Open Jobs', value: jobs.length,
-      meter: { value: jobsWithApplicants, max: Math.max(1, jobs.length) },
       note: `${jobsWithApplicants} of ${jobs.length} receiving applicants`,
       onClick: () => navigate('/ta/jobs'),
     },
     {
       tone: 'interviews', label: 'Interviews Scheduled', value: scheduledInterviews,
-      meter: { value: interviewsDone, max: Math.max(1, interviewsDone + scheduledInterviews) },
       note: `${interviewsDone} completed so far`,
       onClick: () => navigate('/ta/candidates?stage=interview'),
     },
     {
       tone: 'offers', label: 'Offers Extended', value: extendedOffers.length,
-      meter: { value: offersAccepted, max: Math.max(1, extendedOffers.length) },
       note: `${offersAccepted} accepted`,
       onClick: () => navigate('/ta/candidates?stage=offer'),
     },
@@ -218,6 +258,98 @@ export default function TADashboard() {
   const noticeCountByLabel = new Map(noticeCounts.map((c) => [c.key, c.count]));
   const noticeSlices = NOTICE_BUCKETS.map((b) => ({ label: b.label, color: b.color, value: noticeCountByLabel.get(b.label) || 0 }));
 
+  // "Needs Attention" — real, but otherwise-buried signals pulled together
+  // into one simple, actionable list: candidates stuck in screening too
+  // long, candidates whose interview hasn't been scheduled yet, and
+  // candidates nobody's responsible for.
+  const STALE_REVIEW_DAYS = 3;
+  const staleInReview = apps.filter((a) =>
+    a.status === APP_STATUS.TA_REVIEW && Date.now() - new Date(a.submittedAt).getTime() > STALE_REVIEW_DAYS * DAY
+  );
+  const needsInterviewScheduled = apps.filter((a) => a.status === APP_STATUS.INTERVIEW_PLANNING);
+  const unassigned = apps.filter((a) =>
+    !a.assignedTo && ![APP_STATUS.REJECTED, APP_STATUS.EMPLOYEE, APP_STATUS.DRAFT].includes(a.status)
+  );
+  const activePipelineCount = apps.filter((a) => ![APP_STATUS.REJECTED, APP_STATUS.EMPLOYEE, APP_STATUS.DRAFT].includes(a.status)).length || 1;
+  const attentionRows = [
+    {
+      key: 'stale', count: staleInReview.length, tone: 'red', icon: 'AlertTriangle',
+      shortLabel: 'Stuck in Screening', label: `Sitting ${STALE_REVIEW_DAYS}+ days without a decision`,
+      onClick: () => navigate('/ta/candidates?stage=screening'),
+    },
+    {
+      key: 'interview', count: needsInterviewScheduled.length, tone: 'amber', icon: 'CalendarClock',
+      shortLabel: 'Interview Not Scheduled', label: 'Approved, nothing booked yet',
+      onClick: () => navigate('/ta/candidates?stage=interview'),
+    },
+    {
+      key: 'unassigned', count: unassigned.length, tone: 'blue', icon: 'UserRoundCog',
+      shortLabel: 'Unassigned Candidates', label: 'Active, with no TA assigned',
+      onClick: () => navigate('/ta/candidates'),
+    },
+  ].filter((r) => r.count > 0).map((r) => ({ ...r, pct: Math.round((r.count / activePipelineCount) * 100) }));
+
+  // Real numbers genuinely not shown anywhere else on the dashboard —
+  // rejected count (the pipeline funnel only covers the "live" stages),
+  // how many applications came in this week, and how long the
+  // longest-waiting active candidate has been sitting in the pipeline.
+  const ageInDays = (a) => (Date.now() - new Date(a.submittedAt).getTime()) / DAY;
+  const pctChange = (curr, prev) => (prev === 0 ? (curr > 0 ? 100 : 0) : Math.round(((curr - prev) / prev) * 100));
+
+  const rejectedCount = apps.filter((a) => a.status === APP_STATUS.REJECTED).length;
+  const rejectedThisWeek = apps.filter((a) => a.status === APP_STATUS.REJECTED && ageInDays(a) < 7).length;
+  const rejectedLastWeek = apps.filter((a) => a.status === APP_STATUS.REJECTED && ageInDays(a) >= 7 && ageInDays(a) < 14).length;
+
+  const newThisWeek = apps.filter((a) => ageInDays(a) < 7).length;
+  const newLastWeek = apps.filter((a) => ageInDays(a) >= 7 && ageInDays(a) < 14).length;
+
+  const activeWaitApps = apps.filter((a) => ![APP_STATUS.REJECTED, APP_STATUS.EMPLOYEE, APP_STATUS.DRAFT].includes(a.status));
+  const longestWaitDays = activeWaitApps.length
+    ? Math.max(...activeWaitApps.map((a) => Math.floor((Date.now() - new Date(a.submittedAt).getTime()) / DAY)))
+    : 0;
+
+  const totalApps = apps.length;
+  const weekChangePct = pctChange(newThisWeek, newLastWeek);
+  // This week's share of the last two weeks' volume — always a clean 0-100
+  // ratio, unlike weekChangePct (which is unbounded and can't drive a ring).
+  const weekSharePct = newThisWeek + newLastWeek > 0 ? Math.round((newThisWeek / (newThisWeek + newLastWeek)) * 100) : 50;
+
+  // Last 7 days, oldest → newest, applications submitted per day.
+  const weeklyTrend = Array.from({ length: 7 }, (_, i) => {
+    const dayStart = new Date();
+    dayStart.setHours(0, 0, 0, 0);
+    dayStart.setDate(dayStart.getDate() - (6 - i));
+    const dayEnd = new Date(dayStart.getTime() + DAY);
+    return {
+      label: dayStart.toLocaleDateString('en-US', { weekday: 'short' }),
+      count: apps.filter((a) => {
+        const t = new Date(a.submittedAt).getTime();
+        return t >= dayStart.getTime() && t < dayEnd.getTime();
+      }).length,
+    };
+  });
+
+  const analyticsStats = [
+    {
+      key: 'rejected', label: 'Rejected Applications', tone: 'red', pillTone: 'red', icon: 'XCircle',
+      value: rejectedCount, changePct: pctChange(rejectedThisWeek, rejectedLastWeek),
+    },
+    {
+      key: 'newweek', label: 'New Applications This Week', tone: 'blue', pillTone: 'green', icon: 'UserPlus',
+      value: newThisWeek, changePct: weekChangePct,
+    },
+    {
+      key: 'longestwait', label: 'Longest-Waiting Active Candidate', tone: 'amber', icon: 'Clock3',
+      value: `${longestWaitDays}d`, changePct: null,
+    },
+  ];
+
+  // Open Positions — real jobs, each with its real applicant count, busiest first.
+  const openPositions = [...jobs]
+    .map((j) => ({ ...j, applicantCount: apps.filter((a) => a.jobId === j.id).length }))
+    .sort((a, b) => b.applicantCount - a.applicantCount)
+    .slice(0, 5);
+
   // ----- JSX -----
   const periodSelect = (
     <div className="ta-period-pills" role="group" aria-label="Time period">
@@ -236,32 +368,114 @@ export default function TADashboard() {
 
   if (remote.apps === null) return <SkeletonPage />;
 
-  const firstName = (profile?.full_name || profile?.email || '').split(' ')[0].split('@')[0];
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? 'Good morning' : hour < 18 ? 'Good afternoon' : 'Good evening';
 
   return (
     <>
-      <TAHeader
-        title="Dashboard"
-        subtitle={`Welcome back, ${profile?.full_name || profile?.email || ''}`}
-        search={<UniversalSearch jobs={jobs} apps={apps} />}
-      />
+      <TAHeader />
 
       <PipelineReminderPopup />
 
-      <div className="ta-dash-hero">
-        <div className="ta-dash-hero__blob ta-dash-hero__blob--a" aria-hidden="true" />
-        <div className="ta-dash-hero__blob ta-dash-hero__blob--b" aria-hidden="true" />
-        <span className="ta-dash-hero__eyebrow">{greeting}{firstName ? `, ${firstName}` : ''}</span>
-        <h1 className="ta-dash-hero__title">Here's what's happening with your recruitment today</h1>
-        <button type="button" className="ta-dash-hero__cta" onClick={() => navigate('/ta/candidates')}>
-          View Recruitment Activity
-        </button>
+      <div className="ta-kpi-row">
+        {kpis.map((k) => (
+          <KpiCard
+            key={k.label}
+            {...k}
+            selected={selectedKpi === k.label}
+            onClick={k.onClick && (() => { setSelectedKpi(k.label); k.onClick(); })}
+          />
+        ))}
       </div>
 
-      <div className="ta-kpi-row">
-        {kpis.map((k) => <KpiCard key={k.label} {...k} />)}
+      <div className="ta-analytics-split" style={{ marginBottom: 16 }}>
+        <RecruitmentAnalytics totalApps={totalApps} weekChangePct={weekChangePct} gaugePct={weekSharePct} trend={weeklyTrend} stats={analyticsStats} />
+        <NeedsAttentionCard rows={attentionRows} />
+      </div>
+
+      <div className="ta-dash-3col">
+        <Card
+          title={<CardTitle icon="Briefcase">Open Positions</CardTitle>}
+          className="ta-card--tint-blue"
+          action={(
+            <div className="ta-card__actions">
+              <button className="ta-link" onClick={() => navigate('/ta/jobs')}>View all <Icon name="ArrowRight" size={13} /></button>
+              <ExpandToggle expanded={openPosExpanded} onToggle={() => setOpenPosExpanded((e) => !e)} label="Open Positions" />
+            </div>
+          )}
+        >
+          {openPositions.length === 0 ? (
+            <p className="ta-cell-mute">No open positions yet.</p>
+          ) : (
+            <div className={`ta-stack ta-collapsible${openPosExpanded ? '' : ' is-collapsed'}`} style={{ gap: 2 }}>
+              {openPositions.map((j) => (
+                <button key={j.id} type="button" className="ta-openpos-row" onClick={() => navigate(`/ta/jobs/${j.id}`)}>
+                  <span className={`ta-openpos-row__icon ta-openpos-row__icon--${DEPT_TONE[j.department] || 'blue'}`}>
+                    <Icon name="Briefcase" size={15} />
+                  </span>
+                  <span className="grow" style={{ minWidth: 0 }}>
+                    <span className="ta-cell-strong" style={{ display: 'block' }}>{j.title}</span>
+                    <span className="ta-cell-sub">{j.department || 'General'}</span>
+                  </span>
+                  <span className="ta-openpos-row__count">{j.applicantCount}<br /><span className="ta-cell-sub">candidates</span></span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card
+          title={<CardTitle icon="Globe">Candidates by Sources</CardTitle>}
+          className="ta-card--tint-teal"
+          action={(
+            <div className="ta-card__actions">
+              {periodSelect}
+              <ExpandToggle expanded={sourcesExpanded} onToggle={() => setSourcesExpanded((e) => !e)} label="Candidates by Sources" />
+            </div>
+          )}
+        >
+          <div className={`ta-collapsible${sourcesExpanded ? '' : ' is-collapsed'}`}>
+            {sourceSlices.length === 0 ? (
+              <p className="ta-cell-mute">No applications in this period.</p>
+            ) : (
+              <ProgressBarList rows={sourceSlices} />
+            )}
+          </div>
+        </Card>
+
+        <Card
+          title={<CardTitle icon="CalendarDays">Upcoming Interviews</CardTitle>}
+          className="ta-card--tint-amber"
+          action={(
+            <div className="ta-card__actions">
+              <button className="ta-link" onClick={() => navigate('/ta/candidates?stage=interview')}>View all <Icon name="ArrowRight" size={13} /></button>
+              <ExpandToggle expanded={interviewsExpanded} onToggle={() => setInterviewsExpanded((e) => !e)} label="Upcoming Interviews" />
+            </div>
+          )}
+        >
+          {upcomingInterviews === null ? (
+            <p className="ta-cell-mute">Loading…</p>
+          ) : upcomingInterviews.length === 0 ? (
+            <p className="ta-cell-mute">Nothing scheduled.</p>
+          ) : (
+            <div className={`ta-stack ta-collapsible${interviewsExpanded ? '' : ' is-collapsed'}`} style={{ gap: 2 }}>
+              {upcomingInterviews.map((r) => {
+                const name = `${r.applications?.candidates?.first_name || ''} ${r.applications?.candidates?.last_name || ''}`.trim() || 'Candidate';
+                const when = new Date(r.scheduled_at);
+                return (
+                  <button key={r.id} type="button" className="ta-upcoming-row" onClick={() => navigate(`/ta/candidates/${r.application_id}`)}>
+                    <span className="ta-upcoming-row__time">
+                      {when.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    <span className={`ta-avatar ta-avatar--${avatarToneOf(name)}`}>{initialsOf(name)}</span>
+                    <span className="grow" style={{ minWidth: 0 }}>
+                      <span className="ta-cell-strong" style={{ display: 'block' }}>{name}</span>
+                      <span className="ta-cell-sub">{r.applications?.jobs?.title || r.name}</span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </Card>
       </div>
 
       {candidateUpdates.length > 0 && (
@@ -296,66 +510,59 @@ export default function TADashboard() {
       )}
 
       <div className="ta-bento">
-        <Card title="Candidates Pipeline" action={periodSelect}>
-          <PipelineBars
-            stages={stageRows}
-            onSegmentClick={(i) => navigate(`/ta/candidates?stage=${stageRows[i].key}`)}
-          />
+        <Card
+          title={<CardTitle icon="Route">Candidates Pipeline</CardTitle>}
+          className="ta-card--tint-blue"
+          action={(
+            <div className="ta-card__actions">
+              {periodSelect}
+              <ExpandToggle expanded={pipelineExpanded} onToggle={() => setPipelineExpanded((e) => !e)} label="Candidates Pipeline" />
+            </div>
+          )}
+        >
+          <div className={`ta-collapsible${pipelineExpanded ? '' : ' is-collapsed'}`}>
+            <PipelineBars
+              stages={stageRows}
+              onSegmentClick={(i) => navigate(`/ta/candidates?stage=${stageRows[i].key}`)}
+            />
+          </div>
         </Card>
 
-        <Card title="Applications Overview" action={periodSelect}>
-          {sourceSlices.length === 0 ? (
-            <p className="ta-cell-mute">No applications in this period.</p>
+        {/* Notice Period Analysis — one glance tells TA how many candidates
+            are close to being free to join, so they know who to chase. */}
+        <Card
+          title={<CardTitle icon="Clock3">Notice Period Analysis</CardTitle>}
+          className="ta-card--tint-green"
+          action={(
+            <div className="ta-card__actions">
+              <button className="ta-link" onClick={() => navigate('/ta/candidates')}>View candidates <Icon name="ArrowRight" size={13} /></button>
+              <ExpandToggle expanded={noticeExpanded} onToggle={() => setNoticeExpanded((e) => !e)} label="Notice Period Analysis" />
+            </div>
+          )}
+        >
+          {activeForNotice.length === 0 ? (
+            <p className="ta-cell-mute">No active candidates to analyse.</p>
           ) : (
-            <>
+            <div className={`ta-collapsible${noticeExpanded ? '' : ' is-collapsed'}`}>
+              {/* Donut chart: candidates grouped by their notice period length.
+                  Clicking a slice/legend row jumps to the candidates table, pre-filtered to it. */}
               <DonutChart
-                slices={sourceSlices}
-                caption="Total"
-                onSliceClick={(label) => navigate(`/ta/candidates?source=${encodeURIComponent(label)}`)}
+                slices={noticeSlices}
+                caption="Candidates"
+                onSliceClick={(label) => navigate(`/ta/candidates?notice=${encodeURIComponent(label)}`)}
               />
-              {(() => {
-                const total = sourceSlices.reduce((s, x) => s + x.value, 0) || 1;
-                const top = [...sourceSlices].sort((a, b) => b.value - a.value)[0];
-                return (
-                  <div className="ta-donut-note">
-                    <span className="ta-legend__dot" style={{ background: top.color }} />
-                    <span><strong>{top.label}</strong> is the leading channel — {Math.round((top.value / total) * 100)}% of applications in this period.</span>
-                  </div>
-                );
-              })()}
-            </>
+
+              {/* Callout: how many can join soon, so TA knows to follow up now */}
+              <button className="ta-notice-callout" onClick={() => navigate('/ta/candidates')}>
+                <Icon name="CalendarClock" size={16} />
+                <span>
+                  <b>{soonCount}</b> candidate{soonCount === 1 ? '' : 's'} can join within {SOON_THRESHOLD_DAYS} days — reach out now
+                </span>
+              </button>
+            </div>
           )}
         </Card>
       </div>
-
-      {/* Notice Period Analysis — one glance tells TA how many candidates
-          are close to being free to join, so they know who to chase. */}
-      <Card
-        title="Notice Period Analysis"
-        action={<button className="ta-link" onClick={() => navigate('/ta/candidates')}>View candidates <Icon name="ArrowRight" size={13} /></button>}
-      >
-        {activeForNotice.length === 0 ? (
-          <p className="ta-cell-mute">No active candidates to analyse.</p>
-        ) : (
-          <>
-            {/* Donut chart: candidates grouped by their notice period length.
-                Clicking a slice/legend row jumps to the candidates table, pre-filtered to it. */}
-            <DonutChart
-              slices={noticeSlices}
-              caption="Candidates"
-              onSliceClick={(label) => navigate(`/ta/candidates?notice=${encodeURIComponent(label)}`)}
-            />
-
-            {/* Callout: how many can join soon, so TA knows to follow up now */}
-            <button className="ta-notice-callout" onClick={() => navigate('/ta/candidates')}>
-              <Icon name="CalendarClock" size={16} />
-              <span>
-                <b>{soonCount}</b> candidate{soonCount === 1 ? '' : 's'} can join within {SOON_THRESHOLD_DAYS} days — reach out now
-              </span>
-            </button>
-          </>
-        )}
-      </Card>
     </>
   );
 }

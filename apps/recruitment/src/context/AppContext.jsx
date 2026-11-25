@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useAuth } from './AuthContext.jsx';
-import { listAllJobs, createJob as createJobApi, deleteJob as deleteJobApi } from '../api/jobs.js';
+import { listAllJobs, createJob as createJobApi, updateJob as updateJobApi, deleteJob as deleteJobApi } from '../api/jobs.js';
 import { jobFromDb } from '../api/mappers.js';
 
 /**
@@ -43,6 +43,13 @@ export function AppProvider({ children }) {
     []
   );
 
+  const updateJob = useCallback(async (id, payload) => {
+    const row = await updateJobApi(id, payload);
+    const job = jobFromDb(row);
+    setLiveJobs((prev) => (prev || []).map((j) => (j.id === id ? job : j)));
+    return job;
+  }, []);
+
   const deleteJob = useCallback(async (id) => {
     await deleteJobApi(id);
     setLiveJobs((prev) => (prev || []).filter((j) => j.id !== id));
@@ -68,10 +75,11 @@ export function AppProvider({ children }) {
       signOut: auth.signOut,
       reloadJobs,
       createJob,
+      updateJob,
       deleteJob,
       ...selectors,
     }),
-    [auth.role, auth.profile, auth.configured, auth.loading, auth.otpRequired, auth.signOut, reloadJobs, createJob, deleteJob, selectors]
+    [auth.role, auth.profile, auth.configured, auth.loading, auth.otpRequired, auth.signOut, reloadJobs, createJob, updateJob, deleteJob, selectors]
   );
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

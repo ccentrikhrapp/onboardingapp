@@ -1,15 +1,9 @@
 import Icon from '../common/Icon.jsx';
-import NotificationBell from './NotificationBell.jsx';
-import ProfileMenu from './ProfileMenu.jsx';
-import { useApp } from '../../context/AppContext.jsx';
-import { ROLE_META } from '../../constants/roles.js';
 
-/* Single header band: page title (from <TAHeader>) on the left, tools on the right. */
+/* Page-title band: title / back-link / search (from <TAHeader>). Account
+   tools (notifications, profile) live in TATopNav2 above this, not here. */
 export default function TATopbar({ head }) {
-  const { profile, role, signOut } = useApp();
-  const name = profile?.full_name || profile?.email || 'Account';
-  const roleLabel = ROLE_META[role]?.label || 'Talent Acquisition';
-
+  if (!head?.title && !head?.subtitle && !head?.search && !head?.backTo) return null;
   return (
     <header className="ta-topbar">
       <div className="ta-topbar__head">
@@ -23,14 +17,6 @@ export default function TATopbar({ head }) {
       </div>
 
       {head?.search && <div className="global-search">{head.search}</div>}
-      <NotificationBell variant="ta" />
-      <ProfileMenu
-        name={name}
-        roleLabel={roleLabel}
-        links={[{ label: 'Profile & settings', icon: 'Settings', to: '/ta/settings' }]}
-        onSignOut={signOut}
-        afterSignOut="/ta/login"
-      />
     </header>
   );
 }

@@ -1,56 +1,30 @@
-import { useEffect, useState } from 'react';
-import Icon from '../common/Icon.jsx';
-
-// One Lucide line icon per tone — consistent icon language across the
-// dashboard, per the pastel SaaS design system (no photos/3D/emoji).
-const TONE_ICON = {
-  candidates: 'UsersRound',
-  jobs: 'Briefcase',
-  interviews: 'CalendarCheck',
-  offers: 'BadgeCheck',
-};
-
-/* One dashboard KPI tile. `tone` picks the icon + its pastel colour story
-   (set as CSS custom props on `.ta-kpi--<tone>`) — candidates/jobs/
-   interviews/offers. The number is the dominant element; `meter`, when
-   given, becomes a slim proportion line that animates in on mount (not
-   continuously). When a meter has literally nothing behind it yet (0 of
-   0), it renders as a quiet dotted track instead of a 0%-filled bar. */
-export default function KpiCard({ tone = 'candidates', label, value, note, meter, onClick }) {
+/* One dashboard KPI tile — premium glassmorphism gradient card with
+   hover-lift, a colored glow, and a persisted "selected" state on click
+   (shared across the row via `selected`/`onClick` from the parent). */
+export default function KpiCard({ tone = 'candidates', label, value, note, onClick, selected }) {
   const Tag = onClick ? 'button' : 'div';
-  const pct = meter ? Math.max(0, Math.min(100, Math.round((meter.value / (meter.max || 1)) * 100))) : null;
-  const isEmpty = meter != null && meter.value === 0 && pct === 0;
-
-  const [barWidth, setBarWidth] = useState(0);
-  useEffect(() => {
-    if (pct == null) return;
-    const id = requestAnimationFrame(() => setBarWidth(pct));
-    return () => cancelAnimationFrame(id);
-  }, [pct]);
 
   return (
     <Tag
       type={onClick ? 'button' : undefined}
-      className={`ta-kpi ta-kpi--${tone}${onClick ? ' ta-kpi--link' : ''}`}
+      className={`ta-kpi ta-kpi--${tone}${onClick ? ' ta-kpi--link' : ''}${selected ? ' is-selected' : ''}`}
       onClick={onClick}
     >
-      <div className="ta-kpi__head">
-        <span className="ta-kpi__icon"><Icon name={TONE_ICON[tone]} size={18} strokeWidth={2} /></span>
-        {onClick && <Icon name="ArrowUpRight" size={16} className="ta-kpi__go" />}
-      </div>
-
-      <div className="ta-kpi__label">{label}</div>
-      <div className="ta-kpi__value">{value}</div>
-      {note && <div className="ta-kpi__note">{note}</div>}
-
-      {pct != null && (
-        <div className={`ta-kpi__meter${isEmpty ? ' ta-kpi__meter--empty' : ''}`}>
-          <span className="ta-kpi__meter-track">
-            {!isEmpty && <span className="ta-kpi__meter-fill" style={{ width: `${barWidth}%` }} />}
-          </span>
-          {!isEmpty && <span className="ta-kpi__meter-pct">{pct}%</span>}
-        </div>
+      <div className="ta-kpi__sheen" aria-hidden="true" />
+      {tone === 'interviews' && (
+        <>
+          <span className="ta-kpi__hex ta-kpi__hex--a" aria-hidden="true" />
+          <span className="ta-kpi__hex ta-kpi__hex--b" aria-hidden="true" />
+        </>
       )}
+      <div className="ta-kpi__content">
+        <div className="ta-kpi__label">{label}</div>
+        <div className="ta-kpi__value">{value}</div>
+        {/* No up/down arrow here — these notes are plain counts (e.g. "8 still
+            active"), not a measured trend, and prefixing an arrow would imply
+            a direction we haven't actually computed. */}
+        {note && <div className="ta-kpi__note">{note}</div>}
+      </div>
     </Tag>
   );
 }

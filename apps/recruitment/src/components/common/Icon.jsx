@@ -11,6 +11,7 @@ import {
   Home, LifeBuoy, Moon, MessageSquare, Lightbulb, Play, Square, Bot,
   ShieldCheck, Globe, UserPlus, UserCheck,
   StickyNote, MessagesSquare, UserRoundCog, Flag, ArrowRightLeft, ArchiveRestore, Archive, BellRing, UsersRound, Snowflake,
+  List, Kanban, Calendar, Paperclip, LayoutGrid,
 } from 'lucide-react';
 
 const REGISTRY = {
@@ -26,6 +27,7 @@ const REGISTRY = {
   Home, LifeBuoy, Moon, MessageSquare, Lightbulb, Play, Square, Bot,
   ShieldCheck, Globe, UserPlus, UserCheck,
   StickyNote, MessagesSquare, UserRoundCog, Flag, ArrowRightLeft, ArchiveRestore, Archive, BellRing, UsersRound, Snowflake,
+  List, Kanban, Calendar, Paperclip, LayoutGrid,
 };
 
 /**
