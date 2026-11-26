@@ -7,7 +7,7 @@ import Tag from '../../components/ta/Tag.jsx';
 import { useApp } from '../../context/AppContext.jsx';
 import { useToast } from '../../context/ToastContext.jsx';
 import { createTaCandidate, listCandidateIdentities } from '../../api/applications.js';
-import { parseCsv, toCsv, downloadCsv } from '../../utils/csv.js';
+import { parseTransposedCsv, toTransposedCsv, toCsv, downloadCsv } from '../../utils/csv.js';
 import { validateFormFields } from '../../utils/candidateForm.js';
 import { emailError, phoneError } from '../../utils/validation.js';
 
@@ -71,7 +71,7 @@ export default function BulkUploadCandidatesPage() {
   const [done, setDone] = useState(false);
 
   const downloadTemplate = () => {
-    downloadCsv('candidate-bulk-upload-template.csv', toCsv(TEMPLATE_HEADERS, [TEMPLATE_EXAMPLE]));
+    downloadCsv('candidate-bulk-upload-template.csv', toTransposedCsv(TEMPLATE_HEADERS, [TEMPLATE_EXAMPLE]));
   };
 
   const handleFile = async (fileList) => {
@@ -80,7 +80,7 @@ export default function BulkUploadCandidatesPage() {
     setDone(false);
     setFileName(file.name);
     const text = await file.text();
-    const parsed = parseCsv(text);
+    const parsed = parseTransposedCsv(text);
     if (!parsed.length) {
       toast.error('This file has no data rows.');
       setRows([]);
@@ -228,7 +228,10 @@ export default function BulkUploadCandidatesPage() {
 
       <Card title="1. Get the template">
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-          <span className="ta-cell-sub">Fill this in (Excel: "Save As" → CSV) and upload it below.</span>
+          <span className="ta-cell-sub">
+            Field labels go down the first column ({TEMPLATE_HEADERS.join(', ')}), with one additional column per
+            candidate going across. Fill it in (Excel: "Save As" → CSV) and upload it below.
+          </span>
           <Button variant="ghost" icon="Download" onClick={downloadTemplate}>Download CSV template</Button>
         </div>
       </Card>

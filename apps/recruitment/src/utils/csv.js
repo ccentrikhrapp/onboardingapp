@@ -2,8 +2,7 @@
    quotes, newlines) without pulling in a dependency for what's a small,
    well-understood format here. */
 
-/* Tokenizes CSV text into raw rows of fields (no header interpretation) —
-   shared by the normal row/column parser below and the transposed one. */
+/* Tokenizes CSV text into raw rows of fields (no header interpretation). */
 function parseCsvRows(text) {
   const rows = [];
   let row = [];
